@@ -133,11 +133,20 @@ export interface QualifyingEntry {
   q3: string | null;
 }
 
+export type ResultSession = "results" | "qualifying" | "sprint" | "sprintQualifying";
+
 export interface RaceWeekendResults {
   race: GrandPrix;
   results: ClassificationEntry[];
   qualifying: QualifyingEntry[];
   sprint: ClassificationEntry[];
+  /** Sprint qualifying / shootout. Jolpica doesn't publish it, so it only comes from OpenF1 (2023 onward). */
+  sprintQualifying: QualifyingEntry[];
+  /**
+   * Classifications taken from OpenF1 timing data because Jolpica hadn't published them: provisional,
+   * before any later stewards' decisions. Drivers or teams that couldn't be matched to Jolpica have id "".
+   */
+  fromOpenF1: ResultSession[];
 }
 
 /** One row per race with its classification, used for matrices and recent form. */
