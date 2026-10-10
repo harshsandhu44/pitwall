@@ -12,7 +12,7 @@ export function WeatherConditions({ race }: { race: GrandPrix }) {
   const forecast = useForecast(race.circuit.id);
   const now = useNow();
   return (
-    <QueryState query={forecast} loading={<Skeleton className="h-36 w-full" />}>
+    <QueryState query={forecast} loading={<Skeleton className="h-[229px] w-full" />}>
       {(f, res) => {
         const c = f.current;
         const next = now === null ? null : nextSession([race], now);

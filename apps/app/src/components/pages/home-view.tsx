@@ -24,6 +24,27 @@ import { useApi } from "@/lib/api";
 import { driverName, formatDateRange } from "@/lib/format";
 import { useCalendar, useNow, useSeasons } from "@/lib/hooks";
 
+// Placeholders mirror the loaded cards' sizes (mobile / desktop) so nothing below them jumps when data arrives.
+function NextUpSkeleton() {
+  return (
+    <div className="space-y-4" aria-busy="true" aria-label="Loading">
+      <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Skeleton className="h-7 w-48" />
+            <Skeleton className="h-9 w-full sm:h-4" />
+          </div>
+          <Skeleton className="h-[52px] w-40" />
+        </div>
+        <Skeleton className="mx-auto size-32 sm:size-40" />
+      </div>
+      {/* Header row + five sessions */}
+      <Skeleton className="h-[181px] w-full" />
+      <Skeleton className="h-[18px] w-32" />
+    </div>
+  );
+}
+
 /** The overview is always about the newest season. */
 export function HomeView() {
   const season = useSeasons().data?.data?.[0] ?? null;
@@ -37,6 +58,8 @@ export function HomeView() {
   const last = calendar.data?.data && now !== null ? lastFinishedRace(calendar.data.data, now) : null;
   const nextRace = calendar.data?.data && now !== null ? (nextSession(calendar.data.data, now)?.race ?? null) : null;
   const recent = useApi<RaceWeekendResults>(last ? `/api/races/${last.round}?season=${last.season}` : null);
+  // Also true while the season is still unknown (the calendar query is idle until then).
+  const calendarLoading = calendar.isPending || now === null;
 
   return (
     <div className="grid gap-4 lg:grid-cols-3">
@@ -46,45 +69,48 @@ export function HomeView() {
           <CardTitle>Grand Prix weekend</CardTitle>
         </CardHeader>
         <CardContent>
-          <QueryState query={calendar} loading={<Skeleton className="h-48 w-full" />}>
-            {(races, res) => {
-              if (now === null) return <Skeleton className="h-48 w-full" />;
-              const next = nextSession(races, now);
-              if (!next) return <p className="text-sm text-muted-foreground">The {season} season is complete. The next calendar hasn&apos;t been published by Jolpica yet.</p>;
-              const { race } = next;
-              return (
-                <div className="space-y-4">
-                  <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
-                    <div className="space-y-3">
-                      <div>
-                        <Link href={`/race?season=${race.season}&round=${race.round}`} className="text-lg font-semibold hover:underline">
-                          {race.name}
-                        </Link>
-                        <p className="text-sm text-muted-foreground">
-                          Round {race.round} · {race.circuit.name}, {race.circuit.locality}, {race.circuit.country} · {formatDateRange(race.sessions)}
-                        </p>
+          {calendarLoading ? (
+            <NextUpSkeleton />
+          ) : (
+            <QueryState query={calendar}>
+              {(races, res) => {
+                const next = nextSession(races, now);
+                if (!next) return <p className="text-sm text-muted-foreground">The {season} season is complete. The next calendar hasn&apos;t been published by Jolpica yet.</p>;
+                const { race } = next;
+                return (
+                  <div className="space-y-4">
+                    <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
+                      <div className="space-y-3">
+                        <div>
+                          <Link href={`/race?season=${race.season}&round=${race.round}`} className="text-lg font-semibold hover:underline">
+                            {race.name}
+                          </Link>
+                          <p className="text-sm text-muted-foreground">
+                            Round {race.round} · {race.circuit.name}, {race.circuit.locality}, {race.circuit.country} · {formatDateRange(race.sessions)}
+                          </p>
+                        </div>
+                        <RaceCountdown next={next} />
+                        {next.state === "in_window" && (
+                          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <TimerIcon aria-hidden className="size-3.5" />
+                            <span>
+                              Live timing isn&apos;t available from any free, permitted source.{" "}
+                              <Link href="/live" className="font-medium text-foreground underline">
+                                Live status and latest replay
+                              </Link>
+                            </span>
+                          </p>
+                        )}
                       </div>
-                      <RaceCountdown next={next} />
-                      {next.state === "in_window" && (
-                        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <TimerIcon aria-hidden className="size-3.5" />
-                          <span>
-                            Live timing isn&apos;t available from any free, permitted source.{" "}
-                            <Link href="/live" className="font-medium text-foreground underline">
-                              Live status and latest replay
-                            </Link>
-                          </span>
-                        </p>
-                      )}
+                      <CircuitOutline circuit={race.circuit} className="mx-auto w-32 sm:w-40" />
                     </div>
-                    <CircuitOutline circuit={race.circuit} className="mx-auto w-32 sm:w-40" />
+                    <SessionSchedule race={race} />
+                    <SourceNote res={res} />
                   </div>
-                  <SessionSchedule race={race} />
-                  <SourceNote res={res} />
-                </div>
-              );
-            }}
-          </QueryState>
+                );
+              }}
+            </QueryState>
+          )}
         </CardContent>
       </Card>
 
@@ -101,8 +127,8 @@ export function HomeView() {
         <CardContent>
           {nextRace ? (
             <WeatherConditions race={nextRace} />
-          ) : calendar.isPending ? (
-            <Skeleton className="h-36 w-full" />
+          ) : calendarLoading ? (
+            <Skeleton className="h-[229px] w-full" />
           ) : (
             <p className="text-sm text-muted-foreground">No upcoming race to forecast.</p>
           )}
@@ -116,9 +142,9 @@ export function HomeView() {
         </CardHeader>
         <CardContent>
           {!last ? (
-            calendar.isPending ? <Skeleton className="h-32 w-full" /> : <p className="text-sm text-muted-foreground">No race has finished yet this season.</p>
+            calendarLoading ? <Skeleton className="h-[130px] w-full" /> : <p className="text-sm text-muted-foreground">No race has finished yet this season.</p>
           ) : (
-            <QueryState query={recent} loading={<Skeleton className="h-32 w-full" />}>
+            <QueryState query={recent} loading={<Skeleton className="h-[130px] w-full" />}>
               {(r, res) =>
                 !r.results.length ? (
                   <p className="text-sm text-muted-foreground">Results haven&apos;t been published yet.</p>
@@ -149,11 +175,15 @@ export function HomeView() {
             </QueryState>
           )}
         </CardContent>
-        {last && (
+        {(last || calendarLoading) && (
           <CardFooter>
-            <Link href={`/race?season=${last.season}&round=${last.round}`} className="flex items-center gap-1 text-xs hover:underline">
-              Full results <ArrowRightIcon aria-hidden className="size-3" />
-            </Link>
+            {last ? (
+              <Link href={`/race?season=${last.season}&round=${last.round}`} className="flex items-center gap-1 text-xs hover:underline">
+                Full results <ArrowRightIcon aria-hidden className="size-3" />
+              </Link>
+            ) : (
+              <Skeleton className="h-4 w-24" />
+            )}
           </CardFooter>
         )}
       </Card>
@@ -167,14 +197,19 @@ export function HomeView() {
           </CardAction>
         </CardHeader>
         <CardContent>
-          <QueryState query={drivers}>
-            {(s, res) => (
-              <div className="space-y-2">
-                <DriverStandingsTable standings={s} progression={driverProgression.data?.data ?? undefined} limit={5} />
-                <SourceNote res={res} />
-              </div>
-            )}
-          </QueryState>
+          {drivers.isPending ? (
+            // Mobile rows are taller: the team name sits under the driver.
+            <Skeleton className="h-[304px] w-full sm:h-[230px]" />
+          ) : (
+            <QueryState query={drivers}>
+              {(s, res) => (
+                <div className="space-y-2">
+                  <DriverStandingsTable standings={s} progression={driverProgression.data?.data ?? undefined} limit={5} />
+                  <SourceNote res={res} />
+                </div>
+              )}
+            </QueryState>
+          )}
         </CardContent>
       </Card>
 
@@ -184,14 +219,18 @@ export function HomeView() {
           <CardTitle>Constructors</CardTitle>
         </CardHeader>
         <CardContent>
-          <QueryState query={constructors}>
-            {(s, res) => (
-              <div className="space-y-2">
-                <ConstructorStandingsTable standings={s} progression={constructorProgression.data?.data ?? undefined} limit={5} />
-                <SourceNote res={res} />
-              </div>
-            )}
-          </QueryState>
+          {constructors.isPending ? (
+            <Skeleton className="h-[230px] w-full" />
+          ) : (
+            <QueryState query={constructors}>
+              {(s, res) => (
+                <div className="space-y-2">
+                  <ConstructorStandingsTable standings={s} progression={constructorProgression.data?.data ?? undefined} limit={5} />
+                  <SourceNote res={res} />
+                </div>
+              )}
+            </QueryState>
+          )}
         </CardContent>
       </Card>
     </div>
