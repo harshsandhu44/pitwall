@@ -10,6 +10,8 @@ import type {
 import { z } from "zod";
 import { cached, cleanupSnapshots, failure, must } from "./cache";
 import * as jolpica from "./providers/jolpica";
+import * as openmeteo from "./providers/openmeteo";
+import * as rainviewer from "./providers/rainviewer";
 import { UpstreamError } from "./upstream";
 
 const HOUR = 3600;
@@ -127,6 +129,17 @@ async function profile(env: Env, ctx: ExecutionContext, kind: "drivers" | "const
   return { ...s, career, seasonsTotal: s.seasons.length };
 }
 
+const circuitInfo = async (env: Env, ctx: ExecutionContext, id: string) => {
+  const c = must(
+    await cached(env, ctx, { key: `circuit/${id}`, source: "jolpica", ttl: 30 * DAY }, async () => {
+      const c = await jolpica.circuit(id, env.USER_AGENT);
+      if (!c) throw new UpstreamError("jolpica", "not_found", `unknown circuit "${id}"`);
+      return c;
+    }),
+  );
+  return c;
+};
+
 // ---- Routes ----
 
 const routes: [RegExp, Handler][] = [
@@ -195,6 +208,30 @@ const routes: [RegExp, Handler][] = [
       const id = param(Id, match[2], "id");
       return cached(env, ctx, { key: `${kind}/${id}`, source: "jolpica", ttl: DAY }, () => profile(env, ctx, kind, id));
     },
+  ],
+  [
+    /^\/api\/weather\/(forecast|cloud-grid)$/,
+    ({ url, env, ctx, match }) => {
+      const id = param(Id, url.searchParams.get("circuit"), "circuit");
+      const grid = match[1] === "cloud-grid";
+      // Forecast + model "current" refresh every 15 min; the 49-point grid hourly (models update at most hourly).
+      return cached(
+        env,
+        ctx,
+        { key: `weather/${match[1]}/${id}`, source: "open-meteo", ttl: grid ? HOUR : 15 * 60 },
+        async () => {
+          const c = await circuitInfo(env, ctx, id);
+          return grid
+            ? openmeteo.cloudGrid(id, c.lat, c.lon, env.USER_AGENT)
+            : openmeteo.forecast(id, c.lat, c.lon, env.USER_AGENT);
+        },
+      );
+    },
+  ],
+  [
+    /^\/api\/weather\/radar$/,
+    ({ env, ctx }) =>
+      cached(env, ctx, { key: "weather/radar", source: "rainviewer", ttl: 5 * 60, persist: false }, () => rainviewer.radar(env.USER_AGENT)),
   ],
 ];
 

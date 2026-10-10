@@ -329,3 +329,11 @@ export async function subject(kind: "drivers" | "constructors", id: string, ua: 
   const c = info.MRData.ConstructorTable.Constructors[0];
   return c ? { constructor: toConstructor(c), seasons } : null;
 }
+
+const CircuitTable = page({ CircuitTable: z.object({ Circuits: z.array(JCircuit) }) });
+
+/** Circuit identity and coordinates (no season context, so no layout). */
+export async function circuit(id: string, ua: string) {
+  const c = (await get(`circuits/${id}.json`, CircuitTable, ua)).MRData.CircuitTable.Circuits[0];
+  return c ? circuitFor(c, 0, 0) : null;
+}
