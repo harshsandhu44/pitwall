@@ -1,0 +1,171 @@
+"use client";
+
+import {
+  type ConstructorStanding,
+  type DriverStanding,
+  lastFinishedRace,
+  nextSession,
+  type PointsProgression,
+  type RaceWeekendResults,
+  type Standings,
+} from "@pitwall/shared";
+import { ArrowRightIcon, TimerIcon } from "lucide-react";
+import Link from "next/link";
+import { QueryState, SourceNote } from "@/components/data/query-state";
+import { CircuitOutline } from "@/components/racing/circuit-outline";
+import { RaceCountdown } from "@/components/racing/race-countdown";
+import { SessionSchedule } from "@/components/racing/session-schedule";
+import { ConstructorStandingsTable } from "@/components/standings/constructor-standings-table";
+import { DriverStandingsTable } from "@/components/standings/driver-standings-table";
+import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useApi } from "@/lib/api";
+import { driverName, formatDateRange } from "@/lib/format";
+import { useCalendar, useNow, useSeasons } from "@/lib/hooks";
+
+/** The overview is always about the newest season. */
+export function HomeView() {
+  const season = useSeasons().data?.data?.[0] ?? null;
+  const calendar = useCalendar(season);
+  const now = useNow();
+  const q = (path: string) => (season ? `${path}${path.includes("?") ? "&" : "?"}season=${season}` : null);
+  const drivers = useApi<Standings<DriverStanding>>(q("/api/standings/drivers"));
+  const constructors = useApi<Standings<ConstructorStanding>>(q("/api/standings/constructors"));
+  const driverProgression = useApi<PointsProgression>(q("/api/standings/progression?type=drivers"));
+  const constructorProgression = useApi<PointsProgression>(q("/api/standings/progression?type=constructors"));
+  const last = calendar.data?.data && now !== null ? lastFinishedRace(calendar.data.data, now) : null;
+  const recent = useApi<RaceWeekendResults>(last ? `/api/races/${last.round}?season=${last.season}` : null);
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-3">
+      <Card className="lg:col-span-2">
+        <CardHeader>
+          <CardDescription>Next up</CardDescription>
+          <CardTitle>Grand Prix weekend</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <QueryState query={calendar} loading={<Skeleton className="h-48 w-full" />}>
+            {(races, res) => {
+              if (now === null) return <Skeleton className="h-48 w-full" />;
+              const next = nextSession(races, now);
+              if (!next) return <p className="text-sm text-muted-foreground">The {season} season is complete. The next calendar hasn&apos;t been published by Jolpica yet.</p>;
+              const { race } = next;
+              return (
+                <div className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
+                    <div className="space-y-3">
+                      <div>
+                        <Link href={`/race?season=${race.season}&round=${race.round}`} className="text-lg font-semibold hover:underline">
+                          {race.name}
+                        </Link>
+                        <p className="text-sm text-muted-foreground">
+                          Round {race.round} · {race.circuit.name}, {race.circuit.locality}, {race.circuit.country} · {formatDateRange(race.sessions)}
+                        </p>
+                      </div>
+                      <RaceCountdown next={next} />
+                      {next.state === "in_window" && (
+                        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <TimerIcon aria-hidden className="size-3.5" />
+                          Live timing isn&apos;t available from any free, permitted source — see the race page for the schedule and results as they publish.
+                        </p>
+                      )}
+                    </div>
+                    <CircuitOutline circuit={race.circuit} className="mx-auto w-32 sm:w-40" />
+                  </div>
+                  <SessionSchedule race={race} />
+                  <SourceNote res={res} />
+                </div>
+              );
+            }}
+          </QueryState>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardDescription>Most recent race</CardDescription>
+          <CardTitle>{last?.name ?? "—"}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!last ? (
+            calendar.isPending ? <Skeleton className="h-32 w-full" /> : <p className="text-sm text-muted-foreground">No race has finished yet this season.</p>
+          ) : (
+            <QueryState query={recent} loading={<Skeleton className="h-32 w-full" />}>
+              {(r, res) =>
+                !r.results.length ? (
+                  <p className="text-sm text-muted-foreground">Results haven&apos;t been published yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    <ol className="space-y-1.5" aria-label="Podium">
+                      {r.results.slice(0, 3).map((e) => (
+                        <li key={e.driver.id} className="flex items-baseline gap-2 text-sm">
+                          <span className="w-5 font-mono text-muted-foreground tabular-nums">P{e.positionText}</span>
+                          <span className="flex-1 font-medium">{driverName(e.driver)}</span>
+                          <span className="font-mono text-xs text-muted-foreground tabular-nums">{e.time ?? e.status}</span>
+                        </li>
+                      ))}
+                    </ol>
+                    {(() => {
+                      const fl = r.results.find((e) => e.fastestLap?.rank === 1);
+                      return fl?.fastestLap?.time ? (
+                        <p className="text-xs text-muted-foreground">
+                          Fastest lap: <span className="text-foreground">{driverName(fl.driver)}</span>{" "}
+                          <span className="font-mono tabular-nums">{fl.fastestLap.time}</span> (lap {fl.fastestLap.lap ?? "?"})
+                        </p>
+                      ) : null;
+                    })()}
+                    <SourceNote res={res} />
+                  </div>
+                )
+              }
+            </QueryState>
+          )}
+        </CardContent>
+        {last && (
+          <CardFooter>
+            <Link href={`/race?season=${last.season}&round=${last.round}`} className="flex items-center gap-1 text-xs hover:underline">
+              Full results <ArrowRightIcon aria-hidden className="size-3" />
+            </Link>
+          </CardFooter>
+        )}
+      </Card>
+
+      <Card className="lg:col-span-2">
+        <CardHeader>
+          <CardDescription>{season} championship</CardDescription>
+          <CardTitle>Drivers</CardTitle>
+          <CardAction>
+            <Link href={`/standings?season=${season ?? ""}`} className="text-xs hover:underline">Full standings</Link>
+          </CardAction>
+        </CardHeader>
+        <CardContent>
+          <QueryState query={drivers}>
+            {(s, res) => (
+              <div className="space-y-2">
+                <DriverStandingsTable standings={s} progression={driverProgression.data?.data ?? undefined} limit={5} />
+                <SourceNote res={res} />
+              </div>
+            )}
+          </QueryState>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardDescription>{season} championship</CardDescription>
+          <CardTitle>Constructors</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <QueryState query={constructors}>
+            {(s, res) => (
+              <div className="space-y-2">
+                <ConstructorStandingsTable standings={s} progression={constructorProgression.data?.data ?? undefined} limit={5} />
+                <SourceNote res={res} />
+              </div>
+            )}
+          </QueryState>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
