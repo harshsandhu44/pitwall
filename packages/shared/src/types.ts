@@ -255,3 +255,85 @@ export interface RadarFrames {
   maxZoom: number;
   colorScheme: number;
 }
+
+// ---- Replay (OpenF1 historical data, 2023 onward) ----
+// Times are epoch milliseconds unless named otherwise. Track x/y are OpenF1's own unitless coordinates.
+
+export interface ReplaySession {
+  key: number;
+  meetingKey: number;
+  meetingName: string;
+  /** "Race", "Sprint", "Qualifying", "Practice 1", … */
+  name: string;
+  /** OpenF1 session_type ("Race" covers sprints too). */
+  type: string;
+  circuit: string;
+  country: string;
+  /** Scheduled window (ISO). */
+  start: string;
+  end: string;
+}
+
+export interface ReplayDriver {
+  number: number;
+  acronym: string;
+  name: string;
+  team: string | null;
+  /** "#RRGGBB" from OpenF1, null when not published. */
+  colour: string | null;
+  /** Jolpica driver id when it could be matched by code or number. */
+  driverId: string | null;
+}
+
+export interface ReplayLap {
+  lap: number;
+  start: number | null;
+  /** Seconds. */
+  duration: number | null;
+  sectors: [number | null, number | null, number | null];
+  pitOut: boolean;
+}
+
+export interface ReplayStint {
+  stint: number;
+  lapStart: number;
+  lapEnd: number;
+  compound: string | null;
+  ageAtStart: number | null;
+}
+
+export interface SessionReplay {
+  session: ReplaySession;
+  /** Playback range: scheduled start to the later of the scheduled end and the last recorded lap. */
+  range: { start: number; end: number };
+  drivers: ReplayDriver[];
+  /** Keyed by driver number, sorted by lap. */
+  laps: Record<number, ReplayLap[]>;
+  stints: Record<number, ReplayStint[]>;
+  /** Pit-lane visits (includes red-flag entries), sorted by time. */
+  pits: { driver: number; t: number; lap: number | null; laneSeconds: number | null }[];
+  /** Official running-order changes, sorted by time. */
+  positions: { driver: number; t: number; position: number }[];
+  raceControl: { t: number; lap: number | null; category: string; flag: string | null; driver: number | null; message: string }[];
+  /** Track-side observations. Wind in m/s as published. */
+  weather: {
+    t: number;
+    air: number | null;
+    track: number | null;
+    humidity: number | null;
+    windSpeed: number | null;
+    windDirection: number | null;
+    rainfall: boolean | null;
+  }[];
+  /** Outline traced from one driver's recorded positions on their fastest lap; null without a usable lap. */
+  track: { driver: number; lap: number; x: number[]; y: number[] } | null;
+}
+
+/** Recorded car positions for one fixed window. Sample times are ms offsets from `from` (may be <0 or ≥ window: 1 s overlap each side). */
+export interface PositionWindow {
+  from: number;
+  to: number;
+  cars: Record<number, { t: number[]; x: number[]; y: number[] }>;
+  /** Races and sprints only: seconds, or text such as "+1 LAP". */
+  intervals: Record<number, { t: number[]; gap: (number | string | null)[]; interval: (number | string | null)[] }>;
+}
