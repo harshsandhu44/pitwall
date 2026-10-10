@@ -3,6 +3,9 @@ import {
   type CareerSeason,
   type ConstructorStanding,
   type DriverStanding,
+  LIVE_UNAVAILABLE_DETAIL,
+  type LiveStatus,
+  nextSession,
   type PointsProgression,
   type RaceWeekendResults,
   type Standings,
@@ -40,6 +43,9 @@ type Ctx = { url: URL; env: Env; ctx: ExecutionContext; match: RegExpMatchArray 
 type Handler = (c: Ctx) => Promise<ApiResponse<unknown>>;
 
 // ---- Composable cached loaders ----
+
+const seasons = (env: Env, ctx: ExecutionContext) =>
+  cached(env, ctx, { key: "seasons", source: "jolpica", ttl: DAY }, () => jolpica.seasons(env.USER_AGENT));
 
 const calendar = (env: Env, ctx: ExecutionContext, season: number) =>
   cached(env, ctx, { key: `calendar/${season}`, source: "jolpica", ttl: seasonTtl(season, 6 * HOUR) }, () =>
@@ -166,6 +172,43 @@ const replay = (env: Env, ctx: ExecutionContext, key: number) =>
     openf1.replay(key, (season) => seasonDrivers(env, ctx, season), env.USER_AGENT),
   );
 
+// ---- Live (contract only) ----
+
+/** Always UNAVAILABLE: there is no permitted free live source. Context (next session, latest replay) is best effort. */
+async function liveStatus(env: Env, ctx: ExecutionContext): Promise<LiveStatus> {
+  const optional = async <T>(f: () => Promise<T>) => {
+    try {
+      return await f();
+    } catch {
+      return null;
+    }
+  };
+  const latest = (await optional(async () => must(await seasons(env, ctx))[0])) ?? new Date().getUTCFullYear();
+  const next = await optional(async () => nextSession(must(await calendar(env, ctx, latest))));
+  const latestReplay = await optional(async () => {
+    const list = must(await replaySessions(env, ctx, latest));
+    return list.at(-1) ?? must(await replaySessions(env, ctx, latest - 1)).at(-1) ?? null;
+  });
+  return {
+    state: "UNAVAILABLE",
+    reason: "no_permitted_free_source",
+    detail: LIVE_UNAVAILABLE_DETAIL,
+    next: next && { race: next.race, session: next.session, inWindow: next.state === "in_window" },
+    latestReplay,
+  };
+}
+
+const liveUnavailable = (): ApiResponse<never> => ({
+  status: "unavailable",
+  data: null,
+  source: "pitwall",
+  fetchedAt: null,
+  observedAt: null,
+  cache: "none",
+  maxAgeSeconds: 0,
+  reason: `no_permitted_free_source: ${LIVE_UNAVAILABLE_DETAIL}`,
+});
+
 // ---- Routes ----
 
 const routes: [RegExp, Handler][] = [
@@ -183,7 +226,7 @@ const routes: [RegExp, Handler][] = [
   ],
   [
     /^\/api\/seasons$/,
-    ({ env, ctx }) => cached(env, ctx, { key: "seasons", source: "jolpica", ttl: DAY }, () => jolpica.seasons(env.USER_AGENT)),
+    ({ env, ctx }) => seasons(env, ctx),
   ],
   [/^\/api\/calendar$/, ({ url, env, ctx }) => calendar(env, ctx, param(Season, url.searchParams.get("season"), "season"))],
   [
@@ -254,6 +297,19 @@ const routes: [RegExp, Handler][] = [
       );
     },
   ],
+  [
+    /^\/api\/live\/session$/,
+    async ({ env, ctx }) => ({
+      status: "ok",
+      data: await liveStatus(env, ctx),
+      source: "pitwall",
+      fetchedAt: new Date().toISOString(),
+      observedAt: null,
+      cache: "none",
+      maxAgeSeconds: 60,
+    }),
+  ],
+  [/^\/api\/live\/(timing|positions)$/, async () => liveUnavailable()],
   [
     /^\/api\/replay\/sessions$/,
     ({ url, env, ctx }) => replaySessions(env, ctx, param(Season, url.searchParams.get("season"), "season")),
