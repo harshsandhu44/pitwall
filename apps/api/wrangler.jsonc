@@ -4,17 +4,19 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
   "observability": { "enabled": true },
+  // Same origin as the app: this route runs in front of the app's custom domain for /api/* only.
+  "routes": [{ "pattern": "f1.harshsandhu.com/api/*", "zone_name": "harshsandhu.com" }],
+  "workers_dev": false,
   "vars": {
-    // Comma-separated origins allowed by CORS. Set the deployed app origin here.
+    // Comma-separated origins allowed by CORS. Production is same-origin, so only local dev needs this.
     "ALLOWED_ORIGINS": "http://localhost:3000,http://localhost:8788",
-    "USER_AGENT": "Pitwall/0.1 (non-commercial F1 dashboard)"
+    "USER_AGENT": "Pitwall/0.1 (non-commercial F1 dashboard; +https://f1.harshsandhu.com)"
   },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "pitwall",
-      // Replace with the id printed by `wrangler d1 create pitwall` before deploying.
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "715b1503-44fe-49d9-ba10-b908b3cf7c07",
       "migrations_dir": "migrations"
     }
   ],

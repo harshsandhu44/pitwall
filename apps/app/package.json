@@ -10,7 +10,7 @@
     "check-types": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "preview": "wrangler dev --port 8788",
-    "deploy": "wrangler deploy"
+    "deploy": "NEXT_PUBLIC_API_URL= pnpm build && wrangler deploy"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

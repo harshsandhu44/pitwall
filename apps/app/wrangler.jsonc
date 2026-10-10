@@ -3,6 +3,8 @@
   // Static export served as Workers static assets: no Worker script, so requests never use Worker CPU.
   "name": "pitwall-app",
   "compatibility_date": "2026-10-01",
+  "routes": [{ "pattern": "f1.harshsandhu.com", "custom_domain": true }],
+  "workers_dev": false,
   "assets": {
     "directory": "./out",
     "not_found_handling": "404-page"
