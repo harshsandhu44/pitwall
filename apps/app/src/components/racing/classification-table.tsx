@@ -3,6 +3,7 @@ import Link from "next/link";
 import { EmptyState } from "@/components/data/query-state";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { driverName, formatPoints } from "@/lib/format";
+import { TeamMark } from "@/components/racing/team-mark";
 
 export function ClassificationTable({ entries, season, caption }: { entries: ClassificationEntry[]; season: number; caption: string }) {
   if (!entries.length) return <EmptyState>Not published yet.</EmptyState>;
@@ -30,6 +31,7 @@ export function ClassificationTable({ entries, season, caption }: { entries: Cla
               <span className="block text-[11px] text-muted-foreground sm:hidden">{e.constructor.name}</span>
             </TableCell>
             <TableCell className="hidden sm:table-cell">
+              <TeamMark id={e.constructor.id} season={season} />
               <Link href={`/team?id=${e.constructor.id}&season=${season}`} className="hover:underline">{e.constructor.name}</Link>
             </TableCell>
             <TableCell className="hidden text-right font-mono tabular-nums md:table-cell">{e.grid === 0 ? "PL" : e.grid ?? "—"}</TableCell>

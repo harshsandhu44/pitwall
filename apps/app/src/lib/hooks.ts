@@ -1,6 +1,6 @@
 "use client";
 
-import type { CloudGrid, GrandPrix, RadarFrames, WeatherForecast } from "@pitwall/shared";
+import type { CloudGrid, GrandPrix, RadarFrames, ReplaySession, SessionReplay, WeatherForecast } from "@pitwall/shared";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useSyncExternalStore } from "react";
 import { useApi } from "./api";
@@ -67,3 +67,10 @@ export const useForecast = (circuitId: string | null) =>
 export const useCloudGrid = (circuitId: string | null) =>
   useApi<CloudGrid>(circuitId ? `/api/weather/cloud-grid?circuit=${circuitId}` : null);
 export const useRadar = () => useApi<RadarFrames>("/api/weather/radar");
+
+/** Constructor id → "#RRGGBB" from OpenF1 (2023 onward; empty before). */
+export const useTeamColours = (season: number) => useApi<Record<string, string>>(`/api/team-colours?season=${season}`);
+
+export const useReplaySessions = (season: number | null) =>
+  useApi<ReplaySession[]>(season !== null && season >= 2023 ? `/api/replay/sessions?season=${season}` : null);
+export const useReplay = (key: number | null) => useApi<SessionReplay>(key === null ? null : `/api/replay/${key}`);

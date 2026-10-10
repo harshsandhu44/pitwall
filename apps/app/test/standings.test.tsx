@@ -13,6 +13,7 @@ const routes = (season: number) => ({
   [`/api/standings/constructors?season=${season}`]: () => envelope(constructorStandings(season)),
   [`/api/results?season=${season}`]: () => envelope({ season, races: [] }),
   [`/api/standings/progression?type=drivers&season=${season}`]: () => envelope(progression),
+  [`/api/team-colours?season=${season}`]: () => envelope(season >= 2023 ? { mercedes: "#27F4D2" } : {}),
 });
 
 describe("standings", () => {
@@ -38,6 +39,16 @@ describe("standings", () => {
     await userEvent.type(screen.getByRole("searchbox", { name: "Search drivers" }), "ferrari");
     expect(within(table).getAllByRole("row")).toHaveLength(2);
     expect(table).toHaveTextContent("Leclerc");
+  });
+
+  it("marks teams with OpenF1 colours and leaves teams without one neutral", async () => {
+    nav.params = new URLSearchParams("season=2025");
+    mockApi(routes(2025));
+    renderWithQuery(<StandingsView />);
+    const table = await screen.findByRole("table");
+    const mark = (team: string) => within(table).getAllByRole("link", { name: team })[0]!.previousElementSibling as HTMLElement;
+    await waitFor(() => expect(mark("Mercedes").style.backgroundColor).toBe("rgb(39, 244, 210)"));
+    expect(mark("Ferrari").style.backgroundColor).toBe("");
   });
 
   it("sorts by points ascending when the header is toggled", async () => {

@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/data/query-state";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatPoints } from "@/lib/format";
 import { lastTwo, PositionChange } from "./position-change";
+import { TeamMark } from "@/components/racing/team-mark";
 
 export function ConstructorStandingsTable({
   standings,
@@ -78,6 +79,7 @@ export function ConstructorStandingsTable({
                 </span>
               </TableCell>
               <TableCell>
+                <TeamMark id={e.constructor.id} season={standings.season} />
                 <Link href={`/team?id=${e.constructor.id}&season=${standings.season}`} className="font-medium hover:underline">
                   {e.constructor.name}
                 </Link>

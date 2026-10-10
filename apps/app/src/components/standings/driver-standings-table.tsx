@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/data/query-state";
 import { lastTwo, PositionChange } from "./position-change";
 import { RecentResults } from "./recent-results";
 import { type Sort, SortHeader, sortBy } from "./sort-header";
+import { TeamMark } from "@/components/racing/team-mark";
 
 type Key = "position" | "driver" | "number" | "team" | "points" | "wins";
 
@@ -125,6 +126,7 @@ export function DriverStandingsTable({
                       {e.constructors.map((c, i) => (
                         <span key={c.id}>
                           {i > 0 && " / "}
+                          <TeamMark id={c.id} season={standings.season} />
                           <Link href={`/team?id=${c.id}&season=${standings.season}`} className="hover:underline">{c.name}</Link>
                         </span>
                       ))}
