@@ -16,7 +16,7 @@ export function NextRaceIndicator() {
   const { race, session, state } = next;
   return (
     <Link
-      href={`/race?season=${race.season}&round=${race.round}`}
+      href={state === "in_window" ? "/live" : `/race?season=${race.season}&round=${race.round}`}
       className="hidden min-w-0 items-center gap-2 truncate rounded-md px-2 py-1 text-xs hover:bg-muted lg:flex"
     >
       <span className="truncate text-muted-foreground">{race.name}</span>

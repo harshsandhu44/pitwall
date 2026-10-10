@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDaysIcon, CloudSunRainIcon, GaugeIcon, HistoryIcon, HouseIcon, TrophyIcon } from "lucide-react";
+import { CalendarDaysIcon, CloudSunRainIcon, GaugeIcon, HistoryIcon, HouseIcon, RadioTowerIcon, TrophyIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { type ReactNode, Suspense } from "react";
@@ -32,6 +32,7 @@ export const NAV = [
   { href: "/standings", label: "Standings", icon: TrophyIcon },
   { href: "/weather", label: "Weather", icon: CloudSunRainIcon },
   { href: "/replay", label: "Replay", icon: HistoryIcon },
+  { href: "/live", label: "Live", icon: RadioTowerIcon },
 ] as const;
 
 function NavLinks() {

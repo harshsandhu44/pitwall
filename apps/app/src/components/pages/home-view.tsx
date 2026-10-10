@@ -68,7 +68,12 @@ export function HomeView() {
                       {next.state === "in_window" && (
                         <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                           <TimerIcon aria-hidden className="size-3.5" />
-                          Live timing isn&apos;t available from any free, permitted source — see the race page for the schedule and results as they publish.
+                          <span>
+                            Live timing isn&apos;t available from any free, permitted source.{" "}
+                            <Link href="/live" className="font-medium text-foreground underline">
+                              Live status and latest replay
+                            </Link>
+                          </span>
                         </p>
                       )}
                     </div>
