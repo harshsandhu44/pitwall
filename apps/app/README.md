@@ -1,36 +1,26 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Pitwall app
 
-## Getting Started
+A Next.js 16 static export (`output: "export"`, no server) using shadcn/ui (Base UI), TanStack Query, Recharts and MapLibre. All data comes from the Pitwall API at `NEXT_PUBLIC_API_URL`. See the [root README](../../README.md) for the whole system.
 
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```sh
+cp .env.example .env.local   # NEXT_PUBLIC_API_URL=http://localhost:8787
+pnpm dev                     # http://localhost:3000
+pnpm build && pnpm preview   # static out/ served by wrangler on :8788
+pnpm test                    # Vitest + Testing Library (jsdom); API calls are mocked
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`dev` and `build` first copy MapLibre's worker into `public/maplibre/<version>/` (gitignored). The bundler can't resolve it next to the main module.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Layout
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Path | Role |
+|---|---|
+| `src/app/*/page.tsx` | Thin route shells (Suspense + a view). Routes use query parameters so the export stays static |
+| `src/components/pages` | One view per route |
+| `src/components/{racing,standings,weather,replay}` | Feature components |
+| `src/components/ui` | shadcn/ui primitives, unmodified |
+| `src/lib/api.ts`, `src/lib/hooks.ts` | Typed envelope fetch and query hooks |
+| `src/lib/replay-clock.ts` | requestAnimationFrame replay clock (recorded time × speed, holds while buffering) |
+| `public/circuits` | F1DB layouts (CC BY 4.0, decorative only) |
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Geographic maps (weather) and track drawings (replay outlines traced from OpenF1 positions) are separate coordinate systems and never mixed. F1DB SVGs are decoration only.

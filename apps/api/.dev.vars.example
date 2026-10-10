@@ -1,0 +1,3 @@
+# Copy to .dev.vars to override wrangler.jsonc vars for `wrangler dev`. Pitwall uses no secrets.
+ALLOWED_ORIGINS="http://localhost:3000,http://localhost:8788"
+USER_AGENT="Pitwall/0.1 (non-commercial F1 dashboard)"
