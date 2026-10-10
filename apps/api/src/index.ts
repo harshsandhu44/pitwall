@@ -6,6 +6,7 @@ import {
   type GrandPrix,
   LIVE_UNAVAILABLE_DETAIL,
   type LiveStatus,
+  lastFinishedRace,
   nextSession,
   type PointsProgression,
   type RaceWeekendResults,
@@ -64,7 +65,6 @@ const standings = (
   type: "drivers" | "constructors",
   season: number,
   round: number | null,
-  persist = true,
 ): Promise<ApiResponse<AnyStandings>> =>
   cached<AnyStandings>(
     env,
@@ -73,7 +73,6 @@ const standings = (
       key: `standings/${type}/${season}/${round ?? "latest"}`,
       source: "jolpica",
       ttl: seasonTtl(season, round ? DAY : HOUR),
-      persist,
     },
     () => (type === "drivers" ? jolpica.driverStandings : jolpica.constructorStandings)(season, round, env.USER_AGENT),
   );
@@ -83,9 +82,10 @@ async function progression(env: Env, ctx: ExecutionContext, season: number, type
   const races = must(await calendar(env, ctx, season));
   const latest = must(await standings(env, ctx, type, season, null));
   const lists: AnyStandings[] = [];
-  // Sequential on purpose: Jolpica's burst limit is ~4 req/s and completed rounds are cached individually.
+  // Sequential on purpose: Jolpica's burst limit is ~4 req/s. Completed rounds are snapshotted individually,
+  // so a refresh after a new round needs one new request, and older rounds survive Jolpica refusing.
   for (let round = 1; round < latest.round; round++) {
-    lists.push(must(await standings(env, ctx, type, season, round, false)));
+    lists.push(must(await standings(env, ctx, type, season, round)));
   }
   if (latest.round > 0) lists.push(latest);
 
@@ -427,7 +427,32 @@ const json = (body: unknown, status: number, headers: Record<string, string>) =>
     headers: { "Content-Type": "application/json; charset=utf-8", "X-Content-Type-Options": "nosniff", ...headers },
   });
 
-export default {
+const CLEANUP_CRON = "17 3 * * *";
+
+/**
+ * ponytail: Jolpica rate-limits by IP, and every Worker reaches it from one shared Cloudflare IP, so user requests
+ * are often refused. This cron retries the current season through the normal routes; whatever succeeds lands in D1
+ * for every data centre, and refusals keep serving the last snapshot. Older seasons fill only on demand.
+ */
+async function warmCurrentSeason(env: Env, ctx: ExecutionContext) {
+  const get = async <T>(path: string) =>
+    (await (await handler.fetch(new Request(`https://cron.internal${path}`), env, ctx)).json()) as ApiResponse<T>;
+  const season = (await get<number[]>("/api/seasons")).data?.[0];
+  if (!season) return;
+  const last = lastFinishedRace((await get<GrandPrix[]>(`/api/calendar?season=${season}`)).data ?? []);
+  for (const path of [
+    `/api/standings/drivers?season=${season}`,
+    `/api/standings/constructors?season=${season}`,
+    `/api/standings/progression?season=${season}&type=drivers`,
+    `/api/standings/progression?season=${season}&type=constructors`,
+    `/api/results?season=${season}`,
+    ...(last ? [`/api/races/${last.round}?season=${last.season}`] : []),
+  ]) {
+    await get(path);
+  }
+}
+
+const handler = {
   async fetch(req, env, ctx): Promise<Response> {
     const cors = corsHeaders(req, env);
     if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
@@ -453,7 +478,10 @@ export default {
     return json({ ...failure("pitwall", new Error("no such endpoint")), status: "not_found" }, 404, cors);
   },
 
-  async scheduled(_controller, env) {
-    await cleanupSnapshots(env);
+  async scheduled(controller, env, ctx) {
+    if (controller.cron === CLEANUP_CRON) return cleanupSnapshots(env);
+    await warmCurrentSeason(env, ctx);
   },
 } satisfies ExportedHandler<Env>;
+
+export default handler;

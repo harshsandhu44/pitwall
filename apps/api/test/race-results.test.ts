@@ -1,4 +1,4 @@
-import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
+import { createExecutionContext, createScheduledController, waitOnExecutionContext } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import type { ApiResponse, RaceWeekendResults } from "@pitwall/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -17,6 +17,7 @@ function upstream(openf1Up: boolean) {
     const p = url.pathname;
     if (url.host === "api.jolpi.ca") {
       if (p.endsWith("/driverStandings.json")) return Response.json(sg.standings);
+      if (p.endsWith("/seasons.json")) return Response.json({ MRData: { total: "1", limit: "100", offset: "0", SeasonTable: { Seasons: [{ season: "2026" }] } } });
       if (p.endsWith("/2026.json")) return Response.json(calendar2026);
       return Response.json(empty); // round 17 results, qualifying and sprint: not published yet
     }
@@ -80,5 +81,16 @@ describe("race results fallback", () => {
     upstream(true);
     const { body } = await get<Record<string, string>>("/api/team-colours?season=2026");
     expect(body.data).toMatchObject({ red_bull: "#4781D7", rb: "#6C98FF" });
+  });
+
+  it("cron refreshes the current season into D1 snapshots for every data centre", async () => {
+    upstream(true);
+    const ctx = createExecutionContext();
+    await worker.scheduled!(createScheduledController({ cron: "*/10 * * * *" }), env, ctx);
+    await waitOnExecutionContext(ctx);
+    const { results } = await env.DB.prepare("SELECT key FROM upstream_snapshot").all<{ key: string }>();
+    expect(results.map((r) => r.key)).toEqual(
+      expect.arrayContaining(["seasons", "calendar/2026", "standings/drivers/2026/latest", "standings/drivers/2026/15", "progression/drivers/2026", "race/v2/2026/16"]),
+    );
   });
 });

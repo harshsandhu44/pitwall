@@ -98,6 +98,13 @@ async function readSnapshot<T>(env: Env, key: string): Promise<Entry<T> | null> 
   }
 }
 
+/** A newer D1 snapshot (written by the cron or another data centre) beats another upstream call. */
+async function refresh<T>(env: Env, ctx: ExecutionContext, p: CachePolicy, loader: () => Promise<T>) {
+  const snapshot = p.persist !== false ? await readSnapshot<T>(env, p.key) : null;
+  if (snapshot && Date.now() - snapshot.fetchedAt <= p.ttl * 1000) putCache(ctx, p, snapshot);
+  else await load(env, ctx, p, loader);
+}
+
 /**
  * Cache API (fresh → hit; expired → serve stale and revalidate in the background) → fresh D1 snapshot
  * (shared across data centres) → upstream load (deduped) → on failure, the D1 snapshot marked stale
@@ -113,7 +120,7 @@ export async function cached<T>(
   if (hit) {
     const entry = await hit.json<Entry<T>>();
     if (Date.now() - entry.fetchedAt <= p.ttl * 1000) return envelope(p, entry, "ok", "hit");
-    ctx.waitUntil(load(env, ctx, p, loader).catch(() => {}));
+    ctx.waitUntil(refresh(env, ctx, p, loader).catch(() => {}));
     return envelope(p, entry, "stale", "stale");
   }
   const snapshot = p.persist !== false ? await readSnapshot<T>(env, p.key) : null;

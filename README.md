@@ -85,7 +85,9 @@ HTTP status follows `status`: 200 (`ok`, `stale`), 404, 503 (`unavailable`), 502
 | Replay session, position windows | 30 days | Recorded data doesn't change. Windows live in the Cache API only |
 | Team colours | 1 day | Past seasons: 30 days |
 
-Cache API entries are kept for twice their freshness. A stale entry is served immediately while it refreshes in the background. The Cache API is per data centre, so every successful upstream response is also written to D1 (up to 1.5 MB). A Cache API miss checks D1 first and reuses a still-fresh copy, so each upstream is refreshed about once per freshness window globally rather than once per data centre. If an upstream fails, the D1 copy is served as `stale`. A daily cron deletes snapshots older than 30 days.
+Cache API entries are kept for twice their freshness. A stale entry is served immediately while it refreshes in the background. The Cache API is per data centre, so every successful upstream response is also written to D1 (up to 1.5 MB). A Cache API miss checks D1 first and reuses a still-fresh copy, so each upstream is refreshed about once per freshness window globally rather than once per data centre. If an upstream fails, the D1 copy is served as `stale`. A stale Cache API entry also checks D1 for a newer copy before calling the upstream. A daily cron deletes snapshots older than 30 days.
+
+**Jolpica and Workers.** Jolpica sits behind Cloudflare and rate-limits by IP (500 requests/hour). Every Worker reaches another Cloudflare zone from the same IP, so the deployed Worker shares that budget with all other Workers and is often refused with a 429. To cope, a cron runs every 10 minutes and refreshes the current season through the normal routes: seasons, calendar, standings, progression, results matrix, and the last race. Whatever succeeds is written to D1 for every data centre; refusals keep serving the last snapshot as `stale`. Older seasons are fetched only when someone opens them, so the first visit may show "rate limited" until a request gets through. Per-round standings are stored individually, so the points progression needs only the newest round from Jolpica.
 
 ### D1 schema
 
@@ -162,16 +164,18 @@ Real live tracking would need:
 - Nothing animates on its own. Radar and replay playback start only on request, and `prefers-reduced-motion` turns off transitions and spinners.
 - Lighthouse accessibility scores 100 on home, live, standings, weather and replay.
 
-## Deploying (not done automatically)
+## Deploying
+
+Production is https://f1.harshsandhu.com (zone `harshsandhu.com`, D1 database `pitwall`). The app Worker owns the hostname as a custom domain. The API Worker is a route on `f1.harshsandhu.com/api/*`, which runs in front of the custom domain, so the app calls the API on the same origin with no CORS.
 
 ```sh
-cd apps/api && npx wrangler d1 create pitwall   # put the printed id in wrangler.jsonc
-npx wrangler d1 migrations apply DB --remote && npx wrangler deploy
-# set ALLOWED_ORIGINS in apps/api/wrangler.jsonc to the app's URL, then:
-cd ../app && NEXT_PUBLIC_API_URL=https://<api-worker-url> pnpm build && npx wrangler deploy
+pnpm --filter app run deploy   # builds with relative API URLs, uploads the static assets
+pnpm --filter api run deploy   # applies D1 migrations, then deploys the Worker and its crons
 ```
 
-Check the configuration first without deploying: `npx wrangler deploy --dry-run` in each app.
+Deploy the app first on a fresh zone: its custom domain creates the proxied DNS record the API route needs. Check the configuration without deploying: `npx wrangler deploy --dry-run` in each app.
+
+To fill an empty or long-stale D1 from your own IP (outside Jolpica's shared Worker limit), run the API locally with the D1 binding set to `"remote": true` in a copy of `wrangler.jsonc`, then request the pages you want cached. Each successful response is written to production D1.
 
 ## Troubleshooting
 
