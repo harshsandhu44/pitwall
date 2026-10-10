@@ -57,7 +57,7 @@ Every page also takes `?season=`. Query parameters, not path segments, keep the 
 - **Open-Meteo** (CC BY 4.0, free tier is non-commercial only): hourly forecast plus model "current" conditions per circuit, refreshed every 15 min. Also a 7×7 cloud/wind grid at 0.25°, refreshed hourly, with 3-hourly forecast steps for 7 days. "Current" is a model analysis, not a track measurement, and is labelled that way.
 - **RainViewer** (personal/educational use only): observed radar frames for the last ~2 hours at 10-minute steps. Free tier since 2026-01-01: Universal Blue colours, max zoom 7, 100 requests/IP/minute, no nowcast or satellite. Tiles load straight from RainViewer in the browser, and only the current and next frame are requested.
 - **OpenFreeMap** (© OpenMapTiles, data © OpenStreetMap): base map tiles, no key needed.
-- **OpenF1** (free tier: historical data from 2023, personal use, 3 requests/s and 30/minute, no live data): session replays and team colours from 2023 onward. Earlier seasons show neutral team markers and no replay.
+- **OpenF1** (free tier: historical data from 2023, personal use, 3 requests/s and 30/minute, no live data): session replays and team colours from 2023 onward. Earlier seasons show neutral team markers and no replay. OpenF1 also fills race-weekend classifications Jolpica hasn't published yet, and sprint qualifying, which Jolpica never publishes (see below).
 
 Pitwall is a personal, non-commercial project. Commercial use would need paid Open-Meteo access, a different radar provider and OpenF1's permission.
 
@@ -110,6 +110,14 @@ Telemetry is never stored in D1. Replay position windows are fetched on demand a
 - **Jolpica:** completed rounds and past seasons are cached for 30 days, and requests are paced at ~4/s. A cold driver profile reads at most 25 seasons, which keeps it under the Workers limit of 50 subrequests per request.
 - **Workers Free:** 100,000 requests/day and 10 ms CPU per request. The heaviest request, a cold replay window, measures about 5 ms. The API bundle is ~870 KB (140 KB gzip) against the 3 MB limit.
 - **D1 Free:** one write per upstream refresh, far below 100,000 writes/day.
+
+## Results before Jolpica publishes
+
+Jolpica is the source of record for results, but it usually publishes a round some time after the weekend, and it never covers sprint qualifying. For 2023 onward, `/api/races/:round` fills in finished sessions Jolpica hasn't published from OpenF1's `session_result`, and lists them in `fromOpenF1`. The race page labels these tables "Provisional · OpenF1": they come from timing data, before any later stewards' decisions. Jolpica's official classification replaces them on the next refresh after it publishes (at most an hour for the current season).
+
+- Drivers are matched to Jolpica by code, then by number. Teams come from this weekend's Jolpica results if there are any. Otherwise they come from OpenF1's team name, mapped through drivers who raced for only one constructor this season. Jolpica's list of a driver's constructors isn't in chronological order, so it can't say which team is current.
+- A driver or team Jolpica doesn't know yet is still listed, without a profile link.
+- If OpenF1 is unavailable, the page shows Jolpica's data only.
 
 ## Replay
 
