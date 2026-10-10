@@ -1,0 +1,10 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    // check-types and build both write .next/types; run them one after the other.
+    "build": {
+      "dependsOn": ["^build", "check-types"]
+    }
+  }
+}
