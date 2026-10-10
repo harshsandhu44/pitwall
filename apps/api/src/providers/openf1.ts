@@ -1,5 +1,9 @@
 import {
+  type ClassificationEntry,
+  type Constructor,
   type Driver,
+  type DriverStanding,
+  type QualifyingEntry,
   type PositionWindow,
   type ReplayDriver,
   type ReplaySession,
@@ -78,6 +82,18 @@ const Weather = z.object({
 const Position = z.object({ date: z.string(), driver_number: z.number(), position: z.number() });
 const Location = z.object({ date: z.string(), driver_number: z.number(), x: z.number(), y: z.number(), z: n });
 const Gap = z.union([z.number(), z.string()]).nullish();
+// Qualifying sessions report per-stage arrays ([Q1, Q2, Q3]); races report single values.
+const SessionResult = z.object({
+  driver_number: z.number(),
+  position: z.union([z.number(), z.string()]).nullish(),
+  number_of_laps: n,
+  points: n,
+  dnf: z.boolean().nullish(),
+  dns: z.boolean().nullish(),
+  dsq: z.boolean().nullish(),
+  duration: z.union([z.number(), z.array(z.number().nullable())]).nullish(),
+  gap_to_leader: z.union([Gap, z.array(Gap)]).nullish(),
+});
 const Interval = z.object({ date: z.string(), driver_number: z.number(), gap_to_leader: Gap, interval: Gap });
 
 type Raw<S extends z.ZodType> = z.infer<S>[];
@@ -122,15 +138,19 @@ export function toSessions(sessions: Raw<typeof Session>, meetings: Raw<typeof M
     .sort((a, b) => a.start.localeCompare(b.start));
 }
 
-/** Match OpenF1 drivers to Jolpica ids by three-letter code, then by number; ambiguous matches stay null. */
-export function toDrivers(raw: Raw<typeof ODriver>, jolpica: Driver[]): ReplayDriver[] {
+/** Match an OpenF1 driver to Jolpica by three-letter code, then by number; ambiguous matches stay null. */
+function matchJolpica(acronym: string, number: number, jolpica: Driver[]) {
   const unique = <T>(xs: T[]) => (xs.length === 1 ? xs[0]! : null);
+  return unique(jolpica.filter((j) => j.code === acronym)) ?? unique(jolpica.filter((j) => j.code === null && j.number === number));
+}
+
+export function toDrivers(raw: Raw<typeof ODriver>, jolpica: Driver[]): ReplayDriver[] {
   const seen = new Set<number>();
   return raw.flatMap((d) => {
     if (seen.has(d.driver_number)) return [];
     seen.add(d.driver_number);
     const acronym = d.name_acronym ?? String(d.driver_number);
-    const match = unique(jolpica.filter((j) => j.code === acronym)) ?? unique(jolpica.filter((j) => j.code === null && j.number === d.driver_number));
+    const match = matchJolpica(acronym, d.driver_number, jolpica);
     return [
       {
         number: d.driver_number,
@@ -236,7 +256,114 @@ export function toWindow(from: number, loc: Raw<typeof Location>, iv: Raw<typeof
   return { from, to: from + WINDOW_MS, cars, intervals };
 }
 
+// ---- Session results (fallback while Jolpica hasn't published) ----
+
+type Person = { driver: Driver; constructor: Constructor };
+
+/**
+ * Jolpica identity for each car. The team comes from, in order: this weekend's Jolpica results; the OpenF1
+ * team name, mapped through drivers who raced for exactly one Jolpica constructor this season (a driver's
+ * standings list of constructors isn't chronological, so it can't say which team is current); the
+ * driver's last listed constructor. Unmatched drivers or teams keep id "".
+ */
+export function weekendDrivers(raw: Raw<typeof ODriver>, entries: DriverStanding[], teams: Map<string, Constructor>) {
+  const cars = raw.map((d) => ({ d, match: matchJolpica(d.name_acronym ?? String(d.driver_number), d.driver_number, entries.map((e) => e.driver)) }));
+  const constructorsOf = (id: string) => entries.find((e) => e.driver.id === id)?.constructors ?? [];
+  const byTeamName = new Map<string, Constructor>();
+  for (const { d, match } of cars) {
+    const cs = match ? constructorsOf(match.id) : [];
+    if (d.team_name && cs.length === 1 && !byTeamName.has(d.team_name)) byTeamName.set(d.team_name, cs[0]!);
+  }
+  const people = new Map<number, Person>();
+  for (const { d, match } of cars) {
+    const team =
+      (match ? teams.get(match.id) : undefined) ??
+      (d.team_name ? byTeamName.get(d.team_name) : undefined) ??
+      (match ? constructorsOf(match.id).at(-1) : undefined);
+    people.set(d.driver_number, {
+      driver: match ?? {
+        id: "",
+        code: d.name_acronym ?? null,
+        number: d.driver_number,
+        givenName: d.first_name ?? "",
+        familyName: d.last_name ?? d.full_name ?? d.name_acronym ?? String(d.driver_number),
+        nationality: null,
+        dateOfBirth: null,
+        url: null,
+      },
+      constructor: team ?? { id: "", name: d.team_name ?? "Unknown team", nationality: null, url: null },
+    });
+  }
+  return people;
+}
+
+/** Constructor id → "#RRGGBB", via the same driver → team matching as the results fallback. */
+export function teamColours(raw: Raw<typeof ODriver>, entries: DriverStanding[]) {
+  const people = weekendDrivers(raw, entries, new Map());
+  const colours: Record<string, string> = {};
+  for (const d of raw) {
+    const id = people.get(d.driver_number)?.constructor.id;
+    if (id && d.team_colour && /^[0-9a-f]{6}$/i.test(d.team_colour)) colours[id] ??= `#${d.team_colour}`;
+  }
+  return colours;
+}
+
+const unknownCar = (n: number): Person => ({
+  driver: { id: "", code: null, number: n, givenName: "", familyName: `Car ${n}`, nationality: null, dateOfBirth: null, url: null },
+  constructor: { id: "", name: "Unknown team", nationality: null, url: null },
+});
+const lapTime = (s: number | null | undefined) => (s == null ? null : `${Math.floor(s / 60)}:${(s % 60).toFixed(3).padStart(6, "0")}`);
+/** Jolpica style: "1:31:44.742", or "39:48.162" under an hour. */
+const raceTime = (s: number) => {
+  const m = `${(s % 60).toFixed(3).padStart(6, "0")}`;
+  return s >= 3600 ? `${Math.floor(s / 3600)}:${String(Math.floor(s / 60) % 60).padStart(2, "0")}:${m}` : `${Math.floor(s / 60)}:${m}`;
+};
+const numericPosition = (r: { position?: number | string | null }) => (typeof r.position === "number" ? r.position : null);
+const byPosition = (a: { position?: number | string | null }, b: { position?: number | string | null }) =>
+  (numericPosition(a) ?? 999) - (numericPosition(b) ?? 999);
+
+export function toClassification(rows: Raw<typeof SessionResult>, people: Map<number, Person>): ClassificationEntry[] {
+  return [...rows]
+    .sort((a, b) => byPosition(a, b) || (b.number_of_laps ?? 0) - (a.number_of_laps ?? 0))
+    .map((r) => {
+      const position = numericPosition(r);
+      const gap = Array.isArray(r.gap_to_leader) ? null : (r.gap_to_leader ?? null);
+      const duration = typeof r.duration === "number" ? r.duration : null;
+      return {
+        position,
+        // Ergast/Jolpica conventions for unclassified finishers.
+        positionText: position !== null ? String(position) : r.dsq ? "D" : r.dns ? "W" : r.dnf ? "R" : typeof r.position === "string" ? r.position : "N",
+        number: r.driver_number,
+        ...(people.get(r.driver_number) ?? unknownCar(r.driver_number)),
+        grid: null,
+        laps: r.number_of_laps ?? null,
+        status: r.dsq ? "Disqualified" : r.dns ? "Did not start" : r.dnf ? "Retired" : typeof gap === "string" ? gap.replace("LAPS", "Laps").replace("LAP", "Lap") : "Finished",
+        points: r.points ?? 0,
+        time: position === 1 && duration !== null ? raceTime(duration) : typeof gap === "number" && gap > 0 ? `+${gap.toFixed(3)}` : null,
+        millis: null,
+        fastestLap: null,
+      };
+    });
+}
+
+export function toQualifying(rows: Raw<typeof SessionResult>, people: Map<number, Person>): QualifyingEntry[] {
+  return [...rows].sort(byPosition).map((r) => {
+    const q = Array.isArray(r.duration) ? r.duration : [];
+    return {
+      position: numericPosition(r),
+      number: r.driver_number,
+      ...(people.get(r.driver_number) ?? unknownCar(r.driver_number)),
+      q1: lapTime(q[0]),
+      q2: lapTime(q[1]),
+      q3: lapTime(q[2]),
+    };
+  });
+}
+
 // ---- Fetchers ----
+
+export const sessionResult = (key: number, ua: string) => list("session_result", `session_key=${key}`, SessionResult, ua);
+
 
 export async function sessions(season: number, now: number, settleMs: number, ua: string) {
   const [s, m] = [await list("sessions", `year=${season}`, Session, ua), await list("meetings", `year=${season}`, Meeting, ua)];

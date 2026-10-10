@@ -32,7 +32,7 @@ All `GET`, all return the envelope described in the root README.
 | `/api/standings/{drivers,constructors}?season[&round]` | Jolpica |
 | `/api/standings/progression?season&type` | Jolpica (official per-round standings) |
 | `/api/results?season` | Jolpica |
-| `/api/races/:round?season` | Jolpica |
+| `/api/races/:round?season` | Jolpica; OpenF1 for unpublished sessions and sprint qualifying (2023+, listed in `fromOpenF1`) |
 | `/api/drivers/:id`, `/api/teams/:id` | Jolpica |
 | `/api/weather/forecast?circuit` | Open-Meteo |
 | `/api/weather/cloud-grid?circuit` | Open-Meteo |

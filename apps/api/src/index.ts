@@ -3,11 +3,15 @@ import {
   type CareerSeason,
   type ConstructorStanding,
   type DriverStanding,
+  type GrandPrix,
   LIVE_UNAVAILABLE_DETAIL,
   type LiveStatus,
   nextSession,
   type PointsProgression,
   type RaceWeekendResults,
+  type ResultSession,
+  scheduleState,
+  type SessionKind,
   type Standings,
   WINDOW_MS,
 } from "@pitwall/shared";
@@ -172,6 +176,57 @@ const replay = (env: Env, ctx: ExecutionContext, key: number) =>
     openf1.replay(key, (season) => seasonDrivers(env, ctx, season), env.USER_AGENT),
   );
 
+// ---- Race results: OpenF1 fills what Jolpica hasn't published ----
+
+const OPENF1_RESULT: { field: ResultSession; kind: SessionKind; names: string[] }[] = [
+  { field: "results", kind: "RACE", names: ["Race"] },
+  { field: "sprint", kind: "SPRINT", names: ["Sprint"] },
+  { field: "qualifying", kind: "QUALIFYING", names: ["Qualifying"] },
+  { field: "sprintQualifying", kind: "SPRINT_QUALIFYING", names: ["Sprint Qualifying", "Sprint Shootout"] },
+];
+
+/**
+ * Jolpica stays the source of record. For 2023 onward, finished sessions it hasn't published yet (and
+ * sprint qualifying, which it never publishes) are filled from OpenF1's provisional classifications and
+ * listed in `fromOpenF1`. Any OpenF1 failure just leaves the gaps empty.
+ */
+async function withOpenF1Results(
+  env: Env,
+  ctx: ExecutionContext,
+  race: GrandPrix,
+  jol: Pick<RaceWeekendResults, "results" | "qualifying" | "sprint">,
+): Promise<RaceWeekendResults> {
+  const out: RaceWeekendResults = { race, ...jol, sprintQualifying: [], fromOpenF1: [] };
+  if (race.season < openf1.FIRST_SEASON) return out;
+  const now = Date.now();
+  const gaps = OPENF1_RESULT.filter(
+    (g) => !out[g.field].length && race.sessions.some((s) => s.kind === g.kind && scheduleState(s, now) === "finished"),
+  );
+  if (!gaps.length) return out;
+  try {
+    const sessions = must(await replaySessions(env, ctx, race.season));
+    const found = gaps.flatMap((g) => {
+      const date = race.sessions.find((s) => s.kind === g.kind)!.date;
+      const match = sessions.find((s) => g.names.includes(s.name) && s.start.slice(0, 10) === date);
+      return match ? [{ ...g, key: match.key }] : [];
+    });
+    if (!found.length) return out;
+    const entries = must(await standings(env, ctx, "drivers", race.season, null)).entries as DriverStanding[];
+    const teams = new Map([...jol.results, ...jol.qualifying, ...jol.sprint].map((e) => [e.driver.id, e.constructor]));
+    const people = openf1.weekendDrivers(await openf1.drivers(found[0]!.key, env.USER_AGENT), entries, teams);
+    for (const g of found) {
+      const rows = await openf1.sessionResult(g.key, env.USER_AGENT);
+      if (!rows.length) continue;
+      if (g.field === "qualifying" || g.field === "sprintQualifying") out[g.field] = openf1.toQualifying(rows, people);
+      else out[g.field] = openf1.toClassification(rows, people);
+      out.fromOpenF1.push(g.field);
+    }
+  } catch (e) {
+    console.error("OpenF1 results fallback failed", race.season, race.round, e);
+  }
+  return out;
+}
+
 // ---- Live (contract only) ----
 
 /** Always UNAVAILABLE: there is no permitted free live source. Context (next session, latest replay) is best effort. */
@@ -262,11 +317,11 @@ const routes: [RegExp, Handler][] = [
     ({ url, env, ctx, match }) => {
       const season = param(Season, url.searchParams.get("season"), "season");
       const round = param(Round, match[1], "round");
-      return cached(env, ctx, { key: `race/${season}/${round}`, source: "jolpica", ttl: seasonTtl(season, HOUR) }, async () => {
+      // v2: payload gained sprintQualifying/fromOpenF1; don't serve older snapshots.
+      return cached(env, ctx, { key: `race/v2/${season}/${round}`, source: "jolpica", ttl: seasonTtl(season, HOUR) }, async () => {
         const race = must(await calendar(env, ctx, season)).find((r) => r.round === round);
         if (!race) throw new UpstreamError("jolpica", "not_found", `no round ${round} in ${season}`);
-        const results = await jolpica.raceResults(season, round, env.USER_AGENT);
-        return { race, ...results } satisfies RaceWeekendResults;
+        return withOpenF1Results(env, ctx, race, await jolpica.raceResults(season, round, env.USER_AGENT));
       });
     },
   ],
@@ -339,13 +394,7 @@ const routes: [RegExp, Handler][] = [
         const last = must(await replaySessions(env, ctx, season)).at(-1);
         if (!last) return {};
         const entries = must(await standings(env, ctx, "drivers", season, null)).entries as DriverStanding[];
-        const ds = openf1.toDrivers(await openf1.drivers(last.key, env.USER_AGENT), entries.map((e) => e.driver));
-        const colours: Record<string, string> = {};
-        for (const d of ds) {
-          const team = entries.find((e) => e.driver.id === d.driverId)?.constructors.at(-1);
-          if (team && d.colour && !colours[team.id]) colours[team.id] = d.colour;
-        }
-        return colours;
+        return openf1.teamColours(await openf1.drivers(last.key, env.USER_AGENT), entries);
       });
     },
   ],
