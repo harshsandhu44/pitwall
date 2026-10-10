@@ -146,11 +146,22 @@ describe("upstream failures", () => {
     expect((await get("/api/calendar?season=2008")).body.status).toBe("ok");
 
     await caches.default.delete(new Request("https://cache.pitwall.internal/calendar/2008"));
+    vi.useFakeTimers({ toFake: ["Date"], now: Date.now() + 31 * 86_400_000 }); // past the 30-day ttl
     upstream = () => new Response("down", { status: 503 });
     const { status, body } = await get<unknown[]>("/api/calendar?season=2008");
+    vi.useRealTimers();
     expect(status).toBe(200);
     expect(body).toMatchObject({ status: "stale", cache: "fallback", reason: "HTTP 503" });
     expect(body.data).toHaveLength(23);
+  });
+
+  it("serves a fresh D1 snapshot on a Cache API miss without calling the provider (other data centres)", async () => {
+    upstream = () => ok(calendarFor(2009));
+    await get("/api/calendar?season=2009");
+    await caches.default.delete(new Request("https://cache.pitwall.internal/calendar/2009"));
+    const { body } = await get("/api/calendar?season=2009");
+    expect(body).toMatchObject({ status: "ok", cache: "hit" });
+    expect(calls).toHaveLength(1);
   });
 
   it("serves stale cache entries while revalidating in the background", async () => {

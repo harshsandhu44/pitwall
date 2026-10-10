@@ -18,7 +18,8 @@ interface Entry<T> {
 const SNAPSHOT_RETENTION_MS = 30 * 86_400_000;
 const MAX_SNAPSHOT_BYTES = 1_500_000; // D1 rows top out at 2MB
 
-// ponytail: per-isolate dedupe of concurrent loads; the Cache API is per data centre.
+// ponytail: per-isolate dedupe of concurrent loads. The Cache API is per data centre; D1 snapshots
+// are global, so a fresh snapshot stops other data centres from refetching the same upstream data.
 const inflight = new Map<string, Promise<Entry<unknown>>>();
 
 const cacheRequest = (key: string) => new Request(`https://cache.pitwall.internal/${encodeURI(key)}`);
@@ -50,19 +51,24 @@ export function failure<T>(source: Source, e: unknown, maxAgeSeconds = 0): ApiRe
   };
 }
 
+/** Kept for 2×ttl so stale entries can be served while revalidating. */
+function putCache<T>(ctx: ExecutionContext, p: CachePolicy, entry: Entry<T>) {
+  const body = JSON.stringify(entry);
+  ctx.waitUntil(
+    caches.default.put(
+      cacheRequest(p.key),
+      new Response(body, { headers: { "Cache-Control": `max-age=${p.ttl * 2}`, "Content-Type": "application/json" } }),
+    ),
+  );
+  return body;
+}
+
 function load<T>(env: Env, ctx: ExecutionContext, p: CachePolicy, loader: () => Promise<T>): Promise<Entry<T>> {
   let pending = inflight.get(p.key) as Promise<Entry<T>> | undefined;
   if (pending) return pending;
   pending = (async () => {
     const entry: Entry<T> = { data: await loader(), fetchedAt: Date.now() };
-    const body = JSON.stringify(entry);
-    // Kept for 2×ttl so stale entries can be served while revalidating.
-    ctx.waitUntil(
-      caches.default.put(
-        cacheRequest(p.key),
-        new Response(body, { headers: { "Cache-Control": `max-age=${p.ttl * 2}`, "Content-Type": "application/json" } }),
-      ),
-    );
+    const body = putCache(ctx, p, entry);
     if (p.persist !== false && body.length <= MAX_SNAPSHOT_BYTES) {
       ctx.waitUntil(
         env.DB.prepare(
@@ -93,8 +99,9 @@ async function readSnapshot<T>(env: Env, key: string): Promise<Entry<T> | null> 
 }
 
 /**
- * Cache API (fresh → hit; expired → serve stale and revalidate in the background) → upstream load
- * (deduped) → on failure, the D1 last-known-good snapshot marked stale → otherwise an error envelope.
+ * Cache API (fresh → hit; expired → serve stale and revalidate in the background) → fresh D1 snapshot
+ * (shared across data centres) → upstream load (deduped) → on failure, the D1 snapshot marked stale
+ * → otherwise an error envelope.
  */
 export async function cached<T>(
   env: Env,
@@ -109,12 +116,16 @@ export async function cached<T>(
     ctx.waitUntil(load(env, ctx, p, loader).catch(() => {}));
     return envelope(p, entry, "stale", "stale");
   }
+  const snapshot = p.persist !== false ? await readSnapshot<T>(env, p.key) : null;
+  if (snapshot && Date.now() - snapshot.fetchedAt <= p.ttl * 1000) {
+    putCache(ctx, p, snapshot);
+    return envelope(p, snapshot, "ok", "hit");
+  }
   try {
     return envelope(p, await load(env, ctx, p, loader), "ok", "miss");
   } catch (e) {
     const notFound = e instanceof UpstreamError && e.kind === "not_found";
-    const snapshot = p.persist !== false && !notFound ? await readSnapshot<T>(env, p.key) : null;
-    if (snapshot) {
+    if (snapshot && !notFound) {
       return { ...envelope(p, snapshot, "stale", "fallback"), reason: e instanceof Error ? e.message : undefined };
     }
     return failure(p.source, e, p.ttl);
