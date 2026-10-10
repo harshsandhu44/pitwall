@@ -4,6 +4,13 @@ import { EmptyState } from "@/components/data/query-state";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { driverName, formatPoints } from "@/lib/format";
 import { TeamMark } from "@/components/racing/team-mark";
+import type { ReactNode } from "react";
+
+/** OpenF1 fallback rows can carry drivers or teams Jolpica doesn't know yet (id ""): no profile to link to. */
+function ProfileLink({ id, href, className, children }: { id: string; href: string; className: string; children: ReactNode }) {
+  return id ? <Link href={href} className={className}>{children}</Link> : <span className={className}>{children}</span>;
+}
+const rowKey = (e: { driver: { id: string }; number: number | null }) => e.driver.id || `car-${e.number}`;
 
 export function ClassificationTable({ entries, season, caption }: { entries: ClassificationEntry[]; season: number; caption: string }) {
   if (!entries.length) return <EmptyState>Not published yet.</EmptyState>;
@@ -24,15 +31,15 @@ export function ClassificationTable({ entries, season, caption }: { entries: Cla
       </TableHeader>
       <TableBody>
         {entries.map((e) => (
-          <TableRow key={e.driver.id}>
+          <TableRow key={rowKey(e)}>
             <TableCell className="font-mono tabular-nums">{e.positionText}</TableCell>
             <TableCell>
-              <Link href={`/driver?id=${e.driver.id}&season=${season}`} className="font-medium hover:underline">{driverName(e.driver)}</Link>
+              <ProfileLink id={e.driver.id} href={`/driver?id=${e.driver.id}&season=${season}`} className="font-medium hover:underline">{driverName(e.driver)}</ProfileLink>
               <span className="block text-[11px] text-muted-foreground sm:hidden">{e.constructor.name}</span>
             </TableCell>
             <TableCell className="hidden sm:table-cell">
               <TeamMark id={e.constructor.id} season={season} />
-              <Link href={`/team?id=${e.constructor.id}&season=${season}`} className="hover:underline">{e.constructor.name}</Link>
+              <ProfileLink id={e.constructor.id} href={`/team?id=${e.constructor.id}&season=${season}`} className="hover:underline">{e.constructor.name}</ProfileLink>
             </TableCell>
             <TableCell className="hidden text-right font-mono tabular-nums md:table-cell">{e.grid === 0 ? "PL" : e.grid ?? "—"}</TableCell>
             <TableCell className="hidden text-right font-mono tabular-nums md:table-cell">{e.laps ?? "—"}</TableCell>
@@ -49,27 +56,38 @@ export function ClassificationTable({ entries, season, caption }: { entries: Cla
   );
 }
 
-export function QualifyingTable({ entries, season }: { entries: QualifyingEntry[]; season: number }) {
+export function QualifyingTable({
+  entries,
+  season,
+  caption = "Qualifying classification",
+  stage = "Q",
+}: {
+  entries: QualifyingEntry[];
+  season: number;
+  caption?: string;
+  /** Column prefix: "Q" for qualifying, "SQ" for sprint qualifying. */
+  stage?: string;
+}) {
   if (!entries.length) return <EmptyState>No qualifying classification available.</EmptyState>;
   return (
     <Table>
-      <TableCaption className="sr-only">Qualifying classification</TableCaption>
+      <TableCaption className="sr-only">{caption}</TableCaption>
       <TableHeader>
         <TableRow>
           <TableHead className="w-10">Pos</TableHead>
           <TableHead>Driver</TableHead>
           <TableHead className="hidden sm:table-cell">Constructor</TableHead>
-          <TableHead className="text-right">Q1</TableHead>
-          <TableHead className="text-right">Q2</TableHead>
-          <TableHead className="text-right">Q3</TableHead>
+          {[1, 2, 3].map((n) => (
+            <TableHead key={n} className="text-right">{`${stage}${n}`}</TableHead>
+          ))}
         </TableRow>
       </TableHeader>
       <TableBody>
         {entries.map((e) => (
-          <TableRow key={e.driver.id}>
+          <TableRow key={rowKey(e)}>
             <TableCell className="font-mono tabular-nums">{e.position ?? "—"}</TableCell>
             <TableCell>
-              <Link href={`/driver?id=${e.driver.id}&season=${season}`} className="font-medium hover:underline">{driverName(e.driver)}</Link>
+              <ProfileLink id={e.driver.id} href={`/driver?id=${e.driver.id}&season=${season}`} className="font-medium hover:underline">{driverName(e.driver)}</ProfileLink>
             </TableCell>
             <TableCell className="hidden sm:table-cell">{e.constructor.name}</TableCell>
             {[e.q1, e.q2, e.q3].map((t, i) => (

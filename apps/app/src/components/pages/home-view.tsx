@@ -18,6 +18,7 @@ import { SessionSchedule } from "@/components/racing/session-schedule";
 import { WeatherConditions } from "@/components/weather/weather-conditions-card";
 import { ConstructorStandingsTable } from "@/components/standings/constructor-standings-table";
 import { DriverStandingsTable } from "@/components/standings/driver-standings-table";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApi } from "@/lib/api";
@@ -150,6 +151,11 @@ export function HomeView() {
                   <p className="text-sm text-muted-foreground">Results haven&apos;t been published yet.</p>
                 ) : (
                   <div className="space-y-3">
+                    {r.fromOpenF1?.includes("results") && (
+                      <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                        <Badge variant="outline">Provisional · OpenF1</Badge> Official results not published yet.
+                      </p>
+                    )}
                     <ol className="space-y-1.5" aria-label="Podium">
                       {r.results.slice(0, 3).map((e) => (
                         <li key={e.driver.id} className="flex items-baseline gap-2 text-sm">
