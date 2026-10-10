@@ -1,6 +1,6 @@
 "use client";
 
-import type { GrandPrix } from "@pitwall/shared";
+import type { CloudGrid, GrandPrix, RadarFrames, WeatherForecast } from "@pitwall/shared";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useSyncExternalStore } from "react";
 import { useApi } from "./api";
@@ -61,3 +61,9 @@ export const useNow = () =>
     () => now,
     () => null,
   );
+
+export const useForecast = (circuitId: string | null) =>
+  useApi<WeatherForecast>(circuitId ? `/api/weather/forecast?circuit=${circuitId}` : null);
+export const useCloudGrid = (circuitId: string | null) =>
+  useApi<CloudGrid>(circuitId ? `/api/weather/cloud-grid?circuit=${circuitId}` : null);
+export const useRadar = () => useApi<RadarFrames>("/api/weather/radar");

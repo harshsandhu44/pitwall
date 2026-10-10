@@ -57,3 +57,12 @@ export function withSeason(href: string, season: number | null) {
   if (!season) return href;
   return `${href}${href.includes("?") ? "&" : "?"}season=${season}`;
 }
+
+const n = (v: number | null, digits = 0) => (v === null ? "—" : v.toFixed(digits));
+export const fmtTemp = (v: number | null) => `${n(v)}°C`;
+export const fmtPct = (v: number | null) => `${n(v)}%`;
+export const fmtSpeed = (v: number | null) => `${n(v)} km/h`;
+export const fmtMm = (v: number | null) => `${n(v, 1)} mm`;
+
+export const formatHour = (iso: string, timeZone?: string) =>
+  new Date(iso).toLocaleString(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit", timeZone });

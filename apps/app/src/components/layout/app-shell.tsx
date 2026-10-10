@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDaysIcon, GaugeIcon, HouseIcon, TrophyIcon } from "lucide-react";
+import { CalendarDaysIcon, CloudSunRainIcon, GaugeIcon, HouseIcon, TrophyIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { type ReactNode, Suspense } from "react";
@@ -30,6 +30,7 @@ export const NAV = [
   { href: "/", label: "Overview", icon: HouseIcon },
   { href: "/calendar", label: "Calendar", icon: CalendarDaysIcon },
   { href: "/standings", label: "Standings", icon: TrophyIcon },
+  { href: "/weather", label: "Weather", icon: CloudSunRainIcon },
 ] as const;
 
 function NavLinks() {
@@ -80,7 +81,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </SidebarGroup>
         </SidebarContent>
         <SidebarFooter className="px-3 pb-3 text-[10px] leading-relaxed text-muted-foreground group-data-[collapsible=icon]:hidden">
-          Unofficial. Not associated with Formula 1 companies. Data: Jolpica F1. Circuit layouts: F1DB (CC BY 4.0).
+          Unofficial. Not associated with Formula 1 companies. Data: Jolpica F1, Open-Meteo (CC BY 4.0), RainViewer. Maps: OpenFreeMap, © OpenStreetMap. Circuit layouts: F1DB (CC BY 4.0).
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>

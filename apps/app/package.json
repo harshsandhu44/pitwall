@@ -3,11 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "node scripts/copy-maplibre-worker.mjs && next dev",
+    "build": "node scripts/copy-maplibre-worker.mjs && next build",
     "start": "next start",
     "lint": "eslint",
-    "check-types": "tsc --noEmit",
+    "check-types": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "preview": "wrangler dev --port 8788",
     "deploy": "wrangler deploy"
@@ -19,6 +19,7 @@
     "class-variance-authority": "^0.7.1",
     "cn": "^0.4.0",
     "lucide-react": "^1.54.0",
+    "maplibre-gl": "~6.11.2",
     "next": "16.4.0",
     "next-themes": "^0.4.6",
     "react": "19.3.0",

@@ -15,6 +15,7 @@ import { QueryState, SourceNote } from "@/components/data/query-state";
 import { CircuitOutline } from "@/components/racing/circuit-outline";
 import { RaceCountdown } from "@/components/racing/race-countdown";
 import { SessionSchedule } from "@/components/racing/session-schedule";
+import { WeatherConditions } from "@/components/weather/weather-conditions-card";
 import { ConstructorStandingsTable } from "@/components/standings/constructor-standings-table";
 import { DriverStandingsTable } from "@/components/standings/driver-standings-table";
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,6 +35,7 @@ export function HomeView() {
   const driverProgression = useApi<PointsProgression>(q("/api/standings/progression?type=drivers"));
   const constructorProgression = useApi<PointsProgression>(q("/api/standings/progression?type=constructors"));
   const last = calendar.data?.data && now !== null ? lastFinishedRace(calendar.data.data, now) : null;
+  const nextRace = calendar.data?.data && now !== null ? (nextSession(calendar.data.data, now)?.race ?? null) : null;
   const recent = useApi<RaceWeekendResults>(last ? `/api/races/${last.round}?season=${last.season}` : null);
 
   return (
@@ -78,6 +80,27 @@ export function HomeView() {
               );
             }}
           </QueryState>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardDescription>Weather</CardDescription>
+          <CardTitle>{nextRace ? nextRace.circuit.locality : "—"}</CardTitle>
+          {nextRace && (
+            <CardAction>
+              <Link href={`/weather?round=${nextRace.round}`} className="text-xs hover:underline">Weather detail</Link>
+            </CardAction>
+          )}
+        </CardHeader>
+        <CardContent>
+          {nextRace ? (
+            <WeatherConditions race={nextRace} />
+          ) : calendar.isPending ? (
+            <Skeleton className="h-36 w-full" />
+          ) : (
+            <p className="text-sm text-muted-foreground">No upcoming race to forecast.</p>
+          )}
         </CardContent>
       </Card>
 
@@ -130,7 +153,7 @@ export function HomeView() {
         )}
       </Card>
 
-      <Card className="lg:col-span-2">
+      <Card>
         <CardHeader>
           <CardDescription>{season} championship</CardDescription>
           <CardTitle>Drivers</CardTitle>
