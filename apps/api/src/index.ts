@@ -1,15 +1,17 @@
-import type {
-  ApiResponse,
-  CareerSeason,
-  ConstructorStanding,
-  DriverStanding,
-  PointsProgression,
-  RaceWeekendResults,
-  Standings,
+import {
+  type ApiResponse,
+  type CareerSeason,
+  type ConstructorStanding,
+  type DriverStanding,
+  type PointsProgression,
+  type RaceWeekendResults,
+  type Standings,
+  WINDOW_MS,
 } from "@pitwall/shared";
 import { z } from "zod";
 import { cached, cleanupSnapshots, failure, must } from "./cache";
 import * as jolpica from "./providers/jolpica";
+import * as openf1 from "./providers/openf1";
 import * as openmeteo from "./providers/openmeteo";
 import * as rainviewer from "./providers/rainviewer";
 import { UpstreamError } from "./upstream";
@@ -24,6 +26,7 @@ const Season = z.coerce.number().int().min(1950).max(2100);
 const Round = z.coerce.number().int().min(1).max(40);
 const Id = z.string().regex(/^[a-z0-9_]{1,64}$/);
 const Championship = z.enum(["drivers", "constructors"]);
+const Timestamp = z.coerce.number().int().min(0);
 
 class BadRequest extends Error {}
 
@@ -140,6 +143,29 @@ const circuitInfo = async (env: Env, ctx: ExecutionContext, id: string) => {
   return c;
 };
 
+// ---- Replay (OpenF1) ----
+
+// Our own policy, not OpenF1's: list a session only once it has had time to settle, so a
+// half-processed session isn't cached as if it were complete.
+const SESSION_SETTLE_MS = 2 * 3_600_000;
+
+const replaySessions = (env: Env, ctx: ExecutionContext, season: number) => {
+  if (season < openf1.FIRST_SEASON) {
+    return Promise.resolve(failure<never>("openf1", new UpstreamError("openf1", "not_found", `OpenF1 replays start in ${openf1.FIRST_SEASON}`)));
+  }
+  return cached(env, ctx, { key: `replay/sessions/${season}`, source: "openf1", ttl: seasonTtl(season, HOUR) }, () =>
+    openf1.sessions(season, Date.now(), SESSION_SETTLE_MS, env.USER_AGENT),
+  );
+};
+
+const seasonDrivers = async (env: Env, ctx: ExecutionContext, season: number) =>
+  (must(await standings(env, ctx, "drivers", season, null)).entries as DriverStanding[]).map((e) => e.driver);
+
+const replay = (env: Env, ctx: ExecutionContext, key: number) =>
+  cached(env, ctx, { key: `replay/${key}`, source: "openf1", ttl: 30 * DAY }, () =>
+    openf1.replay(key, (season) => seasonDrivers(env, ctx, season), env.USER_AGENT),
+  );
+
 // ---- Routes ----
 
 const routes: [RegExp, Handler][] = [
@@ -229,6 +255,45 @@ const routes: [RegExp, Handler][] = [
     },
   ],
   [
+    /^\/api\/replay\/sessions$/,
+    ({ url, env, ctx }) => replaySessions(env, ctx, param(Season, url.searchParams.get("season"), "season")),
+  ],
+  [/^\/api\/replay\/(\d{1,7})$/, ({ env, ctx, match }) => replay(env, ctx, Number(match[1]))],
+  [
+    /^\/api\/replay\/(\d{1,7})\/window$/,
+    async ({ url, env, ctx, match }) => {
+      const key = Number(match[1]);
+      const from = param(Timestamp, url.searchParams.get("from"), "from");
+      if (from % WINDOW_MS !== 0) throw new BadRequest(`"from" must be a multiple of ${WINDOW_MS}`);
+      const r = must(await replay(env, ctx, key));
+      if (from < r.range.start - WINDOW_MS || from > r.range.end) throw new BadRequest(`"from" is outside session ${key}`);
+      // Recorded data never changes: cache for a long time, but only in the Cache API (too bulky for D1).
+      return cached(env, ctx, { key: `replay/${key}/window/${from}`, source: "openf1", ttl: 30 * DAY, persist: false }, () =>
+        openf1.positionWindow(key, from, r.session.type === "Race", env.USER_AGENT),
+      );
+    },
+  ],
+  [
+    /^\/api\/team-colours$/,
+    ({ url, env, ctx }) => {
+      const season = param(Season, url.searchParams.get("season"), "season");
+      return cached(env, ctx, { key: `team-colours/${season}`, source: "openf1", ttl: seasonTtl(season, DAY) }, async () => {
+        // OpenF1 has no colours before 2023; the app shows neutral markers instead.
+        if (season < openf1.FIRST_SEASON) return {};
+        const last = must(await replaySessions(env, ctx, season)).at(-1);
+        if (!last) return {};
+        const entries = must(await standings(env, ctx, "drivers", season, null)).entries as DriverStanding[];
+        const ds = openf1.toDrivers(await openf1.drivers(last.key, env.USER_AGENT), entries.map((e) => e.driver));
+        const colours: Record<string, string> = {};
+        for (const d of ds) {
+          const team = entries.find((e) => e.driver.id === d.driverId)?.constructors.at(-1);
+          if (team && d.colour && !colours[team.id]) colours[team.id] = d.colour;
+        }
+        return colours;
+      });
+    },
+  ],
+  [
     /^\/api\/weather\/radar$/,
     ({ env, ctx }) =>
       cached(env, ctx, { key: "weather/radar", source: "rainviewer", ttl: 5 * 60, persist: false }, () => rainviewer.radar(env.USER_AGENT)),
@@ -272,6 +337,10 @@ export default {
         return json(res, HTTP_STATUS[res.status], cors);
       } catch (e) {
         if (e instanceof BadRequest) return json({ ...failure("pitwall", e), status: "error" }, 400, cors);
+        if (e instanceof UpstreamError) {
+          const res = failure(e.source, e);
+          return json(res, HTTP_STATUS[res.status], cors);
+        }
         console.error("unhandled", url.pathname, e);
         return json({ ...failure("pitwall", new Error("internal error")), status: "error" }, 500, cors);
       }

@@ -14,16 +14,30 @@ export class UpstreamError extends Error {
   }
 }
 
-/** Minimum spacing between requests and per-request timeout for each provider. */
-const POLICY: Record<UpstreamSource, { minIntervalMs: number; timeoutMs: number }> = {
+/** Minimum spacing between requests, optional per-minute budget and per-request timeout for each provider. */
+const POLICY: Record<UpstreamSource, { minIntervalMs: number; perMinute?: number; timeoutMs: number }> = {
   jolpica: { minIntervalMs: 260, timeoutMs: 8000 }, // ~4 req/s burst limit
-  openf1: { minIntervalMs: 350, timeoutMs: 15000 },
+  openf1: { minIntervalMs: 350, perMinute: 30, timeoutMs: 15000 }, // free tier: 3 req/s and 30 req/min
   "open-meteo": { minIntervalMs: 100, timeoutMs: 8000 },
   rainviewer: { minIntervalMs: 100, timeoutMs: 5000 },
 };
 
 // ponytail: per-isolate pacing/backoff. Isolates don't share it; a Durable Object would make it global.
-const pacing = new Map<UpstreamSource, { next: number; blockedUntil: number }>();
+const pacing = new Map<UpstreamSource, { next: number; blockedUntil: number; recent: number[] }>();
+
+/** Longest a request may queue for budget before we report rate_limited instead of waiting. */
+const MAX_QUEUE_MS = 20_000;
+
+/**
+ * Earliest start time for the next request: at least `minInterval` after the previous one and,
+ * with a per-minute budget, no more than `perMinute` starts in any 60 s span.
+ * `recent` holds earlier start times, ascending.
+ */
+export function nextSlot(now: number, next: number, recent: number[], perMinute?: number) {
+  let start = Math.max(now, next);
+  if (perMinute && recent.length >= perMinute) start = Math.max(start, recent[recent.length - perMinute]! + 60_000);
+  return start;
+}
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -36,20 +50,29 @@ function retryAfterSeconds(header: string | null): number {
 }
 
 async function pace(source: UpstreamSource) {
-  const s = pacing.get(source) ?? { next: 0, blockedUntil: 0 };
+  const s = pacing.get(source) ?? { next: 0, blockedUntil: 0, recent: [] };
   pacing.set(source, s);
   const now = Date.now();
   if (s.blockedUntil > now) {
     throw new UpstreamError(source, "rate_limited", `backing off for ${Math.ceil((s.blockedUntil - now) / 1000)}s`);
   }
-  const wait = Math.max(0, s.next - now);
-  s.next = Math.max(now, s.next) + POLICY[source].minIntervalMs;
-  if (wait) await sleep(wait);
+  if (!paced) return;
+  const { minIntervalMs, perMinute } = POLICY[source];
+  const start = nextSlot(now, s.next, s.recent, perMinute);
+  if (start - now > MAX_QUEUE_MS) {
+    throw new UpstreamError(source, "rate_limited", `request budget used up, retry in ${Math.ceil((start - now) / 1000)}s`);
+  }
+  if (perMinute) s.recent = [...s.recent.filter((t) => t > start - 60_000), start];
+  s.next = start + minIntervalMs;
+  if (start > now) await sleep(start - now);
 }
 
-/** Test hook: forget pacing/backoff state between tests. */
-export function resetUpstreamState() {
+let paced = true;
+
+/** Test hook: forget pacing/backoff state between tests; `paced: false` skips request spacing. */
+export function resetUpstreamState(opts: { paced?: boolean } = {}) {
   pacing.clear();
+  paced = opts.paced ?? true;
 }
 
 /**
