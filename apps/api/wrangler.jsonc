@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pitwall-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "observability": { "enabled": true },
+  "vars": {
+    // Comma-separated origins allowed by CORS. Set the deployed app origin here.
+    "ALLOWED_ORIGINS": "http://localhost:3000,http://localhost:8788",
+    "USER_AGENT": "Pitwall/0.1 (non-commercial F1 dashboard)"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "pitwall",
+      // Replace with the id printed by `wrangler d1 create pitwall` before deploying.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  // Daily cleanup of expired D1 snapshots.
+  "triggers": { "crons": ["17 3 * * *"] }
+}
