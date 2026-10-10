@@ -237,7 +237,7 @@ function Player({ replay, res }: { replay: SessionReplay; res: ApiResponse<Sessi
           <CardContent className="space-y-6">
             <RaceControlFeed messages={replay.raceControl} t={t} />
             <div className="space-y-2">
-              <h3 className="text-sm font-medium">Track weather</h3>
+              <h2 className="text-sm font-medium">Track weather</h2>
               <TrackWeather weather={replay.weather} t={t} />
             </div>
           </CardContent>
