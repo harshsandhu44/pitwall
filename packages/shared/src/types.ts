@@ -178,3 +178,80 @@ export interface ConstructorProfile {
   career: CareerSeason[];
   seasonsTotal: number;
 }
+
+// ---- Weather ----
+
+/** Hourly model forecast (Open-Meteo). Columns align with `time`; null = value not provided by the model. */
+export interface HourlySeries {
+  time: string[];
+  temperature: (number | null)[];
+  apparentTemperature: (number | null)[];
+  humidity: (number | null)[];
+  precipitation: (number | null)[];
+  precipitationProbability: (number | null)[];
+  windSpeed: (number | null)[];
+  windDirection: (number | null)[];
+  windGusts: (number | null)[];
+  cloudCover: (number | null)[];
+  cloudLow: (number | null)[];
+  cloudMid: (number | null)[];
+  cloudHigh: (number | null)[];
+  weatherCode: (number | null)[];
+}
+
+/** Open-Meteo "current" values: a model analysis for the last 15-minute step, not a station measurement. */
+export interface ModelConditions {
+  time: string;
+  temperature: number | null;
+  apparentTemperature: number | null;
+  humidity: number | null;
+  precipitation: number | null;
+  windSpeed: number | null;
+  windDirection: number | null;
+  windGusts: number | null;
+  cloudCover: number | null;
+  weatherCode: number | null;
+}
+
+export interface WeatherForecast {
+  circuitId: string;
+  /** Requested coordinates (the circuit). */
+  lat: number;
+  lon: number;
+  /** Centre of the model grid cell actually used. */
+  modelLat: number;
+  modelLon: number;
+  elevation: number | null;
+  current: ModelConditions | null;
+  hourly: HourlySeries;
+  /** Units: °C, %, mm, km/h, degrees (direction the wind comes from). */
+}
+
+export type CloudLevel = "total" | "low" | "mid" | "high";
+
+/** Forecast cloud cover and wind on a coarse grid around a circuit, one model cell per point. */
+export interface CloudGrid {
+  circuitId: string;
+  center: { lat: number; lon: number };
+  spacingDeg: number;
+  /** Forecast steps (ISO), shared by every cell. */
+  time: string[];
+  cells: {
+    lat: number;
+    lon: number;
+    modelLat: number;
+    modelLon: number;
+    cloud: Record<CloudLevel, (number | null)[]>;
+    windSpeed: (number | null)[];
+    windDirection: (number | null)[];
+    windGusts: (number | null)[];
+  }[];
+}
+
+/** Observed precipitation radar frames (RainViewer). Past frames only; no nowcast is available. */
+export interface RadarFrames {
+  host: string;
+  frames: { time: string; path: string }[];
+  maxZoom: number;
+  colorScheme: number;
+}
