@@ -4,7 +4,7 @@ import { type NextSession, SESSION_LABEL } from "@pitwall/shared";
 import { formatCountdown } from "@/lib/format";
 import { useNow } from "@/lib/hooks";
 
-export function RaceCountdown({ next }: { next: NextSession }) {
+export function RaceCountdown({ next, className = "text-3xl" }: { next: NextSession; /** Size of the countdown digits. */ className?: string }) {
   const now = useNow();
   const { session, state } = next;
   const label = SESSION_LABEL[session.kind];
@@ -21,7 +21,7 @@ export function RaceCountdown({ next }: { next: NextSession }) {
     <div>
       <p className="text-xs text-muted-foreground">{label} starts in</p>
       <p
-        className="font-mono text-3xl font-semibold tracking-tight tabular-nums"
+        className={`font-mono font-semibold tracking-tight tabular-nums ${className}`}
         // Announce once per minute at most, not every second.
         aria-label={`${label} starts in ${formatCountdown(ms - (ms % 60_000))}`}
       >

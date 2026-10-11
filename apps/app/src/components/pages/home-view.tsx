@@ -4,44 +4,106 @@ import {
   type ConstructorStanding,
   type DriverStanding,
   lastFinishedRace,
+  type LiveStatus,
   nextSession,
+  type NextSession,
   type PointsProgression,
   type RaceWeekendResults,
+  scheduleState,
+  SESSION_LABEL,
   type Standings,
 } from "@pitwall/shared";
-import { ArrowRightIcon, TimerIcon } from "lucide-react";
+import { ArrowRightIcon, RadioTowerIcon } from "lucide-react";
 import Link from "next/link";
 import { QueryState, SourceNote } from "@/components/data/query-state";
 import { CircuitOutline } from "@/components/racing/circuit-outline";
 import { ProvisionalNote } from "@/components/racing/provisional-note";
 import { RaceCountdown } from "@/components/racing/race-countdown";
-import { SessionSchedule } from "@/components/racing/session-schedule";
 import { WeatherConditions } from "@/components/weather/weather-conditions-card";
 import { ConstructorStandingsTable } from "@/components/standings/constructor-standings-table";
 import { DriverStandingsTable } from "@/components/standings/driver-standings-table";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApi } from "@/lib/api";
-import { driverName, formatDateRange } from "@/lib/format";
+import { driverName, formatDateRange, formatSessionTime } from "@/lib/format";
 import { useCalendar, useNow, useSeasons } from "@/lib/hooks";
+import { cn } from "@/lib/utils";
 
-// Placeholders mirror the loaded cards' sizes (mobile / desktop) so nothing below them jumps when data arrives.
-function NextUpSkeleton() {
+// Mirrors the hero's size so nothing below it jumps when the calendar arrives.
+function HeroSkeleton() {
+  return <Skeleton className="h-[340px] w-full sm:h-[300px]" aria-busy="true" aria-label="Loading" />;
+}
+
+/** Shown in the hero while a session streams: the session and the top three, linking to the live page. */
+function LiveBand({ live }: { live: Extract<LiveStatus, { state: "LIVE" | "DELAYED" }> }) {
+  const drivers = new Map(live.timing.drivers.map((d) => [d.number, d]));
   return (
-    <div className="space-y-4" aria-busy="true" aria-label="Loading">
-      <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
-        <div className="space-y-3">
+    <Link href="/live" className="group panel-cut block space-y-4 bg-primary p-5 text-primary-foreground sm:p-6">
+      <p className="flex items-center gap-2 text-xs font-semibold tracking-wider uppercase">
+        <span aria-hidden className="size-2 rounded-full bg-current motion-safe:animate-live-pulse" />
+        {live.state === "LIVE" ? "Live now" : `Live, delayed ${live.delaySeconds} s`}
+      </p>
+      <h2 className="font-display text-3xl leading-[1.1] font-black tracking-tight uppercase sm:text-5xl">
+        {live.session.meetingName} · {live.session.name}
+      </h2>
+      <ol className="flex flex-wrap gap-x-6 gap-y-1 font-mono text-sm" aria-label="Top three">
+        {live.timing.rows.slice(0, 3).map((r) => (
+          <li key={r.driver}>
+            P{r.position} {drivers.get(r.driver)?.acronym ?? r.driver}
+          </li>
+        ))}
+      </ol>
+      <p className="flex items-center gap-1 text-sm font-semibold underline-offset-4 group-hover:underline">
+        Open live timing <ArrowRightIcon aria-hidden className="size-4" />
+      </p>
+    </Link>
+  );
+}
+
+/** The next weekend: name, countdown, outline and the session strip. */
+function Hero({ next }: { next: NextSession }) {
+  const { race } = next;
+  const now = useNow();
+  // Polled only while the calendar says a session is in its slot, to switch the hero to the live band.
+  const live = useApi<LiveStatus>(next.state === "in_window" ? "/api/live/session" : null, () => 30_000).data?.data;
+  if (live?.state === "LIVE" || live?.state === "DELAYED") return <LiveBand live={live} />;
+  return (
+    <div className="panel-cut border bg-card">
+      <div className="grid gap-6 border-l-4 border-live p-5 sm:grid-cols-[1fr_auto] sm:p-6">
+        <div className="min-w-0 space-y-4">
           <div className="space-y-1">
-            <Skeleton className="h-7 w-48" />
-            <Skeleton className="h-9 w-full sm:h-4" />
+            <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+              Round {race.round} · {race.circuit.locality}, {race.circuit.country} · {formatDateRange(race.sessions)}
+            </p>
+            <h2 className="font-display text-3xl leading-[1.1] font-black tracking-tight text-balance uppercase sm:text-5xl">
+              <Link href={`/race?season=${race.season}&round=${race.round}`} className="hover:underline">
+                {race.name}
+              </Link>
+            </h2>
           </div>
-          <Skeleton className="h-[52px] w-40" />
+          <RaceCountdown next={next} className="text-4xl sm:text-5xl" />
+          {next.state === "in_window" && (
+            <Link href="/live" className={buttonVariants({ size: "lg" })}>
+              <RadioTowerIcon aria-hidden />
+              Open live timing
+            </Link>
+          )}
         </div>
-        <Skeleton className="mx-auto size-32 sm:size-40" />
+        <CircuitOutline circuit={race.circuit} className="mx-auto w-36 sm:w-52" />
       </div>
-      {/* Header row + five sessions */}
-      <Skeleton className="h-[181px] w-full" />
-      <Skeleton className="h-[18px] w-32" />
+      <ol className="grid grid-cols-2 border-t sm:grid-cols-[repeat(auto-fit,minmax(0,1fr))]" aria-label="Sessions">
+        {race.sessions.map((s) => {
+          const state = now === null ? "unknown" : scheduleState(s, now);
+          return (
+            <li key={s.kind} className={cn("space-y-0.5 border-r border-b px-4 py-3 last:border-r-0 sm:border-b-0", state === "in_window" && "bg-live/12")}>
+              <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">{SESSION_LABEL[s.kind]}</p>
+              <p className="font-mono text-sm tabular-nums">{now === null ? "…" : formatSessionTime(s)}</p>
+              <p className="text-[11px] text-muted-foreground">{state === "finished" ? "Done" : state === "in_window" ? "Scheduled now" : "\u00a0"}</p>
+            </li>
+          );
+        })}
+      </ol>
     </div>
   );
 }
@@ -63,65 +125,30 @@ export function HomeView() {
   const calendarLoading = calendar.isPending || now === null;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
-      <Card className="lg:col-span-2">
-        <CardHeader>
-          <CardDescription>Next up</CardDescription>
-          <CardTitle>Grand Prix weekend</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {calendarLoading ? (
-            <NextUpSkeleton />
-          ) : (
-            <QueryState query={calendar}>
-              {(races, res) => {
-                const next = nextSession(races, now);
-                if (!next) return <p className="text-sm text-muted-foreground">The {season} season is complete. The next calendar hasn&apos;t been published yet.</p>;
-                const { race } = next;
-                return (
-                  <div className="space-y-4">
-                    <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
-                      <div className="space-y-3">
-                        <div>
-                          <Link href={`/race?season=${race.season}&round=${race.round}`} className="text-lg font-semibold hover:underline">
-                            {race.name}
-                          </Link>
-                          <p className="text-sm text-muted-foreground">
-                            Round {race.round} · {race.circuit.name}, {race.circuit.locality}, {race.circuit.country} · {formatDateRange(race.sessions)}
-                          </p>
-                        </div>
-                        <RaceCountdown next={next} />
-                        {next.state === "in_window" && (
-                          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <TimerIcon aria-hidden className="size-3.5" />
-                            <span>
-                              Live timing isn&apos;t available from any free, permitted source.{" "}
-                              <Link href="/live" className="font-medium text-foreground underline">
-                                Live status and latest replay
-                              </Link>
-                            </span>
-                          </p>
-                        )}
-                      </div>
-                      <CircuitOutline circuit={race.circuit} className="mx-auto w-32 sm:w-40" />
-                    </div>
-                    <SessionSchedule race={race} />
-                    <SourceNote res={res} />
-                  </div>
-                );
-              }}
-            </QueryState>
-          )}
-        </CardContent>
-      </Card>
-
+    <div className="space-y-4">
+      <h1 className="sr-only">Pitwall home</h1>
+      {calendarLoading ? (
+        <HeroSkeleton />
+      ) : (
+        <QueryState query={calendar}>
+          {(races) => {
+            const next = nextSession(races, now);
+            return next ? (
+              <Hero next={next} />
+            ) : (
+              <p className="border p-6 text-sm text-muted-foreground">The {season} season is complete. The next calendar hasn&apos;t been published yet.</p>
+            );
+          }}
+        </QueryState>
+      )}
+      <div className="grid gap-4 md:grid-cols-2">
       <Card>
         <CardHeader>
           <CardDescription>Weather</CardDescription>
           <CardTitle>{nextRace ? nextRace.circuit.locality : "—"}</CardTitle>
           {nextRace && (
             <CardAction>
-              <Link href={`/weather?round=${nextRace.round}`} className="text-xs hover:underline">Weather detail</Link>
+              <Link href={`/race?season=${nextRace.season}&round=${nextRace.round}&tab=weather`} className="text-xs hover:underline">Weather detail</Link>
             </CardAction>
           )}
         </CardHeader>
@@ -190,6 +217,8 @@ export function HomeView() {
         )}
       </Card>
 
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
       <Card>
         <CardHeader>
           <CardDescription>{season} championship</CardDescription>
@@ -235,6 +264,7 @@ export function HomeView() {
           )}
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

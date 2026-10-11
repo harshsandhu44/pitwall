@@ -1,14 +1,12 @@
 "use client";
 
-import { type CloudLevel, type GrandPrix, nextSession, scheduleState, SESSION_LABEL, type SessionKind } from "@pitwall/shared";
+import { type CloudLevel, type GrandPrix, scheduleState, SESSION_LABEL, type SessionKind } from "@pitwall/shared";
 import { useTheme } from "next-themes";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ErrorState, QueryState, SourceNote } from "@/components/data/query-state";
-import { PageHeader } from "@/components/pages/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { CloudLegend, RadarLegend } from "@/components/weather/legends";
@@ -18,7 +16,7 @@ import { WeatherConditions } from "@/components/weather/weather-conditions-card"
 import { type WeatherLayer, WeatherLayerSelector } from "@/components/weather/weather-layer-selector";
 import { WeatherTimeline } from "@/components/weather/weather-timeline";
 import { formatHour } from "@/lib/format";
-import { useCalendar, useCloudGrid, useForecast, useNow, useRadar, useSeasons } from "@/lib/hooks";
+import { useCloudGrid, useForecast, useRadar } from "@/lib/hooks";
 import { nearestStep } from "@/lib/weather-geo";
 
 const WeatherMap = dynamic(() => import("@/components/weather/weather-map"), {
@@ -40,47 +38,8 @@ function useQueryParam(name: string) {
   return [params.get(name), set] as const;
 }
 
-/** Weather always concerns the newest season's calendar: forecasts only exist for upcoming sessions. */
-export function WeatherView() {
-  const season = useSeasons().data?.data?.[0] ?? null;
-  const calendar = useCalendar(season);
-  const now = useNow();
-  const [roundParam, setRound] = useQueryParam("round");
-
-  return (
-    <QueryState query={calendar} loading={<Skeleton className="h-96 w-full" />}>
-      {(races) => {
-        if (now === null) return <Skeleton className="h-96 w-full" />;
-        const next = nextSession(races, now);
-        const fallback = next?.race ?? races.at(-1);
-        const race = races.find((r) => r.round === Number(roundParam)) ?? fallback;
-        if (!race) return <ErrorState error={new Error("No races published for this season yet.")} />;
-        const items = races.map((r) => ({ value: String(r.round), label: `R${r.round} · ${r.name}` }));
-        return (
-          <>
-            <PageHeader title={`Weather · ${race.name}`} description={`${race.circuit.name}, ${race.circuit.locality}, ${race.circuit.country}`}>
-              <Select items={items} value={String(race.round)} onValueChange={(v) => v && setRound(v)}>
-                <SelectTrigger aria-label="Grand Prix" className="w-64">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {items.map((i) => (
-                    <SelectItem key={i.value} value={i.value}>
-                      {i.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </PageHeader>
-            <RaceWeather key={race.round} race={race} now={now} />
-          </>
-        );
-      }}
-    </QueryState>
-  );
-}
-
-function RaceWeather({ race, now }: { race: GrandPrix; now: number }) {
+/** Radar, forecast map, conditions and per-session forecast for one Grand Prix weekend. */
+export function RaceWeather({ race, now }: { race: GrandPrix; now: number }) {
   const forecast = useForecast(race.circuit.id);
   const grid = useCloudGrid(race.circuit.id);
   const radar = useRadar();

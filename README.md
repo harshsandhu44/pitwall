@@ -39,16 +39,31 @@ Tests mock every upstream and never touch the network. Fixtures are trimmed copi
 
 | Route | What it shows |
 |---|---|
-| `/` | Next session with countdown, weather for the next race, most recent result, top of both championships |
-| `/live` | Live timing tower and race control during a session (OpenF1); otherwise the next session and the latest replay |
+| `/` | The next weekend (countdown, circuit, session strip), or a live band with the top three while a session streams; weather for the next race, most recent result, top of both championships |
+| `/live` | Live dashboard during a session (OpenF1): session status, track map, timing, driver focus, race control, track weather; otherwise the next session and the latest replay |
 | `/calendar` | Season calendar with local session times |
 | `/standings` | Driver and constructor standings, points progression, results matrix |
-| `/race?season=&round=` | Weekend schedule, race, sprint and qualifying classifications |
+| `/race?season=&round=&tab=` | The weekend page. Results: schedule and race, sprint and qualifying classifications. Weather (newest season only): radar, cloud and wind map, forecast timeline and per-session summary. Sessions (2023 on): replay links for the weekend's recorded sessions |
 | `/driver?id=`, `/team?id=` | Career by season |
-| `/weather?round=&session=` | Radar, cloud and wind map, forecast timeline and per-session summary |
-| `/replay?season=&session=` | Recorded OpenF1 session: track, timing tower, comparison, race control, track weather |
+| `/weather?round=` | Redirects to that round's Weather tab (old links) |
+| `/replay?season=&session=` | Recorded OpenF1 session on the same dashboard as live, plus driver comparison and playback |
 
 Every page also takes `?season=`. Query parameters, not path segments, keep the app a plain static export.
+
+## Design
+
+- **Tokens** live in `apps/app/src/app/globals.css`: graphite surfaces and a signal red (`--live` for stripes and the LIVE marker, a deeper `--primary` for filled buttons so white text keeps 4.5:1), defined for both themes. Theme follows the system until the toggle picks one.
+- **Type:** Archivo, with its widest cut (`font-display`) for page titles and panel headers; Geist Mono for times and gaps.
+- **Shape:** square everywhere; panels have one cut corner (`panel-cut`) and a red stripe on the header. Flag, tyre and team colours are data colours, not accents.
+- **Navigation:** a top bar, and a bottom tab bar on phones. Live gets a dot while the calendar says a session is in its slot (no extra requests).
+
+## Dashboard panels
+
+`/live` and `/replay` are grids of panels (`components/dashboard/panel-grid.tsx`, on react-grid-layout).
+
+- Drag a panel by its title and resize it from the bottom-right corner. Each panel's ⋯ menu moves it (it trades places with the neighbour in that direction), resizes it in quarter-width steps, or hides it; that menu is the keyboard and touch path.
+- Phones (under 768 px) stack the panels in the saved order; the menu still reorders and hides.
+- Layouts and hidden panels are saved per browser in `localStorage` (`pitwall.layout.live.v1`, `pitwall.layout.replay.v1`). "Panels" brings hidden ones back and "Reset layout" restores the default.
 
 ## Data sources and terms
 
@@ -153,6 +168,7 @@ Checked against Jolpica for 2026: standings, progression, points and wins are id
 - **Same timing as replays.** The DO keeps the raw rows (laps, stints, pits, positions, race control, latest intervals, entry list) and builds the tower with the replay's own `toReplay` and `timingAt`.
 - **Track map.** The DO also subscribes to car locations (`v1/location`, about 4 a second per car) and keeps only the last 10 s. Each poll carries that window; the page draws the cars 5 s behind the newest sample with the replay's interpolation, so they move smoothly between polls. The outline is traced from the fastest clean lap of the meeting's latest finished session (OpenF1 uses the same coordinates across a weekend), so the weekend's first session shows cars without an outline.
 - **Track weather.** The DO also subscribes to `v1/weather` (about one observation a minute) and each poll carries the newest one.
+- **Track status.** Each snapshot carries the flag and safety-car state (`trackStatus` in `packages/shared`), judged from every race-control message so far. The snapshot only carries the latest 20 messages, and a run of track-limits notes could otherwise push a safety-car deployment out of view.
 - **States.** `LIVE` while the newest source timestamp (car locations included) is under 15 s old, `DELAYED` (with `delaySeconds`) after that, for example under a red flag or after the chequered flag. `UNAVAILABLE` with `no_data_yet` before the first timed data, or `feed_unavailable` with the reason when OpenF1 can't be reached or refuses the login.
 - **Polling.** The page polls `/api/live/session` every 3 s while a session streams and every 30 s otherwise. `/api/live/timing` returns the same snapshot on its own.
 - **MQTT.** `apps/api/src/mqtt.ts` is a minimal MQTT 3.1.1 client (connect, QoS 0 subscribe, publish, keep-alive). mqtt.js doesn't work in workerd. Workers deliver WebSocket frames as Blobs unless `binaryType` is `"arraybuffer"`.
@@ -164,8 +180,9 @@ Checked against Jolpica for 2026: standings, progression, points and wins are id
 - Status changes use `role="status"` / `aria-live`, and errors use `role="alert"`.
 - Colours are never the only signal: team marks sit next to team names, tyres show a letter, and position changes have text labels.
 - The track map and weather map have text equivalents in the timing tower and forecast tables.
-- Nothing animates on its own. Radar and replay playback start only on request, and `prefers-reduced-motion` turns off transitions and spinners.
-- Lighthouse accessibility scores 100 on home, live, standings, weather and replay.
+- Motion follows data only: timing rows slide to their new place (with a green or red edge on a gain or loss), new race-control messages slide in, and the LIVE marker pulses. Radar and replay playback start only on request. `prefers-reduced-motion` turns all of it off.
+- Every page has a skip link, and dashboard panels are labelled regions with headings.
+- Lighthouse accessibility scored 100 on home, live, standings, weather and replay before the October 2026 redesign; it hasn't been re-run since.
 
 ## Deploying
 

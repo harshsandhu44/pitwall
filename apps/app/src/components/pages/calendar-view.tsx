@@ -30,9 +30,9 @@ export function CalendarView() {
                     <Link
                       href={`/race?season=${race.season}&round=${race.round}`}
                       className={cn(
-                        "flex h-full gap-3 rounded-xl border p-3 transition-colors hover:bg-muted/50",
-                        isNext && "border-foreground/40 bg-muted/40",
-                        done && "opacity-80",
+                        "flex h-full gap-3 border bg-card p-3 transition-colors hover:bg-muted/50 focus-visible:bg-muted/50",
+                        isNext && "border-l-4 border-live bg-live/8",
+                        done && "text-muted-foreground",
                       )}
                     >
                       <div className="min-w-0 flex-1 space-y-1">
@@ -42,7 +42,7 @@ export function CalendarView() {
                           {done && <Badge variant="secondary">Completed</Badge>}
                           {race.sessions.some((s) => s.kind === "SPRINT") && <Badge variant="outline">Sprint</Badge>}
                         </div>
-                        <p className="truncate font-medium">{race.name}</p>
+                        <p className={cn("truncate font-semibold", !done && "text-foreground")}>{race.name}</p>
                         <p className="truncate text-xs text-muted-foreground">
                           {race.circuit.locality}, {race.circuit.country}
                         </p>
