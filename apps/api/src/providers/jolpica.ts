@@ -242,16 +242,6 @@ async function allRaces(path: string, ua: string): Promise<JRace[]> {
   return [...races.values()].sort((a, b) => Number(a.round) - Number(b.round));
 }
 
-export async function seasons(ua: string): Promise<number[]> {
-  const out: number[] = [];
-  for (let offset = 0; ; offset += PAGE) {
-    const res = await get(`seasons.json?limit=${PAGE}&offset=${offset}`, SeasonTable, ua);
-    out.push(...res.MRData.SeasonTable.Seasons.map((s) => Number(s.season)));
-    if (offset + PAGE >= Number(res.MRData.total)) break;
-  }
-  return out.sort((a, b) => b - a);
-}
-
 export async function calendar(season: number, ua: string): Promise<GrandPrix[]> {
   return (await allRaces(`${season}`, ua)).map(toGrandPrix);
 }

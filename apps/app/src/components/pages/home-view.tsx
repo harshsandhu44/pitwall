@@ -13,12 +13,12 @@ import { ArrowRightIcon, TimerIcon } from "lucide-react";
 import Link from "next/link";
 import { QueryState, SourceNote } from "@/components/data/query-state";
 import { CircuitOutline } from "@/components/racing/circuit-outline";
+import { ProvisionalNote } from "@/components/racing/provisional-note";
 import { RaceCountdown } from "@/components/racing/race-countdown";
 import { SessionSchedule } from "@/components/racing/session-schedule";
 import { WeatherConditions } from "@/components/weather/weather-conditions-card";
 import { ConstructorStandingsTable } from "@/components/standings/constructor-standings-table";
 import { DriverStandingsTable } from "@/components/standings/driver-standings-table";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApi } from "@/lib/api";
@@ -76,7 +76,7 @@ export function HomeView() {
             <QueryState query={calendar}>
               {(races, res) => {
                 const next = nextSession(races, now);
-                if (!next) return <p className="text-sm text-muted-foreground">The {season} season is complete. The next calendar hasn&apos;t been published by Jolpica yet.</p>;
+                if (!next) return <p className="text-sm text-muted-foreground">The {season} season is complete. The next calendar hasn&apos;t been published yet.</p>;
                 const { race } = next;
                 return (
                   <div className="space-y-4">
@@ -151,11 +151,7 @@ export function HomeView() {
                   <p className="text-sm text-muted-foreground">Results haven&apos;t been published yet.</p>
                 ) : (
                   <div className="space-y-3">
-                    {r.fromOpenF1?.includes("results") && (
-                      <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                        <Badge variant="outline">Provisional · OpenF1</Badge> Official results not published yet.
-                      </p>
-                    )}
+                    <ProvisionalNote race={r.race} />
                     <ol className="space-y-1.5" aria-label="Podium">
                       {r.results.slice(0, 3).map((e) => (
                         <li key={e.driver.id} className="flex items-baseline gap-2 text-sm">

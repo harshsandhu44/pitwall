@@ -4,12 +4,20 @@ import type { ApiResponse, LiveStatus } from "@pitwall/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import worker from "../src/index";
 import { resetUpstreamState } from "../src/upstream";
-import calendar2026 from "./fixtures/calendar-2026.json";
+import { openf1Mock } from "./openf1-mock";
 
-const seasons = { MRData: { total: "1", limit: "100", offset: "0", SeasonTable: { Seasons: [{ season: "2026" }] } } };
-const session = (key: number, start: string, end: string) => ({
-  session_key: key, session_name: "Race", session_type: "Race", date_start: start, date_end: end, meeting_key: 1,
-  circuit_short_name: "Melbourne", country_name: "Australia", is_cancelled: false,
+const meeting = (key: number, name: string, start: string) => ({ meeting_key: key, meeting_name: name, date_start: start, year: 2026, is_cancelled: false });
+const session = (key: number, meeting: number, name: string, start: string, end: string) => ({
+  session_key: key, session_name: name, session_type: name, date_start: start, date_end: end, meeting_key: meeting,
+  circuit_short_name: "Somewhere", country_name: "Somewhere", year: 2026, is_cancelled: false,
+});
+const openf1 = openf1Mock({
+  meetings: [meeting(1, "Australian Grand Prix", "2026-03-06T01:30:00Z"), meeting(2, "Chinese Grand Prix", "2026-03-13T03:30:00Z")],
+  sessions: [
+    session(9693, 1, "Race", "2026-03-08T04:00:00Z", "2026-03-08T06:00:00Z"),
+    session(9701, 2, "Sprint", "2026-03-14T03:00:00Z", "2026-03-14T04:00:00Z"),
+    session(9705, 2, "Race", "2026-03-15T07:00:00Z", "2026-03-15T09:00:00Z"),
+  ],
 });
 let calls: URL[];
 
@@ -29,11 +37,7 @@ function upstream(ok: boolean) {
     const url = new URL(String(input));
     calls.push(url);
     if (!ok) return new Response("down", { status: 503 });
-    if (url.pathname.endsWith("seasons.json")) return Response.json(seasons);
-    if (url.host === "api.jolpi.ca") return Response.json(calendar2026);
-    if (url.pathname === "/v1/sessions") return Response.json([session(9693, "2026-03-08T04:00:00Z", "2026-03-08T06:00:00Z")]);
-    if (url.pathname === "/v1/meetings") return Response.json([{ meeting_key: 1, meeting_name: "Australian Grand Prix" }]);
-    return new Response("not mocked", { status: 500 });
+    return openf1(url);
   });
 }
 
@@ -61,7 +65,7 @@ describe("live", () => {
     expect(live.state).toBe("UNAVAILABLE");
     if (live.state !== "UNAVAILABLE") return;
     expect(live.reason).toBe("no_permitted_free_source");
-    expect(live.next?.race.name).toBe("Chinese Grand Prix");
+    expect(live.next).toMatchObject({ race: { name: "Chinese Grand Prix", circuit: { id: "shanghai" } }, session: { kind: "SPRINT" } });
     expect(live.latestReplay).toMatchObject({ key: 9693, meetingName: "Australian Grand Prix" });
     // Never touches OpenF1 data endpoints that could be mistaken for live data.
     expect(calls.filter((u) => u.host === "api.openf1.org").map((u) => u.pathname).sort()).toEqual(["/v1/meetings", "/v1/sessions"]);

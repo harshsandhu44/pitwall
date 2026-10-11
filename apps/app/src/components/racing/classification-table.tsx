@@ -6,7 +6,7 @@ import { driverName, formatPoints } from "@/lib/format";
 import { TeamMark } from "@/components/racing/team-mark";
 import type { ReactNode } from "react";
 
-/** OpenF1 fallback rows can carry drivers or teams Jolpica doesn't know yet (id ""): no profile to link to. */
+/** Drivers or teams missing from the OpenF1 identity map have id "": no profile to link to. */
 function ProfileLink({ id, href, className, children }: { id: string; href: string; className: string; children: ReactNode }) {
   return id ? <Link href={href} className={className}>{children}</Link> : <span className={className}>{children}</span>;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import type { RaceWeekendResults, ResultSession } from "@pitwall/shared";
+import type { RaceWeekendResults } from "@pitwall/shared";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -8,8 +8,8 @@ import { ErrorState, QueryState, SourceNote } from "@/components/data/query-stat
 import { PageHeader } from "@/components/pages/page-header";
 import { CircuitOutline } from "@/components/racing/circuit-outline";
 import { ClassificationTable, QualifyingTable } from "@/components/racing/classification-table";
+import { ProvisionalNote } from "@/components/racing/provisional-note";
 import { SessionSchedule } from "@/components/racing/session-schedule";
-import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -17,20 +17,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useApi } from "@/lib/api";
 import { formatDateRange } from "@/lib/format";
 import { useCalendar } from "@/lib/hooks";
-
-/** Shown above a classification that came from OpenF1 instead of Jolpica. */
-function OpenF1Note({ session, weekend }: { session: ResultSession; weekend: RaceWeekendResults }) {
-  if (!(weekend.fromOpenF1 ?? []).includes(session)) return null;
-  const sq = session === "sprintQualifying";
-  return (
-    <p className="mb-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-      <Badge variant="outline">{sq ? "OpenF1 timing data" : "Provisional · OpenF1"}</Badge>
-      {sq
-        ? "Jolpica doesn't publish sprint qualifying, so this comes from OpenF1's timing data."
-        : "Jolpica hasn't published this yet. This is OpenF1's classification from timing data, before any later stewards' decisions, and is replaced by the official result once Jolpica publishes it."}
-    </p>
-  );
-}
 
 export function RaceView() {
   const params = useSearchParams();
@@ -74,6 +60,7 @@ export function RaceView() {
                   <CardTitle>Classification</CardTitle>
                 </CardHeader>
                 <CardContent>
+                  {[results, qualifying, sprint, sprintQualifying].some((x) => x.length > 0) && <ProvisionalNote race={race} className="mb-3" />}
                   <Tabs defaultValue={tab}>
                     <TabsList className="mb-3 flex-wrap">
                       <TabsTrigger value="race">Race</TabsTrigger>
@@ -84,19 +71,15 @@ export function RaceView() {
                       )}
                     </TabsList>
                     <TabsContent value="race">
-                      <OpenF1Note session="results" weekend={data} />
                       <ClassificationTable entries={results} season={race.season} caption={`${race.name} race classification`} />
                     </TabsContent>
                     <TabsContent value="qualifying">
-                      <OpenF1Note session="qualifying" weekend={data} />
                       <QualifyingTable entries={qualifying} season={race.season} caption={`${race.name} qualifying classification`} />
                     </TabsContent>
                     <TabsContent value="sprint">
-                      <OpenF1Note session="sprint" weekend={data} />
                       <ClassificationTable entries={sprint} season={race.season} caption={`${race.name} sprint classification`} />
                     </TabsContent>
                     <TabsContent value="sprintQualifying">
-                      <OpenF1Note session="sprintQualifying" weekend={data} />
                       <QualifyingTable entries={sprintQualifying} season={race.season} caption={`${race.name} sprint qualifying classification`} stage="SQ" />
                     </TabsContent>
                   </Tabs>

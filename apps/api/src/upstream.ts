@@ -17,7 +17,8 @@ export class UpstreamError extends Error {
 /** Minimum spacing between requests, optional per-minute budget and per-request timeout for each provider. */
 const POLICY: Record<UpstreamSource, { minIntervalMs: number; perMinute?: number; timeoutMs: number }> = {
   jolpica: { minIntervalMs: 260, timeoutMs: 8000 }, // ~4 req/s burst limit
-  openf1: { minIntervalMs: 350, perMinute: 30, timeoutMs: 15000 }, // free tier: 3 req/s and 30 req/min
+  // Sponsor tier allows 6 req/s and 60/min; this budget is per isolate, so stay well under it.
+  openf1: { minIntervalMs: 350, perMinute: 30, timeoutMs: 15000 },
   "open-meteo": { minIntervalMs: 100, timeoutMs: 8000 },
   rainviewer: { minIntervalMs: 100, timeoutMs: 5000 },
 };
@@ -73,6 +74,40 @@ let paced = true;
 export function resetUpstreamState(opts: { paced?: boolean } = {}) {
   pacing.clear();
   paced = opts.paced ?? true;
+  token = null;
+}
+
+// ---- OpenF1 sponsor login ----
+// Without a login (local dev, tests) OpenF1 is used on its free tier, which refuses every request while a
+// session is live. A failed login falls back to the free tier and is retried after a few minutes.
+
+let login: { username: string; password: string } | null = null;
+let token: { value: string | null; until: number } | null = null;
+
+/** Called with the Worker's secrets on each request; they're the same for the isolate's lifetime. */
+export function useOpenF1Login(username: string | undefined, password: string | undefined) {
+  login = username && password ? { username, password } : null;
+}
+
+async function openf1Token(userAgent: string): Promise<string | null> {
+  if (!login) return null;
+  if (token && token.until > Date.now()) return token.value;
+  try {
+    const res = await fetch("https://api.openf1.org/token", {
+      method: "POST",
+      headers: { "User-Agent": userAgent, "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams(login),
+      signal: AbortSignal.timeout(POLICY.openf1.timeoutMs),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const body = z.object({ access_token: z.string(), expires_in: z.coerce.number() }).parse(await res.json());
+    // Tokens last an hour; renew five minutes early.
+    token = { value: body.access_token, until: Date.now() + (body.expires_in - 300) * 1000 };
+  } catch (e) {
+    console.error("OpenF1 login failed; using the free tier", e);
+    token = { value: null, until: Date.now() + 5 * 60_000 };
+  }
+  return token.value;
 }
 
 /**
@@ -90,10 +125,11 @@ export async function fetchJson<T>(
     const canRetry = attempt === 0;
     await pace(source);
 
+    const bearer = source === "openf1" ? await openf1Token(userAgent) : null;
     let res: Response;
     try {
       res = await fetch(url, {
-        headers: { "User-Agent": userAgent, Accept: "application/json" },
+        headers: { "User-Agent": userAgent, Accept: "application/json", ...(bearer && { Authorization: `Bearer ${bearer}` }) },
         signal: AbortSignal.timeout(POLICY[source].timeoutMs),
       });
     } catch (e) {

@@ -1,3 +1,6 @@
-# Copy to .dev.vars to override wrangler.jsonc vars for `wrangler dev`. Pitwall uses no secrets.
+# Copy to .dev.vars to override wrangler.jsonc vars for `wrangler dev`.
+# OpenF1 sponsor login (production: `wrangler secret put`). Leave empty to use OpenF1's free tier.
 ALLOWED_ORIGINS="http://localhost:3000,http://localhost:8788"
 USER_AGENT="Pitwall/0.1 (non-commercial F1 dashboard)"
+OPENF1_USERNAME=""
+OPENF1_PASSWORD=""

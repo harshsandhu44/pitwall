@@ -7,25 +7,6 @@ import { nextSlot, resetUpstreamState } from "../src/upstream";
 import f from "./fixtures/openf1-monaco-2024.json";
 
 let calls: URL[];
-const jolpicaStandings = {
-  MRData: {
-    total: "3", limit: "100", offset: "0",
-    StandingsTable: {
-      season: "2024",
-      StandingsLists: [
-        {
-          season: "2024", round: "24",
-          DriverStandings: [
-            { position: "1", positionText: "1", points: "437", wins: "9", Driver: { driverId: "max_verstappen", code: "VER", permanentNumber: "33", givenName: "Max", familyName: "Verstappen" }, Constructors: [{ constructorId: "red_bull", name: "Red Bull" }] },
-            { position: "3", positionText: "3", points: "356", wins: "3", Driver: { driverId: "leclerc", code: "LEC", permanentNumber: "16", givenName: "Charles", familyName: "Leclerc" }, Constructors: [{ constructorId: "ferrari", name: "Ferrari" }] },
-            { position: "7", positionText: "7", points: "223", wins: "2", Driver: { driverId: "hamilton", code: "HAM", permanentNumber: "44", givenName: "Lewis", familyName: "Hamilton" }, Constructors: [{ constructorId: "mercedes", name: "Mercedes" }] },
-          ],
-        },
-      ],
-    },
-  },
-};
-
 // 60 synthetic samples around Hamilton's lap 63 plus one "no fix" row that must be dropped.
 const lapStart = Date.parse("2024-05-26T15:06:33.731Z");
 const outline = [
@@ -38,6 +19,7 @@ function openf1(url: URL): unknown {
   const ep = url.pathname.replace("/v1/", "");
   if (ep === "sessions") return p.has("session_key") ? f.sessions.filter((s) => String(s.session_key) === p.get("session_key")) : f.sessions;
   if (ep === "meetings") return f.meetings;
+  if (ep === "session_result") return [];
   if (ep === "location") return p.has("driver_number") ? outline : [...f.window_location, { ...f.window_location[0]!, x: 0, y: 0, z: 0 }];
   if (ep === "intervals") return [...f.window_intervals, { date: "2024-05-26T14:00:30.000+00:00", session_key: 9523, driver_number: 77, gap_to_leader: "+1 LAP", interval: 3.049 }];
   return (f as Record<string, unknown>)[ep];
@@ -50,7 +32,6 @@ beforeEach(() => {
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
     const url = new URL(String(input instanceof Request ? input.url : input));
     calls.push(url);
-    if (url.host === "api.jolpi.ca") return Response.json(jolpicaStandings);
     const body = openf1(url);
     return body === undefined ? new Response("not mocked", { status: 500 }) : Response.json(body);
   });
@@ -126,7 +107,6 @@ describe("position windows", () => {
   it("returns an empty window (not an error) when OpenF1 has no samples", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = new URL(String(input));
-      if (url.host === "api.jolpi.ca") return Response.json(jolpicaStandings);
       if (url.pathname === "/v1/location" && !url.searchParams.has("driver_number")) return Response.json({ detail: "No results found." }, { status: 404 });
       if (url.pathname === "/v1/intervals") return Response.json({ detail: "No results found." }, { status: 404 });
       return Response.json(openf1(url));
@@ -138,7 +118,7 @@ describe("position windows", () => {
 });
 
 describe("team colours", () => {
-  it("maps OpenF1 colours to Jolpica constructors through the drivers", async () => {
+  it("maps OpenF1 colours to Jolpica constructors through the identity map", async () => {
     const { body } = await get<Record<string, string>>("/api/team-colours?season=2024");
     expect(body.data).toEqual({ red_bull: "#3671C6", ferrari: "#E80020", mercedes: "#27F4D2" });
   });

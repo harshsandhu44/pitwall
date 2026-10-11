@@ -76,8 +76,8 @@ describe("routes", () => {
     upstream = (url) =>
       ok(url.searchParams.get("offset") === "0" ? page(0, races) : page(100, [{ ...round5, Results: rest }]));
 
-    const { body } = await get<{ races: { round: number; results: unknown[] }[] }>("/api/results?season=2026");
-    expect(calls).toEqual(["/ergast/f1/2026/results.json?limit=100&offset=0", "/ergast/f1/2026/results.json?limit=100&offset=100"]);
+    const { body } = await get<{ races: { round: number; results: unknown[] }[] }>("/api/results?season=2022");
+    expect(calls).toEqual(["/ergast/f1/2022/results.json?limit=100&offset=0", "/ergast/f1/2022/results.json?limit=100&offset=100"]);
     expect(body.data!.races.map((r) => r.round)).toEqual([1, 2, 3, 4, 5]);
     expect(body.data!.races.at(-1)!.results).toHaveLength(22);
   });
@@ -171,11 +171,11 @@ describe("upstream failures", () => {
   });
 
   it("serves stale cache entries while revalidating in the background", async () => {
-    vi.useFakeTimers({ toFake: ["Date"], now: Date.parse("2026-10-10T00:00:00Z") });
-    upstream = () => ok(calendarFor(2026));
-    await get("/api/calendar?season=2026");
-    vi.setSystemTime(Date.parse("2026-10-10T07:00:00Z")); // past the 6h ttl
-    const { body } = await get("/api/calendar?season=2026");
+    vi.useFakeTimers({ toFake: ["Date"], now: Date.parse("2010-10-10T00:00:00Z") });
+    upstream = () => ok(calendarFor(2010));
+    await get("/api/calendar?season=2010");
+    vi.setSystemTime(Date.parse("2010-10-10T07:00:00Z")); // past the 6h ttl
+    const { body } = await get("/api/calendar?season=2010");
     expect(body).toMatchObject({ status: "stale", cache: "stale" });
     expect(calls).toHaveLength(2); // background refresh
     vi.useRealTimers();
@@ -184,16 +184,16 @@ describe("upstream failures", () => {
 
 describe("snapshot refresh", () => {
   it("revalidates a stale cache entry from a newer D1 snapshot instead of the provider", async () => {
-    vi.useFakeTimers({ toFake: ["Date"], now: Date.parse("2027-03-01T00:00:00Z") });
-    upstream = () => ok(calendarFor(2027));
-    await get("/api/calendar?season=2027");
-    vi.setSystemTime(Date.parse("2027-03-01T07:00:00Z")); // past the 6h ttl
-    // The cron (or another data centre) refreshed D1 a minute ago.
-    await env.DB.prepare("UPDATE upstream_snapshot SET fetched_at = ?1 WHERE key = 'calendar/2027'").bind(Date.now() - 60_000).run();
-    expect((await get("/api/calendar?season=2027")).body).toMatchObject({ status: "stale", cache: "stale" });
-    const { body } = await get("/api/calendar?season=2027");
+    vi.useFakeTimers({ toFake: ["Date"], now: Date.parse("2011-03-01T00:00:00Z") });
+    upstream = () => ok(calendarFor(2011));
+    await get("/api/calendar?season=2011");
+    vi.setSystemTime(Date.parse("2011-03-01T07:00:00Z")); // past the 6h ttl
+    // Another data centre refreshed D1 a minute ago.
+    await env.DB.prepare("UPDATE upstream_snapshot SET fetched_at = ?1 WHERE key = 'calendar/2011'").bind(Date.now() - 60_000).run();
+    expect((await get("/api/calendar?season=2011")).body).toMatchObject({ status: "stale", cache: "stale" });
+    const { body } = await get("/api/calendar?season=2011");
     vi.useRealTimers();
-    expect(body).toMatchObject({ status: "ok", cache: "hit", fetchedAt: "2027-03-01T06:59:00.000Z" });
+    expect(body).toMatchObject({ status: "ok", cache: "hit", fetchedAt: "2011-03-01T06:59:00.000Z" });
     expect(calls).toHaveLength(1);
   });
 });

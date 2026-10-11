@@ -27,3 +27,6 @@ export function circuitFor(c: JolpicaCircuit, season: number, round: number): Ci
     layout: layoutId ? { id: layoutId, lengthKm: layoutLength[layoutId] ?? null } : null,
   };
 }
+
+/** Jolpica circuit id of a round, from the registry (OpenF1 seasons have no Jolpica calendar to read it from). */
+export const circuitIdAt = (season: number, round: number): string | null => races[`${season}/${round}`]?.[0] ?? null;

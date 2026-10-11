@@ -1,0 +1,1300 @@
+{
+ "source": "Jolpica + OpenF1",
+ "drivers": {
+  "max_verstappen": {
+   "code": "VER",
+   "number": 3,
+   "givenName": "Max",
+   "familyName": "Verstappen",
+   "nationality": "Dutch",
+   "dateOfBirth": "1997-09-30",
+   "url": "http://en.wikipedia.org/wiki/Max_Verstappen",
+   "seasons": [
+    2026,
+    2025,
+    2024,
+    2023,
+    2022,
+    2021,
+    2020,
+    2019,
+    2018,
+    2017,
+    2016,
+    2015
+   ]
+  },
+  "perez": {
+   "code": "PER",
+   "number": 11,
+   "givenName": "Sergio",
+   "familyName": "Pérez",
+   "nationality": "Mexican",
+   "dateOfBirth": "1990-01-26",
+   "url": "http://en.wikipedia.org/wiki/Sergio_P%C3%A9rez",
+   "seasons": [
+    2026,
+    2024,
+    2023,
+    2022,
+    2021,
+    2020,
+    2019,
+    2018,
+    2017,
+    2016,
+    2015,
+    2014,
+    2013,
+    2012,
+    2011
+   ]
+  },
+  "hamilton": {
+   "code": "HAM",
+   "number": 44,
+   "givenName": "Lewis",
+   "familyName": "Hamilton",
+   "nationality": "British",
+   "dateOfBirth": "1985-01-07",
+   "url": "http://en.wikipedia.org/wiki/Lewis_Hamilton",
+   "seasons": [
+    2026,
+    2025,
+    2024,
+    2023,
+    2022,
+    2021,
+    2020,
+    2019,
+    2018,
+    2017,
+    2016,
+    2015,
+    2014,
+    2013,
+    2012,
+    2011,
+    2010,
+    2009,
+    2008,
+    2007
+   ]
+  },
+  "alonso": {
+   "code": "ALO",
+   "number": 14,
+   "givenName": "Fernando",
+   "familyName": "Alonso",
+   "nationality": "Spanish",
+   "dateOfBirth": "1981-07-29",
+   "url": "http://en.wikipedia.org/wiki/Fernando_Alonso",
+   "seasons": [
+    2026,
+    2025,
+    2024,
+    2023,
+    2022,
+    2021,
+    2018,
+    2017,
+    2016,
+    2015,
+    2014,
+    2013,
+    2012,
+    2011,
+    2010,
+    2009,
+    2008,
+    2007,
+    2006,
+    2005,
+    2004,
+    2003,
+    2001
+   ]
+  },
+  "leclerc": {
+   "code": "LEC",
+   "number": 16,
+   "givenName": "Charles",
+   "familyName": "Leclerc",
+   "nationality": "Monegasque",
+   "dateOfBirth": "1997-10-16",
+   "url": "http://en.wikipedia.org/wiki/Charles_Leclerc",
+   "seasons": [
+    2026,
+    2025,
+    2024,
+    2023,
+    2022,
+    2021,
+    2020,
+    2019,
+    2018
+   ]
+  },
+  "norris": {
+   "code": "NOR",
+   "number": 1,
+   "givenName": "Lando",
+   "familyName": "Norris",
+   "nationality": "British",
+   "dateOfBirth": "1999-11-13",
+   "url": "http://en.wikipedia.org/wiki/Lando_Norris",
+   "seasons": [
+    2026,
+    2025,
+    2024,
+    2023,
+    2022,
+    2021,
+    2020,
+    2019
+   ]
+  },
+  "sainz": {
+   "code": "SAI",
+   "number": 55,
+   "givenName": "Carlos",
+   "familyName": "Sainz",
+   "nationality": "Spanish",
+   "dateOfBirth": "1994-09-01",
+   "url": "http://en.wikipedia.org/wiki/Carlos_Sainz_Jr.",
+   "seasons": [
+    2026,
+    2025,
+    2024,
+    2023,
+    2022,
+    2021,
+    2020,
+    2019,
+    2018,
+    2017,
+    2016,
+    2015
+   ]
+  },
+  "russell": {
+   "code": "RUS",
+   "number": 63,
+   "givenName": "George",
+   "familyName": "Russell",
+   "nationality": "British",
+   "dateOfBirth": "1998-02-15",
+   "url": "http://en.wikipedia.org/wiki/George_Russell_(racing_driver)",
+   "seasons": [
+    2026,
+    2025,
+    2024,
+    2023,
+    2022,
+    2021,
+    2020,
+    2019
+   ]
+  },
+  "piastri": {
+   "code": "PIA",
+   "number": 81,
+   "givenName": "Oscar",
+   "familyName": "Piastri",
+   "nationality": "Australian",
+   "dateOfBirth": "2001-04-06",
+   "url": "http://en.wikipedia.org/wiki/Oscar_Piastri",
+   "seasons": [
+    2026,
+    2025,
+    2024,
+    2023
+   ]
+  },
+  "stroll": {
+   "code": "STR",
+   "number": 18,
+   "givenName": "Lance",
+   "familyName": "Stroll",
+   "nationality": "Canadian",
+   "dateOfBirth": "1998-10-29",
+   "url": "http://en.wikipedia.org/wiki/Lance_Stroll",
+   "seasons": [
+    2026,
+    2025,
+    2024,
+    2023,
+    2022,
+    2021,
+    2020,
+    2019,
+    2018,
+    2017
+   ]
+  },
+  "gasly": {
+   "code": "GAS",
+   "number": 10,
+   "givenName": "Pierre",
+   "familyName": "Gasly",
+   "nationality": "French",
+   "dateOfBirth": "1996-02-07",
+   "url": "http://en.wikipedia.org/wiki/Pierre_Gasly",
+   "seasons": [
+    2026,
+    2025,
+    2024,
+    2023,
+    2022,
+    2021,
+    2020,
+    2019,
+    2018,
+    2017
+   ]
+  },
+  "ocon": {
+   "code": "OCO",
+   "number": 31,
+   "givenName": "Esteban",
+   "familyName": "Ocon",
+   "nationality": "French",
+   "dateOfBirth": "1996-09-17",
+   "url": "http://en.wikipedia.org/wiki/Esteban_Ocon",
+   "seasons": [
+    2026,
+    2025,
+    2024,
+    2023,
+    2022,
+    2021,
+    2020,
+    2018,
+    2017,
+    2016
+   ]
+  },
+  "albon": {
+   "code": "ALB",
+   "number": 23,
+   "givenName": "Alexander",
+   "familyName": "Albon",
+   "nationality": "Thai",
+   "dateOfBirth": "1996-03-23",
+   "url": "http://en.wikipedia.org/wiki/Alexander_Albon",
+   "seasons": [
+    2026,
+    2025,
+    2024,
+    2023,
+    2022,
+    2020,
+    2019
+   ]
+  },
+  "tsunoda": {
+   "code": "TSU",
+   "number": 22,
+   "givenName": "Yuki",
+   "familyName": "Tsunoda",
+   "nationality": "Japanese",
+   "dateOfBirth": "2000-05-11",
+   "url": "http://en.wikipedia.org/wiki/Yuki_Tsunoda",
+   "seasons": [
+    2026,
+    2025,
+    2024,
+    2023,
+    2022,
+    2021
+   ]
+  },
+  "bottas": {
+   "code": "BOT",
+   "number": 77,
+   "givenName": "Valtteri",
+   "familyName": "Bottas",
+   "nationality": "Finnish",
+   "dateOfBirth": "1989-08-28",
+   "url": "http://en.wikipedia.org/wiki/Valtteri_Bottas",
+   "seasons": [
+    2026,
+    2024,
+    2023,
+    2022,
+    2021,
+    2020,
+    2019,
+    2018,
+    2017,
+    2016,
+    2015,
+    2014,
+    2013
+   ]
+  },
+  "hulkenberg": {
+   "code": "HUL",
+   "number": 27,
+   "givenName": "Nico",
+   "familyName": "Hülkenberg",
+   "nationality": "German",
+   "dateOfBirth": "1987-08-19",
+   "url": "http://en.wikipedia.org/wiki/Nico_H%C3%BClkenberg",
+   "seasons": [
+    2026,
+    2025,
+    2024,
+    2023,
+    2022,
+    2020,
+    2019,
+    2018,
+    2017,
+    2016,
+    2015,
+    2014,
+    2013,
+    2012,
+    2010
+   ]
+  },
+  "ricciardo": {
+   "code": "RIC",
+   "number": 3,
+   "givenName": "Daniel",
+   "familyName": "Ricciardo",
+   "nationality": "Australian",
+   "dateOfBirth": "1989-07-01",
+   "url": "http://en.wikipedia.org/wiki/Daniel_Ricciardo",
+   "seasons": [
+    2024,
+    2023,
+    2022,
+    2021,
+    2020,
+    2019,
+    2018,
+    2017,
+    2016,
+    2015,
+    2014,
+    2013,
+    2012,
+    2011
+   ]
+  },
+  "zhou": {
+   "code": "ZHO",
+   "number": 24,
+   "givenName": "Guanyu",
+   "familyName": "Zhou",
+   "nationality": "Chinese",
+   "dateOfBirth": "1999-05-30",
+   "url": "http://en.wikipedia.org/wiki/Zhou_Guanyu",
+   "seasons": [
+    2024,
+    2023,
+    2022
+   ]
+  },
+  "kevin_magnussen": {
+   "code": "MAG",
+   "number": 20,
+   "givenName": "Kevin",
+   "familyName": "Magnussen",
+   "nationality": "Danish",
+   "dateOfBirth": "1992-10-05",
+   "url": "http://en.wikipedia.org/wiki/Kevin_Magnussen",
+   "seasons": [
+    2024,
+    2023,
+    2022,
+    2020,
+    2019,
+    2018,
+    2017,
+    2016,
+    2015,
+    2014
+   ]
+  },
+  "lawson": {
+   "code": "LAW",
+   "number": 30,
+   "givenName": "Liam",
+   "familyName": "Lawson",
+   "nationality": "New Zealander",
+   "dateOfBirth": "2002-02-11",
+   "url": "http://en.wikipedia.org/wiki/Liam_Lawson",
+   "seasons": [
+    2026,
+    2025,
+    2024,
+    2023
+   ]
+  },
+  "sargeant": {
+   "code": "SAR",
+   "number": 2,
+   "givenName": "Logan",
+   "familyName": "Sargeant",
+   "nationality": "American",
+   "dateOfBirth": "2000-12-31",
+   "url": "http://en.wikipedia.org/wiki/Logan_Sargeant",
+   "seasons": [
+    2024,
+    2023
+   ]
+  },
+  "de_vries": {
+   "code": "DEV",
+   "number": 21,
+   "givenName": "Nyck",
+   "familyName": "de Vries",
+   "nationality": "Dutch",
+   "dateOfBirth": "1995-02-06",
+   "url": "http://en.wikipedia.org/wiki/Nyck_de_Vries",
+   "seasons": [
+    2023,
+    2022
+   ]
+  },
+  "bearman": {
+   "code": "BEA",
+   "number": 87,
+   "givenName": "Oliver",
+   "familyName": "Bearman",
+   "nationality": "British",
+   "dateOfBirth": "2005-05-08",
+   "url": "http://en.wikipedia.org/wiki/Oliver_Bearman",
+   "seasons": [
+    2026,
+    2025,
+    2024
+   ]
+  },
+  "colapinto": {
+   "code": "COL",
+   "number": 43,
+   "givenName": "Franco",
+   "familyName": "Colapinto",
+   "nationality": "Argentine",
+   "dateOfBirth": "2003-05-27",
+   "url": "http://en.wikipedia.org/wiki/Franco_Colapinto",
+   "seasons": [
+    2026,
+    2025,
+    2024
+   ]
+  },
+  "doohan": {
+   "code": "DOO",
+   "number": 7,
+   "givenName": "Jack",
+   "familyName": "Doohan",
+   "nationality": "Australian",
+   "dateOfBirth": "2003-01-20",
+   "url": "http://en.wikipedia.org/wiki/Jack_Doohan",
+   "seasons": [
+    2025,
+    2024
+   ]
+  },
+  "antonelli": {
+   "code": "ANT",
+   "number": 12,
+   "givenName": "Andrea Kimi",
+   "familyName": "Antonelli",
+   "nationality": "Italian",
+   "dateOfBirth": "2006-08-25",
+   "url": "https://en.wikipedia.org/wiki/Andrea_Kimi_Antonelli",
+   "seasons": [
+    2026,
+    2025,
+    2024
+   ]
+  },
+  "hadjar": {
+   "code": "HAD",
+   "number": 6,
+   "givenName": "Isack",
+   "familyName": "Hadjar",
+   "nationality": "French",
+   "dateOfBirth": "2004-09-28",
+   "url": "https://en.wikipedia.org/wiki/Isack_Hadjar",
+   "seasons": [
+    2026,
+    2025
+   ]
+  },
+  "bortoleto": {
+   "code": "BOR",
+   "number": 5,
+   "givenName": "Gabriel",
+   "familyName": "Bortoleto",
+   "nationality": "Brazilian",
+   "dateOfBirth": "2004-10-14",
+   "url": "https://en.wikipedia.org/wiki/Gabriel_Bortoleto",
+   "seasons": [
+    2026,
+    2025
+   ]
+  },
+  "arvid_lindblad": {
+   "code": "LIN",
+   "number": 41,
+   "givenName": "Arvid",
+   "familyName": "Lindblad",
+   "nationality": "British",
+   "dateOfBirth": "2007-08-08",
+   "url": "https://en.wikipedia.org/wiki/Arvid_Lindblad",
+   "seasons": [
+    2026,
+    2025
+   ]
+  }
+ },
+ "constructors": {
+  "red_bull": {
+   "name": "Red Bull",
+   "nationality": "Austrian",
+   "url": "https://en.wikipedia.org/wiki/Red_Bull_Racing",
+   "seasons": [
+    2026,
+    2025,
+    2024,
+    2023,
+    2022,
+    2021,
+    2020,
+    2019,
+    2018,
+    2017,
+    2016,
+    2015,
+    2014,
+    2013,
+    2012,
+    2011,
+    2010,
+    2009,
+    2008,
+    2007,
+    2006,
+    2005
+   ]
+  },
+  "mercedes": {
+   "name": "Mercedes",
+   "nationality": "German",
+   "url": "https://en.wikipedia.org/wiki/Mercedes-Benz_in_Formula_One",
+   "seasons": [
+    2026,
+    2025,
+    2024,
+    2023,
+    2022,
+    2021,
+    2020,
+    2019,
+    2018,
+    2017,
+    2016,
+    2015,
+    2014,
+    2013,
+    2012,
+    2011,
+    2010,
+    1955,
+    1954
+   ]
+  },
+  "aston_martin": {
+   "name": "Aston Martin",
+   "nationality": "British",
+   "url": "https://en.wikipedia.org/wiki/Aston_Martin_in_Formula_One",
+   "seasons": [
+    2026,
+    2025,
+    2024,
+    2023,
+    2022,
+    2021,
+    1960,
+    1959
+   ]
+  },
+  "ferrari": {
+   "name": "Ferrari",
+   "nationality": "Italian",
+   "url": "https://en.wikipedia.org/wiki/Scuderia_Ferrari",
+   "seasons": [
+    2026,
+    2025,
+    2024,
+    2023,
+    2022,
+    2021,
+    2020,
+    2019,
+    2018,
+    2017,
+    2016,
+    2015,
+    2014,
+    2013,
+    2012,
+    2011,
+    2010,
+    2009,
+    2008,
+    2007,
+    2006,
+    2005,
+    2004,
+    2003,
+    2002,
+    2001,
+    2000,
+    1999,
+    1998,
+    1997,
+    1996,
+    1995,
+    1994,
+    1993,
+    1992,
+    1991,
+    1990,
+    1989,
+    1988,
+    1987,
+    1986,
+    1985,
+    1984,
+    1983,
+    1982,
+    1981,
+    1980,
+    1979,
+    1978,
+    1977,
+    1976,
+    1975,
+    1974,
+    1973,
+    1972,
+    1971,
+    1970,
+    1969,
+    1968,
+    1967,
+    1966,
+    1965,
+    1964,
+    1963,
+    1962,
+    1961,
+    1960,
+    1959,
+    1958,
+    1957,
+    1956,
+    1955,
+    1954,
+    1953,
+    1952,
+    1951,
+    1950
+   ]
+  },
+  "mclaren": {
+   "name": "McLaren",
+   "nationality": "British",
+   "url": "https://en.wikipedia.org/wiki/McLaren",
+   "seasons": [
+    2026,
+    2025,
+    2024,
+    2023,
+    2022,
+    2021,
+    2020,
+    2019,
+    2018,
+    2017,
+    2016,
+    2015,
+    2014,
+    2013,
+    2012,
+    2011,
+    2010,
+    2009,
+    2008,
+    2007,
+    2006,
+    2005,
+    2004,
+    2003,
+    2002,
+    2001,
+    2000,
+    1999,
+    1998,
+    1997,
+    1996,
+    1995,
+    1994,
+    1993,
+    1992,
+    1991,
+    1990,
+    1989,
+    1988,
+    1987,
+    1986,
+    1985,
+    1984,
+    1983,
+    1982,
+    1981,
+    1980,
+    1979,
+    1978,
+    1977,
+    1976,
+    1975,
+    1974,
+    1973,
+    1972,
+    1971,
+    1968
+   ]
+  },
+  "alpine": {
+   "name": "Alpine F1 Team",
+   "nationality": "French",
+   "url": "https://en.wikipedia.org/wiki/Alpine_F1_Team",
+   "seasons": [
+    2026,
+    2025,
+    2024,
+    2023,
+    2022,
+    2021
+   ]
+  },
+  "williams": {
+   "name": "Williams",
+   "nationality": "British",
+   "url": "https://en.wikipedia.org/wiki/Williams_Racing",
+   "seasons": [
+    2026,
+    2025,
+    2024,
+    2023,
+    2022,
+    2021,
+    2020,
+    2019,
+    2018,
+    2017,
+    2016,
+    2015,
+    2014,
+    2013,
+    2012,
+    2011,
+    2010,
+    2009,
+    2008,
+    2007,
+    2006,
+    2005,
+    2004,
+    2003,
+    2002,
+    2001,
+    2000,
+    1999,
+    1998,
+    1997,
+    1996,
+    1995,
+    1994,
+    1993,
+    1992,
+    1991,
+    1990,
+    1989,
+    1988,
+    1987,
+    1986,
+    1985,
+    1984,
+    1983,
+    1982,
+    1981,
+    1980,
+    1979,
+    1978,
+    1976,
+    1975
+   ]
+  },
+  "alphatauri": {
+   "name": "AlphaTauri",
+   "nationality": "Italian",
+   "url": "https://en.wikipedia.org/wiki/Scuderia_AlphaTauri",
+   "seasons": [
+    2023,
+    2022,
+    2021,
+    2020
+   ]
+  },
+  "alfa": {
+   "name": "Alfa Romeo",
+   "nationality": "Swiss",
+   "url": "https://en.wikipedia.org/wiki/Alfa_Romeo_in_Formula_One",
+   "seasons": [
+    2023,
+    2022,
+    2021,
+    2020,
+    2019,
+    1985,
+    1984,
+    1983,
+    1982,
+    1981,
+    1980,
+    1979,
+    1965,
+    1963,
+    1951,
+    1950
+   ]
+  },
+  "haas": {
+   "name": "Haas F1 Team",
+   "nationality": "American",
+   "url": "https://en.wikipedia.org/wiki/Haas_F1_Team",
+   "seasons": [
+    2026,
+    2025,
+    2024,
+    2023,
+    2022,
+    2021,
+    2020,
+    2019,
+    2018,
+    2017,
+    2016
+   ]
+  },
+  "rb": {
+   "name": "RB F1 Team",
+   "nationality": "Italian",
+   "url": "https://en.wikipedia.org/wiki/Racing_Bulls",
+   "seasons": [
+    2026,
+    2025,
+    2024
+   ]
+  },
+  "sauber": {
+   "name": "Sauber",
+   "nationality": "Swiss",
+   "url": "https://en.wikipedia.org/wiki/Sauber_Motorsport",
+   "seasons": [
+    2025,
+    2024,
+    2018,
+    2017,
+    2016,
+    2015,
+    2014,
+    2013,
+    2012,
+    2011,
+    2010,
+    2005,
+    2004,
+    2003,
+    2002,
+    2001,
+    2000,
+    1999,
+    1998,
+    1997,
+    1996,
+    1995,
+    1994,
+    1993
+   ]
+  },
+  "audi": {
+   "name": "Audi",
+   "nationality": "German",
+   "url": "https://en.wikipedia.org/wiki/Audi_in_Formula_One",
+   "seasons": [
+    2026
+   ]
+  },
+  "cadillac": {
+   "name": "Cadillac F1 Team",
+   "nationality": "American",
+   "url": "https://en.wikipedia.org/wiki/Cadillac_in_Formula_One",
+   "seasons": [
+    2026
+   ]
+  }
+ },
+ "circuits": {
+  "bahrain": {
+   "name": "Bahrain International Circuit",
+   "locality": "Sakhir",
+   "country": "Bahrain",
+   "lat": 26.0325,
+   "lon": 50.5106
+  },
+  "jeddah": {
+   "name": "Jeddah Corniche Circuit",
+   "locality": "Jeddah",
+   "country": "Saudi Arabia",
+   "lat": 21.6319,
+   "lon": 39.1044
+  },
+  "albert_park": {
+   "name": "Albert Park Grand Prix Circuit",
+   "locality": "Melbourne",
+   "country": "Australia",
+   "lat": -37.8497,
+   "lon": 144.968
+  },
+  "baku": {
+   "name": "Baku City Circuit",
+   "locality": "Baku",
+   "country": "Azerbaijan",
+   "lat": 40.3725,
+   "lon": 49.8533
+  },
+  "miami": {
+   "name": "Miami International Autodrome",
+   "locality": "Miami",
+   "country": "USA",
+   "lat": 25.9581,
+   "lon": -80.2389
+  },
+  "monaco": {
+   "name": "Circuit de Monaco",
+   "locality": "Monte Carlo",
+   "country": "Monaco",
+   "lat": 43.7347,
+   "lon": 7.42056
+  },
+  "catalunya": {
+   "name": "Circuit de Barcelona-Catalunya",
+   "locality": "Barcelona",
+   "country": "Spain",
+   "lat": 41.57,
+   "lon": 2.26111
+  },
+  "villeneuve": {
+   "name": "Circuit Gilles Villeneuve",
+   "locality": "Montreal",
+   "country": "Canada",
+   "lat": 45.5,
+   "lon": -73.5228
+  },
+  "red_bull_ring": {
+   "name": "Red Bull Ring",
+   "locality": "Spielberg",
+   "country": "Austria",
+   "lat": 47.2197,
+   "lon": 14.7647
+  },
+  "silverstone": {
+   "name": "Silverstone Circuit",
+   "locality": "Silverstone",
+   "country": "UK",
+   "lat": 52.0786,
+   "lon": -1.01694
+  },
+  "hungaroring": {
+   "name": "Hungaroring",
+   "locality": "Budapest",
+   "country": "Hungary",
+   "lat": 47.5789,
+   "lon": 19.2486
+  },
+  "spa": {
+   "name": "Circuit de Spa-Francorchamps",
+   "locality": "Spa",
+   "country": "Belgium",
+   "lat": 50.4372,
+   "lon": 5.97139
+  },
+  "zandvoort": {
+   "name": "Circuit Park Zandvoort",
+   "locality": "Zandvoort",
+   "country": "Netherlands",
+   "lat": 52.3888,
+   "lon": 4.54092
+  },
+  "monza": {
+   "name": "Autodromo Nazionale di Monza",
+   "locality": "Monza",
+   "country": "Italy",
+   "lat": 45.6156,
+   "lon": 9.28111
+  },
+  "marina_bay": {
+   "name": "Marina Bay Street Circuit",
+   "locality": "Marina Bay",
+   "country": "Singapore",
+   "lat": 1.2914,
+   "lon": 103.864
+  },
+  "suzuka": {
+   "name": "Suzuka Circuit",
+   "locality": "Suzuka",
+   "country": "Japan",
+   "lat": 34.8431,
+   "lon": 136.541
+  },
+  "losail": {
+   "name": "Lusail International Circuit",
+   "locality": "Lusail",
+   "country": "Qatar",
+   "lat": 25.49,
+   "lon": 51.4542
+  },
+  "americas": {
+   "name": "Circuit of the Americas",
+   "locality": "Austin",
+   "country": "USA",
+   "lat": 30.1328,
+   "lon": -97.6411
+  },
+  "rodriguez": {
+   "name": "Autódromo Hermanos Rodríguez",
+   "locality": "Mexico City",
+   "country": "Mexico",
+   "lat": 19.4042,
+   "lon": -99.0907
+  },
+  "interlagos": {
+   "name": "Autódromo José Carlos Pace",
+   "locality": "São Paulo",
+   "country": "Brazil",
+   "lat": -23.7036,
+   "lon": -46.6997
+  },
+  "vegas": {
+   "name": "Las Vegas Strip Street Circuit",
+   "locality": "Las Vegas",
+   "country": "USA",
+   "lat": 36.1147,
+   "lon": -115.173
+  },
+  "yas_marina": {
+   "name": "Yas Marina Circuit",
+   "locality": "Abu Dhabi",
+   "country": "UAE",
+   "lat": 24.4672,
+   "lon": 54.6031
+  },
+  "shanghai": {
+   "name": "Shanghai International Circuit",
+   "locality": "Shanghai",
+   "country": "China",
+   "lat": 31.3389,
+   "lon": 121.22
+  },
+  "imola": {
+   "name": "Autodromo Enzo e Dino Ferrari",
+   "locality": "Imola",
+   "country": "Italy",
+   "lat": 44.3439,
+   "lon": 11.7167
+  },
+  "madring": {
+   "name": "Madring",
+   "locality": "Madrid",
+   "country": "Spain",
+   "lat": 40.46528,
+   "lon": -3.61528
+  },
+  "sepang": {
+   "name": "Sepang International Circuit",
+   "locality": "Kuala Lumpur",
+   "country": "Malaysia",
+   "lat": 2.76083,
+   "lon": 101.738
+  }
+ },
+ "seasons": {
+  "2023": {
+   "numbers": {
+    "1": "max_verstappen",
+    "2": "sargeant",
+    "3": "ricciardo",
+    "4": "norris",
+    "10": "gasly",
+    "11": "perez",
+    "14": "alonso",
+    "16": "leclerc",
+    "18": "stroll",
+    "20": "kevin_magnussen",
+    "21": "de_vries",
+    "22": "tsunoda",
+    "23": "albon",
+    "24": "zhou",
+    "27": "hulkenberg",
+    "31": "ocon",
+    "40": "lawson",
+    "44": "hamilton",
+    "55": "sainz",
+    "63": "russell",
+    "77": "bottas",
+    "81": "piastri"
+   },
+   "teams": {
+    "Red Bull Racing": "red_bull",
+    "Williams": "williams",
+    "McLaren": "mclaren",
+    "Alpine": "alpine",
+    "Aston Martin": "aston_martin",
+    "Ferrari": "ferrari",
+    "Haas F1 Team": "haas",
+    "AlphaTauri": "alphatauri",
+    "Alfa Romeo": "alfa",
+    "Mercedes": "mercedes"
+   }
+  },
+  "2024": {
+   "numbers": {
+    "1": "max_verstappen",
+    "2": "sargeant",
+    "3": "ricciardo",
+    "4": "norris",
+    "10": "gasly",
+    "11": "perez",
+    "14": "alonso",
+    "16": "leclerc",
+    "18": "stroll",
+    "20": "kevin_magnussen",
+    "22": "tsunoda",
+    "23": "albon",
+    "24": "zhou",
+    "27": "hulkenberg",
+    "30": "lawson",
+    "31": "ocon",
+    "38": "bearman",
+    "43": "colapinto",
+    "44": "hamilton",
+    "50": "bearman",
+    "55": "sainz",
+    "61": "doohan",
+    "63": "russell",
+    "77": "bottas",
+    "81": "piastri"
+   },
+   "teams": {
+    "Red Bull Racing": "red_bull",
+    "Williams": "williams",
+    "RB": "rb",
+    "McLaren": "mclaren",
+    "Alpine": "alpine",
+    "Aston Martin": "aston_martin",
+    "Ferrari": "ferrari",
+    "Haas F1 Team": "haas",
+    "Kick Sauber": "sauber",
+    "Mercedes": "mercedes"
+   }
+  },
+  "2025": {
+   "numbers": {
+    "1": "max_verstappen",
+    "4": "norris",
+    "5": "bortoleto",
+    "6": "hadjar",
+    "7": "doohan",
+    "10": "gasly",
+    "12": "antonelli",
+    "14": "alonso",
+    "16": "leclerc",
+    "18": "stroll",
+    "22": "tsunoda",
+    "23": "albon",
+    "27": "hulkenberg",
+    "30": "lawson",
+    "31": "ocon",
+    "43": "colapinto",
+    "44": "hamilton",
+    "55": "sainz",
+    "63": "russell",
+    "81": "piastri",
+    "87": "bearman"
+   },
+   "teams": {
+    "Red Bull Racing": "red_bull",
+    "McLaren": "mclaren",
+    "Kick Sauber": "sauber",
+    "Racing Bulls": "rb",
+    "Alpine": "alpine",
+    "Mercedes": "mercedes",
+    "Aston Martin": "aston_martin",
+    "Ferrari": "ferrari",
+    "Williams": "williams",
+    "Haas F1 Team": "haas"
+   }
+  },
+  "2026": {
+   "numbers": {
+    "1": "norris",
+    "3": "max_verstappen",
+    "5": "bortoleto",
+    "6": "hadjar",
+    "10": "gasly",
+    "11": "perez",
+    "12": "antonelli",
+    "14": "alonso",
+    "16": "leclerc",
+    "18": "stroll",
+    "22": "tsunoda",
+    "23": "albon",
+    "27": "hulkenberg",
+    "30": "lawson",
+    "31": "ocon",
+    "41": "arvid_lindblad",
+    "43": "colapinto",
+    "44": "hamilton",
+    "55": "sainz",
+    "63": "russell",
+    "77": "bottas",
+    "81": "piastri",
+    "87": "bearman"
+   },
+   "teams": {
+    "McLaren": "mclaren",
+    "Red Bull Racing": "red_bull",
+    "Audi": "audi",
+    "Alpine": "alpine",
+    "Cadillac": "cadillac",
+    "Mercedes": "mercedes",
+    "Aston Martin": "aston_martin",
+    "Ferrari": "ferrari",
+    "Williams": "williams",
+    "Haas F1 Team": "haas",
+    "Racing Bulls": "rb"
+   }
+  }
+ }
+}

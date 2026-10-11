@@ -4,16 +4,11 @@ import {
   type ConstructorStanding,
   type DriverStanding,
   finalAt,
-  type GrandPrix,
   LIVE_UNAVAILABLE_DETAIL,
   type LiveStatus,
-  lastFinishedRace,
   nextSession,
   type PointsProgression,
-  type RaceWeekendResults,
-  type ResultSession,
-  scheduleState,
-  type SessionKind,
+  type ReplaySession,
   type Standings,
   WINDOW_MS,
 } from "@pitwall/shared";
@@ -23,13 +18,20 @@ import * as jolpica from "./providers/jolpica";
 import * as openf1 from "./providers/openf1";
 import * as openmeteo from "./providers/openmeteo";
 import * as rainviewer from "./providers/rainviewer";
-import { UpstreamError } from "./upstream";
+import { circuitById, mappedSubject } from "./openf1-map";
+import { UpstreamError, useOpenF1Login } from "./upstream";
 
 const HOUR = 3600;
 const DAY = 86_400;
 
 /** Past seasons are effectively final; the current season changes after each event. */
 const seasonTtl = (season: number, current: number) => (season < new Date().getUTCFullYear() ? 30 * DAY : current);
+
+/** OpenF1 publishes classifications minutes after a session; refresh current-season OpenF1 data this often. */
+const OPENF1_FRESH = 15 * 60;
+
+/** Seasons from 2023 come from OpenF1; earlier ones from Jolpica, on demand. */
+const isOpenF1 = (season: number) => season >= openf1.FIRST_SEASON;
 
 const Season = z.coerce.number().int().min(1950).max(2100);
 const Round = z.coerce.number().int().min(1).max(40);
@@ -50,13 +52,35 @@ type Handler = (c: Ctx) => Promise<ApiResponse<unknown>>;
 
 // ---- Composable cached loaders ----
 
-const seasons = (env: Env, ctx: ExecutionContext) =>
-  cached(env, ctx, { key: "seasons", source: "jolpica", ttl: DAY }, () => jolpica.seasons(env.USER_AGENT));
+const FIRST_SEASON = 1950;
+
+/** Every season with a championship, newest first. Jolpica covers each one, so no upstream call is needed. */
+const seasonList = () => Array.from({ length: new Date().getUTCFullYear() - FIRST_SEASON + 1 }, (_, i) => new Date().getUTCFullYear() - i);
+
+// OpenF1 units: small, separately cached pieces each 2023+ view is derived from (see providers/openf1.ts).
+const schedule = (env: Env, ctx: ExecutionContext, season: number) =>
+  cached(env, ctx, { key: `openf1/schedule/${season}`, source: "openf1", ttl: seasonTtl(season, HOUR) }, () =>
+    openf1.schedule(season, env.USER_AGENT),
+  );
+
+const championship = (env: Env, ctx: ExecutionContext, season: number) =>
+  cached(env, ctx, { key: `openf1/championship/${season}`, source: "openf1", ttl: seasonTtl(season, OPENF1_FRESH) }, async () =>
+    openf1.championship(must(await schedule(env, ctx, season)), env.USER_AGENT),
+  );
+
+const seasonRaces = (env: Env, ctx: ExecutionContext, season: number) =>
+  cached(env, ctx, { key: `openf1/races/${season}`, source: "openf1", ttl: seasonTtl(season, OPENF1_FRESH) }, async () =>
+    openf1.seasonRaces(must(await schedule(env, ctx, season)), Date.now(), env.USER_AGENT),
+  );
 
 const calendar = (env: Env, ctx: ExecutionContext, season: number) =>
-  cached(env, ctx, { key: `calendar/${season}`, source: "jolpica", ttl: seasonTtl(season, 6 * HOUR) }, () =>
-    jolpica.calendar(season, env.USER_AGENT),
-  );
+  isOpenF1(season)
+    ? cached(env, ctx, { key: `calendar/${season}`, source: "openf1", ttl: seasonTtl(season, HOUR) }, async () =>
+        openf1.toCalendar(season, must(await schedule(env, ctx, season))),
+      )
+    : cached(env, ctx, { key: `calendar/${season}`, source: "jolpica", ttl: seasonTtl(season, 6 * HOUR) }, () =>
+        jolpica.calendar(season, env.USER_AGENT),
+      );
 
 type AnyStandings = Standings<DriverStanding> | Standings<ConstructorStanding>;
 
@@ -72,37 +96,51 @@ const standings = (
     ctx,
     {
       key: `standings/${type}/${season}/${round ?? "latest"}`,
-      source: "jolpica",
-      ttl: seasonTtl(season, round ? DAY : HOUR),
+      source: isOpenF1(season) ? "openf1" : "jolpica",
+      ttl: seasonTtl(season, round ? DAY : isOpenF1(season) ? OPENF1_FRESH : HOUR),
     },
-    () => (type === "drivers" ? jolpica.driverStandings : jolpica.constructorStandings)(season, round, env.USER_AGENT),
+    async () => {
+      if (!isOpenF1(season)) {
+        return (type === "drivers" ? jolpica.driverStandings : jolpica.constructorStandings)(season, round, env.USER_AGENT);
+      }
+      const [s, c, r] = [must(await schedule(env, ctx, season)), must(await championship(env, ctx, season)), must(await seasonRaces(env, ctx, season))];
+      return openf1.toStandings(type, season, round, s, c, r);
+    },
   );
 
-/** Cumulative points after each round, from Jolpica's official per-round standings (never re-derived from results). */
+/** Cumulative points after each round, from official per-round standings (never re-derived from results). */
 async function progression(env: Env, ctx: ExecutionContext, season: number, type: "drivers" | "constructors") {
   const races = must(await calendar(env, ctx, season));
-  const latest = must(await standings(env, ctx, type, season, null));
-  const lists: AnyStandings[] = [];
-  // Sequential on purpose: Jolpica's burst limit is ~4 req/s. Completed rounds are snapshotted individually,
-  // so a refresh after a new round needs one new request, and older rounds survive Jolpica refusing.
-  for (let round = 1; round < latest.round; round++) {
-    lists.push(must(await standings(env, ctx, type, season, round)));
+  let lists: AnyStandings[] = [];
+  if (isOpenF1(season)) {
+    // One championship unit holds every round, so no per-round requests.
+    const [s, c, r] = [must(await schedule(env, ctx, season)), must(await championship(env, ctx, season)), must(await seasonRaces(env, ctx, season))];
+    lists = s.meetings.map((m) => openf1.toStandings(type, season, m.round, s, c, r)).filter((l) => l.round > 0);
+  } else {
+    const latest = must(await standings(env, ctx, type, season, null));
+    // Sequential on purpose: Jolpica's burst limit is ~4 req/s. Completed rounds are snapshotted individually,
+    // so a refresh after a new round needs one new request, and older rounds survive Jolpica refusing.
+    for (let round = 1; round < latest.round; round++) {
+      lists.push(must(await standings(env, ctx, type, season, round)));
+    }
+    if (latest.round > 0) lists.push(latest);
   }
-  if (latest.round > 0) lists.push(latest);
 
   const rounds = lists.map((l) => ({ round: l.round, name: races.find((r) => r.round === l.round)?.name ?? `Round ${l.round}` }));
   const series = new Map<string, { subject: unknown; points: (number | null)[]; positions: (number | null)[] }>();
   lists.forEach((list, i) => {
     for (const e of list.entries as (DriverStanding | ConstructorStanding)[]) {
       const subject = "driver" in e ? e.driver : e.constructor;
-      const row = series.get(subject.id) ?? {
+      // Unmapped OpenF1 drivers and teams have id "".
+      const key = subject.id || ("driver" in e ? `#${e.driver.number}` : e.constructor.name);
+      const row = series.get(key) ?? {
         subject,
         points: Array<number | null>(lists.length).fill(null),
         positions: Array<number | null>(lists.length).fill(null),
       };
       row.points[i] = e.points;
       row.positions[i] = e.position;
-      series.set(subject.id, row);
+      series.set(key, row);
     }
   });
   const rows = [...series.values()];
@@ -121,7 +159,7 @@ const PROFILE_SEASONS = 25;
 
 /** Career = final standings of each season, reusing the cached season standings. */
 async function profile(env: Env, ctx: ExecutionContext, kind: "drivers" | "constructors", id: string) {
-  const s = await jolpica.subject(kind, id, env.USER_AGENT);
+  const s = mappedSubject(kind, id) ?? (await jolpica.subject(kind, id, env.USER_AGENT));
   if (!s) throw new UpstreamError("jolpica", "not_found", `unknown ${kind === "drivers" ? "driver" : "constructor"} "${id}"`);
   const career: CareerSeason[] = [];
   for (const season of s.seasons.slice(0, PROFILE_SEASONS)) {
@@ -144,6 +182,8 @@ async function profile(env: Env, ctx: ExecutionContext, kind: "drivers" | "const
 }
 
 const circuitInfo = async (env: Env, ctx: ExecutionContext, id: string) => {
+  const known = circuitById(id);
+  if (known) return known;
   const c = must(
     await cached(env, ctx, { key: `circuit/${id}`, source: "jolpica", ttl: 30 * DAY }, async () => {
       const c = await jolpica.circuit(id, env.USER_AGENT);
@@ -160,73 +200,18 @@ const circuitInfo = async (env: Env, ctx: ExecutionContext, id: string) => {
 // half-processed session isn't cached as if it were complete.
 const SESSION_SETTLE_MS = 35 * 60_000;
 
-const replaySessions = (env: Env, ctx: ExecutionContext, season: number) => {
+/** Finished sessions of a season, from the cached schedule. */
+const replaySessions = async (env: Env, ctx: ExecutionContext, season: number): Promise<ApiResponse<ReplaySession[]>> => {
   if (season < openf1.FIRST_SEASON) {
-    return Promise.resolve(failure<never>("openf1", new UpstreamError("openf1", "not_found", `OpenF1 replays start in ${openf1.FIRST_SEASON}`)));
+    return failure("openf1", new UpstreamError("openf1", "not_found", `OpenF1 replays start in ${openf1.FIRST_SEASON}`));
   }
-  return cached(env, ctx, { key: `replay/sessions/${season}`, source: "openf1", ttl: seasonTtl(season, HOUR) }, () =>
-    openf1.sessions(season, Date.now(), SESSION_SETTLE_MS, env.USER_AGENT),
-  );
+  const res = await schedule(env, ctx, season);
+  const now = Date.now();
+  return { ...res, data: res.data && res.data.sessions.filter((s) => Date.parse(s.end) + SESSION_SETTLE_MS < now) };
 };
 
-const seasonDrivers = async (env: Env, ctx: ExecutionContext, season: number) =>
-  (must(await standings(env, ctx, "drivers", season, null)).entries as DriverStanding[]).map((e) => e.driver);
-
 const replay = (env: Env, ctx: ExecutionContext, key: number) =>
-  cached(env, ctx, { key: `replay/${key}`, source: "openf1", ttl: 30 * DAY }, () =>
-    openf1.replay(key, (season) => seasonDrivers(env, ctx, season), env.USER_AGENT),
-  );
-
-// ---- Race results: OpenF1 fills what Jolpica hasn't published ----
-
-const OPENF1_RESULT: { field: ResultSession; kind: SessionKind; names: string[] }[] = [
-  { field: "results", kind: "RACE", names: ["Race"] },
-  { field: "sprint", kind: "SPRINT", names: ["Sprint"] },
-  { field: "qualifying", kind: "QUALIFYING", names: ["Qualifying"] },
-  { field: "sprintQualifying", kind: "SPRINT_QUALIFYING", names: ["Sprint Qualifying", "Sprint Shootout"] },
-];
-
-/**
- * Jolpica stays the source of record. For 2023 onward, finished sessions it hasn't published yet (and
- * sprint qualifying, which it never publishes) are filled from OpenF1's provisional classifications and
- * listed in `fromOpenF1`. Any OpenF1 failure just leaves the gaps empty.
- */
-async function withOpenF1Results(
-  env: Env,
-  ctx: ExecutionContext,
-  race: GrandPrix,
-  jol: Pick<RaceWeekendResults, "results" | "qualifying" | "sprint">,
-): Promise<RaceWeekendResults> {
-  const out: RaceWeekendResults = { race, ...jol, sprintQualifying: [], fromOpenF1: [] };
-  if (race.season < openf1.FIRST_SEASON) return out;
-  const now = Date.now();
-  const gaps = OPENF1_RESULT.filter(
-    (g) => !out[g.field].length && race.sessions.some((s) => s.kind === g.kind && scheduleState(s, now) === "finished"),
-  );
-  if (!gaps.length) return out;
-  try {
-    const sessions = must(await replaySessions(env, ctx, race.season));
-    const found = gaps.flatMap((g) => {
-      const date = race.sessions.find((s) => s.kind === g.kind)!.date;
-      const match = sessions.find((s) => g.names.includes(s.name) && s.start.slice(0, 10) === date);
-      return match ? [{ ...g, key: match.key }] : [];
-    });
-    if (!found.length) return out;
-    const entries = must(await standings(env, ctx, "drivers", race.season, null)).entries as DriverStanding[];
-    const teams = new Map([...jol.results, ...jol.qualifying, ...jol.sprint].map((e) => [e.driver.id, e.constructor]));
-    const people = openf1.weekendDrivers(await openf1.drivers(found[0]!.key, env.USER_AGENT), entries, teams);
-    for (const g of found) {
-      const rows = await openf1.sessionResult(g.key, env.USER_AGENT);
-      if (!rows.length) continue;
-      if (g.field === "qualifying" || g.field === "sprintQualifying") out[g.field] = openf1.toQualifying(rows, people);
-      else out[g.field] = openf1.toClassification(rows, people);
-      out.fromOpenF1.push(g.field);
-    }
-  } catch (e) {
-    console.error("OpenF1 results fallback failed", race.season, race.round, e);
-  }
-  return out;
-}
+  cached(env, ctx, { key: `replay/${key}`, source: "openf1", ttl: 30 * DAY }, () => openf1.replay(key, env.USER_AGENT));
 
 // ---- Live (contract only) ----
 
@@ -239,7 +224,7 @@ async function liveStatus(env: Env, ctx: ExecutionContext): Promise<LiveStatus> 
       return null;
     }
   };
-  const latest = (await optional(async () => must(await seasons(env, ctx))[0])) ?? new Date().getUTCFullYear();
+  const latest = new Date().getUTCFullYear();
   const next = await optional(async () => nextSession(must(await calendar(env, ctx, latest))));
   const latestReplay = await optional(async () => {
     const list = must(await replaySessions(env, ctx, latest));
@@ -282,7 +267,15 @@ const routes: [RegExp, Handler][] = [
   ],
   [
     /^\/api\/seasons$/,
-    ({ env, ctx }) => seasons(env, ctx),
+    async () => ({
+      status: "ok",
+      data: seasonList(),
+      source: "pitwall",
+      fetchedAt: new Date().toISOString(),
+      observedAt: null,
+      cache: "none",
+      maxAgeSeconds: DAY,
+    }),
   ],
   [/^\/api\/calendar$/, ({ url, env, ctx }) => calendar(env, ctx, param(Season, url.searchParams.get("season"), "season"))],
   [
@@ -298,7 +291,7 @@ const routes: [RegExp, Handler][] = [
     ({ url, env, ctx }) => {
       const season = param(Season, url.searchParams.get("season"), "season");
       const type = param(Championship, url.searchParams.get("type"), "type");
-      return cached(env, ctx, { key: `progression/${type}/${season}`, source: "jolpica", ttl: seasonTtl(season, HOUR) }, () =>
+      return cached(env, ctx, { key: `progression/${type}/${season}`, source: isOpenF1(season) ? "openf1" : "jolpica", ttl: seasonTtl(season, isOpenF1(season) ? OPENF1_FRESH : HOUR) }, () =>
         progression(env, ctx, season, type),
       );
     },
@@ -307,6 +300,11 @@ const routes: [RegExp, Handler][] = [
     /^\/api\/results$/,
     ({ url, env, ctx }) => {
       const season = param(Season, url.searchParams.get("season"), "season");
+      if (isOpenF1(season)) {
+        return cached(env, ctx, { key: `results/${season}`, source: "openf1", ttl: seasonTtl(season, OPENF1_FRESH) }, async () =>
+          openf1.toSeasonResults(season, must(await schedule(env, ctx, season)), must(await seasonRaces(env, ctx, season))),
+        );
+      }
       return cached(env, ctx, { key: `results/${season}`, source: "jolpica", ttl: seasonTtl(season, HOUR) }, async () => ({
         season,
         races: await jolpica.seasonResults(season, env.USER_AGENT),
@@ -320,14 +318,18 @@ const routes: [RegExp, Handler][] = [
       const round = param(Round, match[1], "round");
       const race = must(await calendar(env, ctx, season)).find((r) => r.round === round);
       if (!race) throw new UpstreamError("jolpica", "not_found", `no round ${round} in ${season}`);
-      // Hourly until the round is final. After that, a copy fetched since it became final is good for
-      // up to 30 days, while one fetched before (possibly provisional) is refetched.
+      // Refreshed often until the round is final. After that, a copy fetched since it became final is good
+      // for up to 30 days, while one fetched before (possibly provisional) is refetched.
       const sinceFinal = (Date.now() - finalAt(race)) / 1000;
-      const ttl = sinceFinal > 0 ? Math.min(30 * DAY, Math.max(HOUR, sinceFinal)) : HOUR;
-      // v2: payload gained sprintQualifying/fromOpenF1; don't serve older snapshots.
-      return cached(env, ctx, { key: `race/v2/${season}/${round}`, source: "jolpica", ttl }, async () =>
-        withOpenF1Results(env, ctx, race, await jolpica.raceResults(season, round, env.USER_AGENT)),
-      );
+      const fresh = isOpenF1(season) ? OPENF1_FRESH : HOUR;
+      const ttl = sinceFinal > 0 ? Math.min(30 * DAY, Math.max(fresh, sinceFinal)) : fresh;
+      // v3: payload lost fromOpenF1 and 2023+ comes from OpenF1; don't serve older snapshots.
+      return cached(env, ctx, { key: `race/v3/${season}/${round}`, source: isOpenF1(season) ? "openf1" : "jolpica", ttl }, async () => {
+        if (!isOpenF1(season)) return { race, ...(await jolpica.raceResults(season, round, env.USER_AGENT)), sprintQualifying: [] };
+        const s = must(await schedule(env, ctx, season));
+        // The calendar is built from this schedule, so the meeting is there.
+        return openf1.weekend(race, s.meetings.find((m) => m.round === round)!.key, s, env.USER_AGENT);
+      });
     },
   ],
   [
@@ -393,14 +395,10 @@ const routes: [RegExp, Handler][] = [
     /^\/api\/team-colours$/,
     ({ url, env, ctx }) => {
       const season = param(Season, url.searchParams.get("season"), "season");
-      return cached(env, ctx, { key: `team-colours/${season}`, source: "openf1", ttl: seasonTtl(season, DAY) }, async () => {
+      return cached(env, ctx, { key: `team-colours/${season}`, source: "openf1", ttl: seasonTtl(season, DAY) }, async () =>
         // OpenF1 has no colours before 2023; the app shows neutral markers instead.
-        if (season < openf1.FIRST_SEASON) return {};
-        const last = must(await replaySessions(env, ctx, season)).at(-1);
-        if (!last) return {};
-        const entries = must(await standings(env, ctx, "drivers", season, null)).entries as DriverStanding[];
-        return openf1.teamColours(await openf1.drivers(last.key, env.USER_AGENT), entries);
-      });
+        isOpenF1(season) ? openf1.toTeamColours(season, must(await seasonRaces(env, ctx, season))) : {},
+      );
     },
   ],
   [
@@ -432,35 +430,13 @@ const json = (body: unknown, status: number, headers: Record<string, string>) =>
     headers: { "Content-Type": "application/json; charset=utf-8", "X-Content-Type-Options": "nosniff", ...headers },
   });
 
-/**
- * ponytail: Jolpica rate-limits by IP, and every Worker reaches it from one shared Cloudflare IP, so user requests
- * are often refused. This cron retries the current season through the normal routes; whatever succeeds lands in D1
- * for every data centre, and refusals keep serving the last snapshot. Older seasons fill only on demand.
- */
-async function warmCurrentSeason(env: Env, ctx: ExecutionContext) {
-  const get = async <T>(path: string) =>
-    (await (await handler.fetch(new Request(`https://cron.internal${path}`), env, ctx)).json()) as ApiResponse<T>;
-  const season = (await get<number[]>("/api/seasons")).data?.[0];
-  if (!season) return;
-  const last = lastFinishedRace((await get<GrandPrix[]>(`/api/calendar?season=${season}`)).data ?? []);
-  for (const path of [
-    `/api/standings/drivers?season=${season}`,
-    `/api/standings/constructors?season=${season}`,
-    `/api/standings/progression?season=${season}&type=drivers`,
-    `/api/standings/progression?season=${season}&type=constructors`,
-    `/api/results?season=${season}`,
-    ...(last ? [`/api/races/${last.round}?season=${last.season}`] : []),
-  ]) {
-    await get(path);
-  }
-}
-
 const handler = {
   async fetch(req, env, ctx): Promise<Response> {
     const cors = corsHeaders(req, env);
     if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
     if (req.method !== "GET") return json(failure("pitwall", new Error("method not allowed")), 405, cors);
 
+    useOpenF1Login(env.OPENF1_USERNAME, env.OPENF1_PASSWORD);
     const url = new URL(req.url);
     for (const [pattern, handler] of routes) {
       const match = url.pathname.match(pattern);
@@ -479,10 +455,6 @@ const handler = {
       }
     }
     return json({ ...failure("pitwall", new Error("no such endpoint")), status: "not_found" }, 404, cors);
-  },
-
-  async scheduled(_controller, env, ctx) {
-    await warmCurrentSeason(env, ctx);
   },
 } satisfies ExportedHandler<Env>;
 

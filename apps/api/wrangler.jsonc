@@ -20,6 +20,6 @@
       "migrations_dir": "migrations"
     }
   ],
-  // Current-season refresh every 10 minutes (warmCurrentSeason in src/index.ts).
-  "triggers": { "crons": ["*/10 * * * *"] }
+  // No crons. An empty list (rather than none) makes deploy remove the old ones.
+  "triggers": { "crons": [] }
 }

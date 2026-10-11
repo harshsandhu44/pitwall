@@ -10,7 +10,7 @@ export const useSeasons = () => useApi<number[]>("/api/seasons");
 
 /**
  * The selected season lives in `?season=` so links are shareable.
- * Falls back to the newest season Jolpica knows about.
+ * Falls back to the current season.
  */
 export function useSeason() {
   const params = useSearchParams();
