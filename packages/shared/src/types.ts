@@ -3,9 +3,9 @@
 
 export type Source = "jolpica" | "openf1" | "open-meteo" | "rainviewer" | "pitwall";
 
-/** ok: fresh data. stale: older than its freshness window (served as fallback or while revalidating). */
+/** ok: fresh data. stale: older than its freshness window, served while revalidating. */
 export type Availability = "ok" | "stale" | "not_found" | "unavailable" | "error";
-export type CacheStatus = "hit" | "miss" | "stale" | "fallback" | "none";
+export type CacheStatus = "hit" | "miss" | "stale" | "none";
 
 export interface ApiResponse<T> {
   status: Availability;

@@ -65,10 +65,10 @@ Pitwall is a personal, non-commercial project. Commercial use would need paid Op
 
 ```json
 { "status": "ok | stale | not_found | unavailable | error", "data": {}, "source": "jolpica",
-  "fetchedAt": "ISO", "observedAt": null, "cache": "hit | miss | stale | fallback | none", "maxAgeSeconds": 3600, "reason": "…" }
+  "fetchedAt": "ISO", "observedAt": null, "cache": "hit | miss | stale | none", "maxAgeSeconds": 3600, "reason": "…" }
 ```
 
-HTTP status follows `status`: 200 (`ok`, `stale`), 404, 503 (`unavailable`), 502 (`error`), and 400 for bad parameters. `stale` + `fallback` means the provider failed and the last good copy from D1 was served. The full endpoint list is in [apps/api/README.md](apps/api/README.md).
+HTTP status follows `status`: 200 (`ok`, `stale`), 404, 503 (`unavailable`), 502 (`error`), and 400 for bad parameters. `stale` means the last good copy was served while a refresh runs in the background. The full endpoint list is in [apps/api/README.md](apps/api/README.md).
 
 ## Caching and refresh policy
 
@@ -76,7 +76,7 @@ HTTP status follows `status`: 200 (`ok`, `stale`), 404, 503 (`unavailable`), 502
 |---|---|---|
 | Seasons, driver/team profiles | 1 day | |
 | Calendar | 6 h | Past seasons: 30 days (applies to every Jolpica row below) |
-| Latest standings, results, race weekend, points progression | 1 h | Per-round standings: 1 day |
+| Latest standings, results, race weekend, points progression | 1 h | Per-round standings: 1 day. A race weekend is final a week after the race: then a copy fetched since is good for 30 days |
 | Circuit coordinates | 30 days | |
 | Forecast (+ model current) | 15 min | |
 | Cloud/wind grid | 1 h | |
@@ -85,21 +85,20 @@ HTTP status follows `status`: 200 (`ok`, `stale`), 404, 503 (`unavailable`), 502
 | Replay session, position windows | 30 days | Recorded data doesn't change. Windows live in the Cache API only |
 | Team colours | 1 day | Past seasons: 30 days |
 
-Cache API entries are kept for twice their freshness. A stale entry is served immediately while it refreshes in the background. The Cache API is per data centre, so every successful upstream response is also written to D1 (up to 1.5 MB). A Cache API miss checks D1 first and reuses a still-fresh copy, so each upstream is refreshed about once per freshness window globally rather than once per data centre. If an upstream fails, the D1 copy is served as `stale`. A stale Cache API entry also checks D1 for a newer copy before calling the upstream. A daily cron deletes snapshots older than 30 days.
+Cache API entries are kept for twice their freshness. A stale entry is served immediately while it refreshes in the background. The Cache API is per data centre, so every successful upstream response is also written to D1 (up to 1.5 MB). A Cache API miss checks D1 first and reuses a still-fresh copy, so each upstream is refreshed about once per freshness window globally rather than once per data centre. An expired D1 copy is served immediately as `stale` while the upstream is called in the background, so a request only waits on an upstream when there is no copy at all. A stale Cache API entry also checks D1 for a newer copy before calling the upstream. Snapshots never expire: each key is overwritten in place, and the set of keys is bounded.
 
 **Jolpica and Workers.** Jolpica sits behind Cloudflare and rate-limits by IP (500 requests/hour). Every Worker reaches another Cloudflare zone from the same IP, so the deployed Worker shares that budget with all other Workers and is often refused with a 429. To cope, a cron runs every 10 minutes and refreshes the current season through the normal routes: seasons, calendar, standings, progression, results matrix, and the last race. Whatever succeeds is written to D1 for every data centre; refusals keep serving the last snapshot as `stale`. Older seasons are fetched only when someone opens them, so the first visit may show "rate limited" until a request gets through. Per-round standings are stored individually, so the points progression needs only the newest round from Jolpica.
 
 ### D1 schema
 
-One table (`apps/api/migrations/0001_upstream_snapshot.sql`):
+One table (`apps/api/migrations/`):
 
 ```sql
 CREATE TABLE upstream_snapshot (
   key TEXT PRIMARY KEY,         -- cache key, e.g. "calendar/2026"
   source TEXT NOT NULL,         -- jolpica | openf1 | open-meteo | rainviewer
   payload TEXT NOT NULL,        -- normalized JSON
-  fetched_at INTEGER NOT NULL,  -- epoch ms
-  expires_at INTEGER NOT NULL   -- epoch ms; the cron cleanup deletes rows past this
+  fetched_at INTEGER NOT NULL   -- epoch ms
 );
 ```
 
@@ -135,7 +134,7 @@ Jolpica is the source of record for results, but it usually publishes a round so
 - `/api/replay/:key/window?from=<ms>` returns one fixed, aligned 60 s window of car positions, plus gaps for races. Each window includes 1 s of overlap on each side, so interpolation never needs a neighbouring window. Windows are cached in the Cache API only (~110 KB each). A cold window costs 2 OpenF1 requests and about 5 ms of CPU.
 - The browser loads the current window plus the next two, and drops windows it hasn't used for a minute. The clock holds while a window is loading.
 - Cars are interpolated only between samples less than 1 s apart. Otherwise the last sample is shown as stale.
-- Sessions are listed two hours after they end. This is our own rule, so half-processed data isn't cached as final.
+- Sessions are listed 35 minutes after they end. OpenF1 opens a session's data 30 minutes after it ends, and the extra margin keeps half-processed data from being cached as final.
 
 ## Live timing
 
@@ -186,5 +185,5 @@ To fill an empty or long-stale D1 from your own IP (outside Jolpica's shared Wor
 | API errors mentioning `upstream_snapshot` | Run `pnpm --filter api db:migrate:local` |
 | Weather map blank, "Worker failed to load" | Start the app through its package scripts (`pnpm dev` / `pnpm build`). They copy MapLibre's worker into `public/maplibre/` |
 | Replay says "request budget used up" | OpenF1's free tier allows 30 requests/minute. Wait a minute, or play at a lower speed until windows are cached |
-| A panel says "stale" | An upstream failed and the last good copy is shown. It refreshes when the provider recovers |
-| No replay for a season | OpenF1's free recordings start in 2023. Sessions appear about two hours after they end |
+| A panel says "stale" | The last good copy is shown while it refreshes in the background. If it stays stale, the provider is failing; it refreshes when the provider recovers |
+| No replay for a season | OpenF1's free recordings start in 2023. Sessions appear about 35 minutes after they end |

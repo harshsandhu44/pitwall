@@ -20,6 +20,6 @@
       "migrations_dir": "migrations"
     }
   ],
-  // Daily cleanup of expired D1 snapshots (CLEANUP_CRON in src/index.ts); current-season refresh every 10 minutes.
-  "triggers": { "crons": ["17 3 * * *", "*/10 * * * *"] }
+  // Current-season refresh every 10 minutes (warmCurrentSeason in src/index.ts).
+  "triggers": { "crons": ["*/10 * * * *"] }
 }

@@ -31,7 +31,6 @@ export function SourceNote({ res }: { res: ApiResponse<unknown> }) {
         {stale ? "Stale copy, fetched " : "Updated "}
         {now === null ? "…" : formatAge(res.fetchedAt, now)}
       </span>
-      {stale && res.cache === "fallback" && <span>(provider currently unreachable)</span>}
     </p>
   );
 }

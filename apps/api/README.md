@@ -14,9 +14,9 @@ Local overrides for `wrangler.jsonc` vars go in `.dev.vars` (see `.dev.vars.exam
 
 | Path | Role |
 |---|---|
-| `src/index.ts` | Routes, parameter validation (Zod), CORS allowlist, live contract, cron cleanup |
+| `src/index.ts` | Routes, parameter validation (Zod), CORS allowlist, live contract, current-season cron |
 | `src/upstream.ts` | `fetchJson`: allow-listed providers only, timeouts, one retry, 429 backoff, per-provider pacing and per-minute budget, Zod validation |
-| `src/cache.ts` | `cached()`: Cache API → D1 fresh copy → loader → D1 stale fallback, with in-isolate dedupe |
+| `src/cache.ts` | `cached()`: Cache API → D1 copy (stale ones served while revalidating) → loader, with in-isolate dedupe |
 | `src/providers/*.ts` | One file per provider: upstream schemas (only fields used) and normalizers to `@pitwall/shared` types |
 | `src/circuits.json` | Generated circuit registry (timezones, F1DB layouts) |
 

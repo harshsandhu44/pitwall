@@ -53,6 +53,15 @@ export function nextSession(calendar: GrandPrix[], now: number = Date.now()): Ne
   return null;
 }
 
+/** Stewards' decisions and appeals can still change results this long after the race. */
+const FINAL_AFTER_MS = 7 * 86_400_000;
+
+/** When a round's results count as final (epoch ms): a week after its race. */
+export function finalAt(race: GrandPrix): number {
+  const r = race.sessions.find((s) => s.kind === "RACE")!;
+  return Date.parse(r.start ?? r.date) + FINAL_AFTER_MS;
+}
+
 /** Most recent race whose RACE session has finished per the schedule. */
 export function lastFinishedRace(calendar: GrandPrix[], now: number = Date.now()): GrandPrix | null {
   let last: GrandPrix | null = null;

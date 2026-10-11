@@ -83,6 +83,23 @@ describe("race results fallback", () => {
     expect(body.data).toMatchObject({ red_bull: "#4781D7", rb: "#6C98FF" });
   });
 
+  it("refetches a round fetched before it became final, then keeps the final copy", async () => {
+    upstream(true);
+    const round16 = () => calls.filter((u) => u.pathname.includes("/2026/16/")).length;
+    await get("/api/races/16?season=2026"); // race was Oct 4: final from Oct 11
+    const first = round16();
+    expect(first).toBeGreaterThan(0);
+
+    vi.setSystemTime(Date.parse("2026-10-13T00:00:00Z")); // the copy predates finality
+    expect((await get("/api/races/16?season=2026")).body).toMatchObject({ status: "stale" });
+    const refreshed = round16();
+    expect(refreshed).toBeGreaterThan(first);
+
+    vi.setSystemTime(Date.parse("2026-11-01T00:00:00Z")); // 19 days later: still fresh
+    expect((await get("/api/races/16?season=2026")).body).toMatchObject({ status: "ok", cache: "hit" });
+    expect(round16()).toBe(refreshed);
+  });
+
   it("cron refreshes the current season into D1 snapshots for every data centre", async () => {
     upstream(true);
     const ctx = createExecutionContext();

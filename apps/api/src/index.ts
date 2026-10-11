@@ -3,6 +3,7 @@ import {
   type CareerSeason,
   type ConstructorStanding,
   type DriverStanding,
+  finalAt,
   type GrandPrix,
   LIVE_UNAVAILABLE_DETAIL,
   type LiveStatus,
@@ -17,7 +18,7 @@ import {
   WINDOW_MS,
 } from "@pitwall/shared";
 import { z } from "zod";
-import { cached, cleanupSnapshots, failure, must } from "./cache";
+import { cached, failure, must } from "./cache";
 import * as jolpica from "./providers/jolpica";
 import * as openf1 from "./providers/openf1";
 import * as openmeteo from "./providers/openmeteo";
@@ -155,9 +156,9 @@ const circuitInfo = async (env: Env, ctx: ExecutionContext, id: string) => {
 
 // ---- Replay (OpenF1) ----
 
-// Our own policy, not OpenF1's: list a session only once it has had time to settle, so a
+// OpenF1 opens a session's data 30 minutes after it ends; wait a little longer so a
 // half-processed session isn't cached as if it were complete.
-const SESSION_SETTLE_MS = 2 * 3_600_000;
+const SESSION_SETTLE_MS = 35 * 60_000;
 
 const replaySessions = (env: Env, ctx: ExecutionContext, season: number) => {
   if (season < openf1.FIRST_SEASON) {
@@ -314,15 +315,19 @@ const routes: [RegExp, Handler][] = [
   ],
   [
     /^\/api\/races\/(\d{1,2})$/,
-    ({ url, env, ctx, match }) => {
+    async ({ url, env, ctx, match }) => {
       const season = param(Season, url.searchParams.get("season"), "season");
       const round = param(Round, match[1], "round");
+      const race = must(await calendar(env, ctx, season)).find((r) => r.round === round);
+      if (!race) throw new UpstreamError("jolpica", "not_found", `no round ${round} in ${season}`);
+      // Hourly until the round is final. After that, a copy fetched since it became final is good for
+      // up to 30 days, while one fetched before (possibly provisional) is refetched.
+      const sinceFinal = (Date.now() - finalAt(race)) / 1000;
+      const ttl = sinceFinal > 0 ? Math.min(30 * DAY, Math.max(HOUR, sinceFinal)) : HOUR;
       // v2: payload gained sprintQualifying/fromOpenF1; don't serve older snapshots.
-      return cached(env, ctx, { key: `race/v2/${season}/${round}`, source: "jolpica", ttl: seasonTtl(season, HOUR) }, async () => {
-        const race = must(await calendar(env, ctx, season)).find((r) => r.round === round);
-        if (!race) throw new UpstreamError("jolpica", "not_found", `no round ${round} in ${season}`);
-        return withOpenF1Results(env, ctx, race, await jolpica.raceResults(season, round, env.USER_AGENT));
-      });
+      return cached(env, ctx, { key: `race/v2/${season}/${round}`, source: "jolpica", ttl }, async () =>
+        withOpenF1Results(env, ctx, race, await jolpica.raceResults(season, round, env.USER_AGENT)),
+      );
     },
   ],
   [
@@ -427,8 +432,6 @@ const json = (body: unknown, status: number, headers: Record<string, string>) =>
     headers: { "Content-Type": "application/json; charset=utf-8", "X-Content-Type-Options": "nosniff", ...headers },
   });
 
-const CLEANUP_CRON = "17 3 * * *";
-
 /**
  * ponytail: Jolpica rate-limits by IP, and every Worker reaches it from one shared Cloudflare IP, so user requests
  * are often refused. This cron retries the current season through the normal routes; whatever succeeds lands in D1
@@ -478,8 +481,7 @@ const handler = {
     return json({ ...failure("pitwall", new Error("no such endpoint")), status: "not_found" }, 404, cors);
   },
 
-  async scheduled(controller, env, ctx) {
-    if (controller.cron === CLEANUP_CRON) return cleanupSnapshots(env);
+  async scheduled(_controller, env, ctx) {
     await warmCurrentSeason(env, ctx);
   },
 } satisfies ExportedHandler<Env>;

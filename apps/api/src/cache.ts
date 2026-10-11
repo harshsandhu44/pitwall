@@ -15,7 +15,6 @@ interface Entry<T> {
   fetchedAt: number;
 }
 
-const SNAPSHOT_RETENTION_MS = 30 * 86_400_000;
 const MAX_SNAPSHOT_BYTES = 1_500_000; // D1 rows top out at 2MB
 
 // ponytail: per-isolate dedupe of concurrent loads. The Cache API is per data centre; D1 snapshots
@@ -72,10 +71,10 @@ function load<T>(env: Env, ctx: ExecutionContext, p: CachePolicy, loader: () => 
     if (p.persist !== false && body.length <= MAX_SNAPSHOT_BYTES) {
       ctx.waitUntil(
         env.DB.prepare(
-          `INSERT INTO upstream_snapshot (key, source, payload, fetched_at, expires_at) VALUES (?1, ?2, ?3, ?4, ?5)
-           ON CONFLICT(key) DO UPDATE SET source = ?2, payload = ?3, fetched_at = ?4, expires_at = ?5`,
+          `INSERT INTO upstream_snapshot (key, source, payload, fetched_at) VALUES (?1, ?2, ?3, ?4)
+           ON CONFLICT(key) DO UPDATE SET source = ?2, payload = ?3, fetched_at = ?4`,
         )
-          .bind(p.key, p.source, JSON.stringify(entry.data), entry.fetchedAt, entry.fetchedAt + SNAPSHOT_RETENTION_MS)
+          .bind(p.key, p.source, JSON.stringify(entry.data), entry.fetchedAt)
           .run()
           .catch((e) => console.error("snapshot write failed", p.key, e)),
       );
@@ -106,9 +105,9 @@ async function refresh<T>(env: Env, ctx: ExecutionContext, p: CachePolicy, loade
 }
 
 /**
- * Cache API (fresh → hit; expired → serve stale and revalidate in the background) → fresh D1 snapshot
- * (shared across data centres) → upstream load (deduped) → on failure, the D1 snapshot marked stale
- * → otherwise an error envelope.
+ * Cache API (fresh → hit; expired → serve stale and revalidate in the background) → D1 snapshot (shared
+ * across data centres; fresh → hit, expired → serve stale and revalidate) → upstream load (deduped)
+ * → otherwise an error envelope. Only a key with no snapshot at all waits on the upstream.
  */
 export async function cached<T>(
   env: Env,
@@ -124,17 +123,17 @@ export async function cached<T>(
     return envelope(p, entry, "stale", "stale");
   }
   const snapshot = p.persist !== false ? await readSnapshot<T>(env, p.key) : null;
-  if (snapshot && Date.now() - snapshot.fetchedAt <= p.ttl * 1000) {
-    putCache(ctx, p, snapshot);
-    return envelope(p, snapshot, "ok", "hit");
+  if (snapshot) {
+    if (Date.now() - snapshot.fetchedAt <= p.ttl * 1000) {
+      putCache(ctx, p, snapshot);
+      return envelope(p, snapshot, "ok", "hit");
+    }
+    ctx.waitUntil(load(env, ctx, p, loader).catch(() => {}));
+    return envelope(p, snapshot, "stale", "stale");
   }
   try {
     return envelope(p, await load(env, ctx, p, loader), "ok", "miss");
   } catch (e) {
-    const notFound = e instanceof UpstreamError && e.kind === "not_found";
-    if (snapshot && !notFound) {
-      return { ...envelope(p, snapshot, "stale", "fallback"), reason: e instanceof Error ? e.message : undefined };
-    }
     return failure(p.source, e, p.ttl);
   }
 }
@@ -151,6 +150,3 @@ export function must<T>(res: ApiResponse<T>): T {
   return res.data;
 }
 
-export async function cleanupSnapshots(env: Env, now = Date.now()) {
-  await env.DB.prepare("DELETE FROM upstream_snapshot WHERE expires_at < ?1").bind(now).run();
-}
