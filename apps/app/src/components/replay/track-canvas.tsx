@@ -25,6 +25,7 @@ export function TrackCanvas({
   selected,
   follow,
   interpolate,
+  onSelect,
 }: {
   track: SessionReplay["track"];
   drivers: ReplayDriver[];
@@ -34,16 +35,21 @@ export function TrackCanvas({
   selected: number | null;
   follow: boolean;
   interpolate: boolean;
+  /** Clicking (not dragging) within 12 px of a car selects it. */
+  onSelect?: (driver: number) => void;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const view = useRef({ zoom: 1, panX: 0, panY: 0 });
-  const drag = useRef<{ x: number; y: number } | null>(null);
+  const drag = useRef<{ x: number; y: number; startX: number; startY: number } | null>(null);
+  /** Where each car was drawn last frame, in CSS pixels, for click hit-testing. */
+  const drawn = useRef<{ driver: number; x: number; y: number }[]>([]);
   const scaleRef = useRef(1);
   const { resolvedTheme } = useTheme();
 
   useEffect(() => {
     const el = canvas.current!;
-    const ctx = el.getContext("2d")!;
+    const ctx = el.getContext("2d");
+    if (!ctx) return; // no 2D canvas (jsdom, or the browser refused one): the timing tower still lists every car
     const css = getComputedStyle(el);
     const fg = css.getPropertyValue("--foreground").trim() || "#fff";
     const bg = css.getPropertyValue("--background").trim() || "#000";
@@ -101,6 +107,7 @@ export function TrackCanvas({
       }
 
       ctx.font = `10px ${css.fontFamily}`; // canvas fonts can't use CSS variables; the canvas is font-mono
+      drawn.current = cars.filter((c) => c.fix).map((c) => ({ driver: c.d.number, x: sx(c.fix!.x), y: sy(c.fix!.y) }));
       const ordered = [...cars].sort((a, c) => Number(a.d.number === selected) - Number(c.d.number === selected));
       for (const { d, fix } of ordered) {
         if (!fix) continue;
@@ -151,23 +158,34 @@ export function TrackCanvas({
   };
 
   return (
-    <div className="relative">
+    <div className="relative h-full">
       <canvas
         ref={canvas}
         role="img"
         aria-label="Track map with car positions; the timing tower lists the same cars as text"
-        className="h-[360px] w-full touch-none rounded-lg border bg-muted/20 font-mono md:h-[480px]"
+        className="h-full min-h-60 w-full touch-none border bg-muted/30 font-mono"
         onPointerDown={(e) => {
-          drag.current = { x: e.clientX, y: e.clientY };
+          drag.current = { x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY };
           e.currentTarget.setPointerCapture(e.pointerId);
         }}
         onPointerMove={(e) => {
           if (!drag.current) return;
           view.current.panX -= (e.clientX - drag.current.x) / scaleRef.current;
           view.current.panY += (e.clientY - drag.current.y) / scaleRef.current;
-          drag.current = { x: e.clientX, y: e.clientY };
+          drag.current = { ...drag.current, x: e.clientX, y: e.clientY };
         }}
-        onPointerUp={() => (drag.current = null)}
+        onPointerUp={(e) => {
+          const d = drag.current;
+          drag.current = null;
+          if (!d || !onSelect || Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > 4) return;
+          const r = e.currentTarget.getBoundingClientRect();
+          const [px, py] = [e.clientX - r.left, e.clientY - r.top];
+          const hit = drawn.current
+            .map((c) => ({ ...c, dist: Math.hypot(c.x - px, c.y - py) }))
+            .filter((c) => c.dist <= 12)
+            .sort((a, b) => a.dist - b.dist)[0];
+          if (hit) onSelect(hit.driver);
+        }}
       />
       <div className="absolute top-2 right-2 flex flex-col gap-1">
         <Button size="icon-sm" variant="outline" aria-label="Zoom in" onClick={() => zoom(1.5)}>

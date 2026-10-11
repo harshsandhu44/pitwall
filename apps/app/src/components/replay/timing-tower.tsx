@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReplayDriver, TimingRow } from "@pitwall/shared";
+import { useLayoutEffect, useRef } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { fmtGap, fmtLap } from "@/lib/format";
@@ -47,6 +48,26 @@ export function TimingTower({
   intervals: boolean;
   caption?: string;
 }) {
+  const body = useRef<HTMLTableSectionElement>(null);
+  const last = useRef(new Map<number, { top: number; position: number | null }>());
+  // Rows glide to their new place, and a gained or lost place flashes the row's edge green or red.
+  useLayoutEffect(() => {
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    for (const tr of body.current?.querySelectorAll<HTMLTableRowElement>("tr[data-driver]") ?? []) {
+      const n = Number(tr.dataset.driver);
+      const position = rows.find((r) => r.driver === n)?.position ?? null;
+      const before = last.current.get(n);
+      last.current.set(n, { top: tr.offsetTop, position });
+      if (reduce || !before || !tr.animate) continue;
+      if (before.top !== tr.offsetTop) {
+        tr.animate([{ transform: `translateY(${before.top - tr.offsetTop}px)` }, { transform: "none" }], { duration: 450, easing: "cubic-bezier(0.16, 1, 0.3, 1)" });
+      }
+      if (before.position !== null && position !== null && before.position !== position) {
+        const c = position < before.position ? "var(--gain)" : "var(--loss)";
+        tr.animate([{ boxShadow: `inset 3px 0 0 ${c}` }, { boxShadow: `inset 3px 0 0 transparent` }], { duration: 1500, easing: "ease-out" });
+      }
+    }
+  }, [rows]);
   return (
     <Table className="text-xs">
       <caption className="sr-only">{caption}</caption>
@@ -63,12 +84,12 @@ export function TimingTower({
           <TableHead className="text-right" title="Pit-lane visits, including red-flag entries">Pit</TableHead>
         </TableRow>
       </TableHeader>
-      <TableBody>
+      <TableBody ref={body}>
         {rows.map((r) => {
           const d = drivers.get(r.driver);
           const sel = r.driver === selected;
           return (
-            <TableRow key={r.driver} data-state={sel ? "selected" : undefined}>
+            <TableRow key={r.driver} data-driver={r.driver} data-state={sel ? "selected" : undefined}>
               <TableCell className="font-mono tabular-nums">{r.position ?? "—"}</TableCell>
               <TableCell>
                 <button

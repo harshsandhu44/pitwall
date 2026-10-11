@@ -1,24 +1,27 @@
 "use client";
 
-import { type ApiResponse, type PositionWindow, type ReplaySession, type SessionReplay, timingAt, WINDOW_MS, windowStart } from "@pitwall/shared";
+import { type ApiResponse, type PositionWindow, type ReplaySession, type SessionReplay, timingAt, trackStatus, WINDOW_MS, windowStart } from "@pitwall/shared";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { EmptyState, ErrorState, QueryState, SourceNote } from "@/components/data/query-state";
+import { PanelGrid } from "@/components/dashboard/panel-grid";
 import { PageHeader } from "@/components/pages/page-header";
 import { DriverComparison } from "@/components/replay/driver-comparison";
+import { DriverFocus } from "@/components/replay/driver-focus";
 import { PlaybackControls } from "@/components/replay/playback-controls";
 import { RaceControlFeed } from "@/components/replay/race-control-feed";
+import { SessionStatus } from "@/components/replay/session-status";
 import { TimingTower } from "@/components/replay/timing-tower";
 import { TrackCanvas } from "@/components/replay/track-canvas";
 import { TrackWeather } from "@/components/replay/track-weather";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiGet } from "@/lib/api";
 import { useReplay, useReplaySessions, useSeason } from "@/lib/hooks";
+import { fmtClock } from "@/lib/format";
 import { useReplayClock } from "@/lib/replay-clock";
 
 const FIRST_SEASON = 2023;
@@ -182,69 +185,95 @@ function Player({ replay, res }: { replay: SessionReplay; res: ApiResponse<Sessi
         <Badge variant="outline">Recorded replay · not live</Badge>
         Positions are OpenF1 location samples (about four a second per car). Timing shows only what had been published at the replay position.
       </p>
-      <div className="grid gap-4 xl:grid-cols-3">
-        <Card className="xl:col-span-2">
-          <CardHeader>
-            <CardTitle>Track</CardTitle>
-            <CardDescription>
-              {replay.track
-                ? `Outline traced from ${drivers.get(replay.track.driver)?.acronym ?? replay.track.driver}'s lap ${replay.track.lap}. Drag to pan.`
-                : "No clean lap to trace an outline from; cars are drawn on OpenF1's recorded x/y coordinates."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <TrackCanvas track={replay.track} drivers={replay.drivers} time={time} getWindow={getWindow} selected={selected} follow={follow && selected !== null} interpolate={interpolate} />
-            {current.isError && <ErrorState error={current.error} onRetry={() => current.refetch()} />}
-            <PlaybackControls state={clock.state} range={replay.range} onPlay={clock.play} onPause={clock.pause} onSeek={clock.seek} onSpeed={clock.setSpeed} />
-            <div className="flex flex-wrap gap-4 text-xs">
-              <label className="inline-flex items-center gap-1.5">
-                <input type="checkbox" checked={interpolate} onChange={(e) => setInterpolate(e.target.checked)} className="accent-foreground" />
-                Interpolate between samples
-              </label>
-              <label className="inline-flex items-center gap-1.5">
-                <input type="checkbox" checked={follow} disabled={selected === null} onChange={(e) => setFollow(e.target.checked)} className="accent-foreground" />
-                Follow selected driver
-              </label>
-            </div>
-            <p className="text-[11px] text-muted-foreground">
-              Solid dot: a recorded sample{interpolate ? ", or a straight line between two samples less than 1 s apart" : ""}. Dashed ring: no sample for over a
-              second, shown at the last recorded spot. Select a driver in the timing tower to highlight them.
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Timing</CardTitle>
-            <CardDescription>{race ? "Gaps update about every 4 s in the recording." : "Gaps are only recorded for races and sprints."}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <TimingTower rows={rows} drivers={drivers} selected={selected} onSelect={setSelected} intervals={race} />
-          </CardContent>
-        </Card>
-
-        <Card className="xl:col-span-2">
-          <CardHeader>
-            <CardTitle>Driver comparison</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <DriverComparison replay={replay} rows={rows} t={t} pair={shownPair} onPair={setPair} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Race control</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <RaceControlFeed messages={replay.raceControl} t={t} />
-            <div className="space-y-2">
-              <h2 className="text-sm font-medium">Track weather</h2>
-              <TrackWeather weather={replay.weather} t={t} />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <PanelGrid
+        id="replay"
+        panels={[
+          {
+            id: "status",
+            title: "Session",
+            layout: { x: 0, y: 0, w: 12, h: 3, minW: 4, minH: 3 },
+            content: (
+              <SessionStatus
+                status={trackStatus(replay.raceControl, t)}
+                rows={rows}
+                drivers={drivers}
+                freshness={<span className="font-mono text-xs text-muted-foreground tabular-nums">At {fmtClock(t)}</span>}
+              />
+            ),
+          },
+          {
+            id: "track",
+            title: "Track",
+            description: replay.track
+              ? `Outline traced from ${drivers.get(replay.track.driver)?.acronym ?? replay.track.driver}'s lap ${replay.track.lap}. Drag to pan, click a car to select it.`
+              : "No clean lap to trace an outline from; cars are drawn on OpenF1's recorded x/y coordinates.",
+            layout: { x: 0, y: 3, w: 8, h: 15, minW: 4, minH: 8 },
+            content: (
+              <div className="flex h-full min-h-72 flex-col gap-3">
+                <div className="min-h-0 flex-1">
+                  <TrackCanvas
+                    track={replay.track}
+                    drivers={replay.drivers}
+                    time={time}
+                    getWindow={getWindow}
+                    selected={selected}
+                    follow={follow && selected !== null}
+                    interpolate={interpolate}
+                    onSelect={(n) => setSelected((s) => (s === n ? null : n))}
+                  />
+                </div>
+                {current.isError && <ErrorState error={current.error} onRetry={() => current.refetch()} />}
+                <PlaybackControls state={clock.state} range={replay.range} onPlay={clock.play} onPause={clock.pause} onSeek={clock.seek} onSpeed={clock.setSpeed} />
+                <div className="flex flex-wrap gap-4 text-xs">
+                  <label className="inline-flex items-center gap-1.5">
+                    <input type="checkbox" checked={interpolate} onChange={(e) => setInterpolate(e.target.checked)} className="accent-primary" />
+                    Interpolate between samples
+                  </label>
+                  <label className="inline-flex items-center gap-1.5">
+                    <input type="checkbox" checked={follow} disabled={selected === null} onChange={(e) => setFollow(e.target.checked)} className="accent-primary" />
+                    Follow selected driver
+                  </label>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Solid dot: a recorded sample{interpolate ? ", or a straight line between two samples less than 1 s apart" : ""}. Dashed ring: no sample for over
+                  a second, shown at the last recorded spot.
+                </p>
+              </div>
+            ),
+          },
+          {
+            id: "timing",
+            title: "Timing",
+            description: race ? "Gaps update about every 4 s in the recording." : "Gaps are only recorded for races and sprints.",
+            layout: { x: 8, y: 3, w: 4, h: 19, minW: 3, minH: 6 },
+            content: <TimingTower rows={rows} drivers={drivers} selected={selected} onSelect={setSelected} intervals={race} />,
+          },
+          {
+            id: "comparison",
+            title: "Driver comparison",
+            layout: { x: 0, y: 18, w: 8, h: 10, minW: 4, minH: 5 },
+            content: <DriverComparison replay={replay} rows={rows} t={t} pair={shownPair} onPair={setPair} />,
+          },
+          {
+            id: "focus",
+            title: "Driver focus",
+            layout: { x: 8, y: 22, w: 4, h: 6, minW: 3, minH: 4 },
+            content: <DriverFocus rows={rows} drivers={drivers} selected={selected} intervals={race} />,
+          },
+          {
+            id: "race-control",
+            title: "Race control",
+            layout: { x: 0, y: 28, w: 8, h: 6, minW: 3, minH: 3 },
+            content: <RaceControlFeed messages={replay.raceControl} t={t} limit={20} />,
+          },
+          {
+            id: "weather",
+            title: "Track weather",
+            layout: { x: 8, y: 28, w: 4, h: 5, minW: 3, minH: 3 },
+            content: <TrackWeather weather={replay.weather} t={t} />,
+          },
+        ]}
+      />
       <SourceNote res={res} />
     </div>
   );

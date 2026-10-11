@@ -10,7 +10,7 @@ export function RaceControlFeed({ messages, t, limit = 8 }: { messages: SessionR
   return (
     <ol className="space-y-2 text-xs">
       {shown.map((m) => (
-        <li key={`${m.t}-${m.message}`} className="space-y-0.5">
+        <li key={`${m.t}-${m.message}`} className="space-y-0.5 motion-safe:animate-slide-in">
           <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
             <span className="font-mono tabular-nums">{fmtClock(m.t)}</span>
             {m.lap !== null && <span>Lap {m.lap}</span>}

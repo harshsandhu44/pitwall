@@ -15,7 +15,6 @@
   --color-gain: var(--gain);
   --color-loss: var(--loss);
   --animate-live-pulse: live-pulse 1.6s ease-in-out infinite;
-  --animate-wipe-in: wipe-in 0.45s cubic-bezier(0.16, 1, 0.3, 1);
   --animate-slide-in: slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
@@ -134,17 +133,22 @@
   font-stretch: 125%;
 }
 
+/* react-grid-layout: themed drop placeholder and resize grip. */
+.react-grid-item.react-grid-placeholder {
+  background: var(--live);
+  opacity: 0.12;
+}
+.react-grid-item > .react-resizable-handle {
+  z-index: 1;
+  opacity: 0.6;
+}
+.react-grid-item > .react-resizable-handle::after {
+  border-color: var(--muted-foreground);
+}
+
 @keyframes live-pulse {
   50% {
     opacity: 0.35;
-  }
-}
-@keyframes wipe-in {
-  from {
-    clip-path: inset(0 100% 0 0);
-  }
-  to {
-    clip-path: inset(0 0 0 0);
   }
 }
 @keyframes slide-in {

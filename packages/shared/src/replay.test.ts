@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { carAt, timingAt, windowStart } from "./replay";
+import { carAt, timingAt, trackStatus, windowStart } from "./replay";
 import type { PositionWindow, SessionReplay } from "./types";
 
 const series = { t: [0, 250, 500, 3000], x: [0, 100, 200, 900], y: [0, 0, 0, 0] };
@@ -60,5 +60,52 @@ describe("timingAt", () => {
   it("does not leak later positions or completed laps", () => {
     expect(timingAt(replay, null, T + 40_000)[0]).toMatchObject({ driver: 1, position: 1 });
     expect(timingAt(replay, null, T + 79_000)[0]).toMatchObject({ driver: 16, lap: 1, lastLap: null, gap: null });
+  });
+});
+
+describe("trackStatus", () => {
+  const rc = (t: number, category: string, flag: string | null, message: string) => ({ t, lap: null, category, flag, driver: null, message });
+  // Shapes as OpenF1 publishes them (Australia 2025).
+  const msgs = [
+    rc(1, "Flag", "GREEN", "GREEN LIGHT - PIT EXIT OPEN"),
+    rc(2, "Flag", "YELLOW", "YELLOW IN TRACK SECTOR 17"),
+    rc(3, "Flag", "DOUBLE YELLOW", "DOUBLE YELLOW IN TRACK SECTOR 10"),
+    rc(4, "SafetyCar", null, "SAFETY CAR DEPLOYED"),
+    rc(5, "Other", null, "INCIDENT INVOLVING CAR 14 (ALO) NOTED - SAFETY CAR INFRINGEMENT"),
+    rc(6, "SafetyCar", null, "SAFETY CAR IN THIS LAP"),
+    rc(7, "Flag", "CLEAR", "TRACK CLEAR"),
+    rc(8, "SafetyCar", null, "VIRTUAL SAFETY CAR DEPLOYED"),
+    rc(9, "SafetyCar", null, "VIRTUAL SAFETY CAR ENDING"),
+    rc(10, "Flag", "GREEN", "GREEN FLAG"),
+    rc(11, "Flag", "RED", "RED FLAG"),
+    rc(12, "Flag", "GREEN", "GREEN LIGHT - PIT EXIT OPEN"),
+    rc(13, "Flag", "BLUE", "WAVED BLUE FLAG FOR CAR 77 (BOT) TIMED AT 20:38:16"),
+    rc(14, "Flag", "CHEQUERED", "CHEQUERED FLAG"),
+  ];
+  const at = (t: number) => trackStatus(msgs, t).label;
+
+  it("follows flags and neutralisations in order", () => {
+    expect([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].map(at)).toEqual([
+      "Green flag",
+      "Green flag",
+      "Yellow S17",
+      "Double yellow S10, S17",
+      "Safety car",
+      "Safety car",
+      "Safety car in this lap",
+      "Green flag",
+      "Virtual safety car",
+      "Virtual safety car ending",
+      "Green flag",
+      "Red flag",
+      "Green flag",
+      "Green flag",
+      "Chequered flag",
+    ]);
+  });
+
+  it("clears one sector's yellow without touching the others", () => {
+    const m = [msgs[1]!, msgs[2]!, rc(5, "Flag", "CLEAR", "CLEAR IN TRACK SECTOR 17")];
+    expect(trackStatus(m, 9)).toEqual({ kind: "yellow", label: "Double yellow S10", sectors: [10] });
   });
 });

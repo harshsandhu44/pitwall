@@ -126,6 +126,8 @@ describe("live", () => {
     expect(p.cars).toEqual({ 1: { t: [p.to - p.from - 4_500], x: [-700], y: [-1000] }, 16: { t: [p.to - p.from], x: [-710], y: [-990] } });
     expect(live.timing.track).toMatchObject({ driver: 16, lap: 2 });
     expect(live.timing.track!.x).toHaveLength(60);
+    // Monaco 2024 by 14:00: the lap-1 red flag is long over, sector 7's double yellow cleared.
+    expect(live.timing.status).toEqual({ kind: "green", label: "Green flag", sectors: [] });
     // Only the newest weather observation: the MQTT one, newer than everything loaded from REST.
     expect(live.timing.weather).toEqual([
       { t: Date.parse("2024-05-26T14:00:42Z"), air: 24.5, track: 51, humidity: 60, windSpeed: 1.5, windDirection: 90, rainfall: true },

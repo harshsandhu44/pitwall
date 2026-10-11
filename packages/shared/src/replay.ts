@@ -99,3 +99,51 @@ export function timingAt(r: SessionReplay, w: PositionWindow | null, t: number):
   });
   return rows.sort((a, b) => (a.position ?? 99) - (b.position ?? 99) || a.driver - b.driver);
 }
+
+export interface TrackStatus {
+  kind: "green" | "yellow" | "vsc" | "sc" | "red" | "chequered";
+  /** "Green flag", "Double yellow S10", "Safety car in this lap"… */
+  label: string;
+  /** Track sectors under a yellow, ascending. */
+  sectors: number[];
+}
+
+/**
+ * Track status at `t` from race-control messages (sorted by time). Reads only the Flag and SafetyCar
+ * categories, so stewards' notes that mention the safety car don't count.
+ */
+export function trackStatus(messages: SessionReplay["raceControl"], t: number): TrackStatus {
+  let neutral: "sc" | "vsc" | null = null;
+  let ending = false;
+  let red = false;
+  let chequered = false;
+  const yellows = new Map<number, string>();
+  for (const m of messages) {
+    if (m.t > t) break;
+    const sector = Number(/SECTOR (\d+)/.exec(m.message)?.[1]) || null;
+    if (m.category === "SafetyCar") {
+      if (/VIRTUAL SAFETY CAR DEPLOYED/.test(m.message)) [neutral, ending] = ["vsc", false];
+      else if (/VIRTUAL SAFETY CAR ENDING/.test(m.message)) ending = true;
+      else if (/SAFETY CAR DEPLOYED/.test(m.message)) [neutral, ending] = ["sc", false];
+      else if (/SAFETY CAR IN THIS LAP/.test(m.message)) ending = true;
+    } else if (m.category === "Flag") {
+      if (m.flag === "RED") red = true;
+      else if (m.flag === "CHEQUERED") chequered = true;
+      else if (m.flag === "GREEN") [red, neutral] = [false, null];
+      else if (m.flag === "CLEAR" && !sector) [neutral, red] = [null, false];
+      if ((m.flag === "YELLOW" || m.flag === "DOUBLE YELLOW") && sector) yellows.set(sector, m.flag);
+      if (m.flag === "CLEAR" && sector) yellows.delete(sector);
+      if (m.flag === "CLEAR" && !sector) yellows.clear();
+    }
+  }
+  const sectors = [...yellows.keys()].sort((a, b) => a - b);
+  if (chequered) return { kind: "chequered", label: "Chequered flag", sectors: [] };
+  if (red) return { kind: "red", label: "Red flag", sectors };
+  if (neutral === "sc") return { kind: "sc", label: ending ? "Safety car in this lap" : "Safety car", sectors };
+  if (neutral === "vsc") return { kind: "vsc", label: ending ? "Virtual safety car ending" : "Virtual safety car", sectors };
+  if (sectors.length) {
+    const double = [...yellows.values()].includes("DOUBLE YELLOW");
+    return { kind: "yellow", label: `${double ? "Double yellow" : "Yellow"} ${sectors.map((s) => `S${s}`).join(", ")}`, sectors };
+  }
+  return { kind: "green", label: "Green flag", sectors: [] };
+}

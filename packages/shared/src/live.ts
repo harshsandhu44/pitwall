@@ -1,4 +1,4 @@
-import type { TimingRow } from "./replay";
+import type { TimingRow, TrackStatus } from "./replay";
 import type { GrandPrix, PositionWindow, ReplayDriver, ReplaySession, SessionReplay, WeekendSession } from "./types";
 
 // ---- Live timing contract ----
@@ -34,8 +34,10 @@ export interface LiveTimingSnapshot {
   observedAt: string;
   drivers: ReplayDriver[];
   rows: TimingRow[];
-  /** Newest last. */
+  /** Newest last; the latest 20 only. */
   raceControl: SessionReplay["raceControl"];
+  /** Flag and safety-car state, judged from every race-control message so far (not just the 20 sent). */
+  status: TrackStatus;
   /** Outline from an earlier session of the same meeting (same coordinate space); null for the weekend's first. */
   track: SessionReplay["track"];
   /** The newest track-side weather observation (OpenF1 publishes about one a minute); empty until the first. */
