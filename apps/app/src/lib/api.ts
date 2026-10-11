@@ -1,5 +1,6 @@
 import type { ApiResponse } from "@pitwall/shared";
 import { useQuery } from "@tanstack/react-query";
+import { useSyncExternalStore } from "react";
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8787";
 
@@ -31,15 +32,20 @@ export async function apiGet<T>(path: string, signal?: AbortSignal): Promise<Api
   return body;
 }
 
+const noSubscribe = () => () => {};
+
 /**
  * Query an API path; `null` disables the query until its inputs are known. `poll` returns how often to
  * refetch (ms) given the latest response, or false to stop.
  */
 export function useApi<T>(path: string | null, poll?: (res: ApiResponse<T> | undefined) => number | false) {
+  // The server never has data, but a Suspense boundary can hydrate after the shared cache has filled.
+  // Read as "not loaded" while hydrating so that render matches the server HTML.
+  const hydrating = useSyncExternalStore(noSubscribe, () => false, () => true);
   return useQuery({
-    queryKey: [path],
+    queryKey: hydrating ? ["hydrating"] : [path],
     queryFn: ({ signal }) => apiGet<T>(path!, signal),
-    enabled: path !== null,
+    enabled: path !== null && !hydrating,
     refetchInterval: poll && ((query) => poll(query.state.data)),
   });
 }
