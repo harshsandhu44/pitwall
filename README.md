@@ -178,7 +178,15 @@ The API needs the OpenF1 sponsor login as secrets (once): `npx wrangler secret p
 
 Deploy the app first on a fresh zone: its custom domain creates the proxied DNS record the API route needs. Check the configuration without deploying: `npx wrangler deploy --dry-run` in each app.
 
-To fill an empty or long-stale D1 from your own IP (outside Jolpica's shared Worker limit), run the API locally with the D1 binding set to `"remote": true` in a copy of `wrangler.jsonc`, then request the pages you want cached. Each successful response is written to production D1.
+To fill production D1 with Jolpica seasons from your own IP (outside Jolpica's shared Worker limit), run the API locally against production D1, then run the crawler:
+
+```sh
+# in apps/api: a copy of wrangler.jsonc with "remote": true on the D1 binding (and no routes)
+npx wrangler dev -c wrangler.backfill.jsonc --port 8790
+node apps/api/scripts/backfill.mjs http://localhost:8790 2000 2022
+```
+
+It requests the normal routes, newest season first (calendar, standings, progression, results, every race weekend, then every profile), so each successful response is written to production D1. Snapshots never expire, so a rerun skips what's stored. Jolpica's limits (~500 requests/hour) are waited out, so 2000–2022 takes several hours. 2000–2022 was filled this way on 2026-10-11.
 
 ## Troubleshooting
 
