@@ -187,7 +187,7 @@ npx wrangler dev -c wrangler.backfill.jsonc --port 8790
 node apps/api/scripts/backfill.mjs http://localhost:8790 2000 2022
 ```
 
-It requests the normal routes, newest season first (calendar, standings, progression, results, every race weekend, then every profile), so each successful response is written to production D1. Snapshots never expire, so a rerun skips what's stored. Jolpica's limits (~500 requests/hour) are waited out, so 2000–2022 takes several hours.
+It requests the normal routes, newest season first (calendar, standings, progression, results, every race weekend, then every profile), so each successful response is written to production D1. Snapshots never expire, so a rerun skips what's stored. Jolpica's limits (~500 requests/hour) are waited out, so 2000–2022 takes several hours. 2000–2022 was filled this way on 2026-10-11.
 
 ## Troubleshooting
 

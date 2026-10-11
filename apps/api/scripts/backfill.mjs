@@ -18,7 +18,7 @@ async function get(path) {
   for (let failures = 0; ; ) {
     let body = null;
     try {
-      body = await (await fetch(base + path)).json();
+      body = await (await fetch(base + path, { signal: AbortSignal.timeout(180_000) }) // a hung request is retried).json();
     } catch (e) {
       body = { status: "unavailable", reason: String(e) };
     }
