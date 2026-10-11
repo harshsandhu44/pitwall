@@ -593,6 +593,7 @@ export const LIVE_TOPICS = {
   "v1/position": Position,
   "v1/intervals": Interval,
   "v1/location": Location,
+  "v1/weather": Weather,
 } as const;
 export type LiveTopic = keyof typeof LIVE_TOPICS;
 export type LiveRows = { [T in LiveTopic]: z.infer<(typeof LIVE_TOPICS)[T]>[] };
@@ -619,6 +620,7 @@ export async function liveStart(key: number, now: number, ua: string) {
     "v1/position": await list("position", q, Position, ua),
     "v1/intervals": await list("intervals", `${q}&date%3E=${iso(now - 60_000)}`, Interval, ua),
     "v1/location": await list("location", `${q}&date%3E=${iso(now - LIVE_LOCATION_MS)}`, Location, ua),
+    "v1/weather": await list("weather", `${q}&date%3E=${iso(now - 10 * 60_000)}`, Weather, ua),
   };
   let track: SessionReplay["track"] = null;
   try {

@@ -43,7 +43,7 @@ All `GET`, all return the envelope described in the root README.
 | `/api/replay/:key` | OpenF1 |
 | `/api/replay/:key/window?from=<ms, multiple of 60000>` | OpenF1 |
 | `/api/team-colours?season` | OpenF1 (empty before 2023) |
-| `/api/live/session` | OpenF1 live feed: `LIVE`/`DELAYED` with timing and the last 10 s of car locations during a session window, else `UNAVAILABLE` with the next session and the latest replay |
+| `/api/live/session` | OpenF1 live feed: `LIVE`/`DELAYED` with timing, the last 10 s of car locations and the newest track weather during a session window, else `UNAVAILABLE` with the next session and the latest replay |
 | `/api/live/timing` | The live timing snapshot alone; 503 outside a live session |
 
 Upstream URLs are built only from validated parameters. There is no pass-through proxy.

@@ -38,6 +38,8 @@ export interface LiveTimingSnapshot {
   raceControl: SessionReplay["raceControl"];
   /** Outline from an earlier session of the same meeting (same coordinate space); null for the weekend's first. */
   track: SessionReplay["track"];
+  /** The newest track-side weather observation (OpenF1 publishes about one a minute); empty until the first. */
+  weather: SessionReplay["weather"];
   /** Car locations over the last ~10 s, ending at the newest sample. */
   positions: PositionWindow;
 }

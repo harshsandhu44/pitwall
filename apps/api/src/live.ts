@@ -20,6 +20,7 @@ const KEY: { [T in LiveTopic]: (r: LiveRows[T][number]) => string } = {
   "v1/position": (r) => `${r.driver_number}/${r.date}`,
   "v1/intervals": (r) => `${r.driver_number}`, // only the latest is shown
   "v1/location": (r) => `${r.driver_number}/${r.date}`,
+  "v1/weather": (r) => r.date,
 };
 
 const observed = (r: object) => {
@@ -81,7 +82,7 @@ export class Feed {
       stints: this.all("v1/stints"),
       pits: this.all("v1/pit"),
       raceControl: this.all("v1/race_control"),
-      weather: [],
+      weather: this.all("v1/weather"),
       positions: this.all("v1/position"),
     });
     const intervals: PositionWindow["intervals"] = {};
@@ -95,6 +96,7 @@ export class Feed {
       rows: timingAt({ ...replay, track: null }, { from: 0, to: 0, cars: {}, intervals }, now),
       raceControl: replay.raceControl.slice(-20),
       track: this.track,
+      weather: replay.weather.slice(-1),
       positions: { ...toWindow(newest - LIVE_LOCATION_MS, this.all("v1/location"), []), to: newest },
     };
   }
