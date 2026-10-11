@@ -39,7 +39,7 @@ describe("live page", () => {
     expect(await screen.findByText(/doesn't confirm the session is running/)).toBeInTheDocument();
   });
 
-  it("shows the live timing tower and race control while a session streams", async () => {
+  it("shows the live timing tower, race control and track map while a session streams", async () => {
     const live: LiveStatus = {
       state: "DELAYED",
       session: { key: 11390, meetingName: "Singapore Grand Prix", name: "Race" },
@@ -57,6 +57,8 @@ describe("live page", () => {
           { driver: 1, position: 2, gap: 2.345, interval: 2.345, lap: 30, lastLap: 98.4, bestLap: 97.9, compound: "HARD", tyreAge: 4, pits: 1 },
         ],
         raceControl: [{ t: Date.parse("2026-10-11T12:29:00Z"), lap: 30, category: "Flag", flag: "YELLOW", driver: null, message: "YELLOW IN TRACK SECTOR 7" }],
+        track: { driver: 4, lap: 12, x: [0, 100, 100, 0], y: [0, 0, 100, 100] },
+        positions: { from: Date.parse("2026-10-11T12:29:50Z"), to: Date.parse("2026-10-11T12:30:00Z"), cars: { 4: { t: [0, 250], x: [10, 12], y: [0, 0] } }, intervals: {} },
       },
     };
     mockApi({ "/api/live/session": () => envelope(live, { source: "openf1" }) });
@@ -66,5 +68,7 @@ describe("live page", () => {
     expect(table).toHaveTextContent("NOR");
     expect(table).toHaveTextContent("+2.345");
     expect(screen.getByText("YELLOW IN TRACK SECTOR 7")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /Track map with car positions/ })).toBeInTheDocument();
+    expect(screen.getByText(/traced from NOR's lap 12 earlier this weekend/)).toBeInTheDocument();
   });
 });

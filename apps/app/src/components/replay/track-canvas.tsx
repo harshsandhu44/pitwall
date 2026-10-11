@@ -1,11 +1,10 @@
 "use client";
 
-import { carAt, type PositionWindow, type SessionReplay } from "@pitwall/shared";
+import { carAt, type PositionWindow, type ReplayDriver, type SessionReplay } from "@pitwall/shared";
 import { MinusIcon, PlusIcon, ScanIcon } from "lucide-react";
 import { useTheme } from "next-themes";
-import { type RefObject, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import type { ClockState } from "@/lib/replay-clock";
 
 type Bounds = { minX: number; maxX: number; minY: number; maxY: number };
 
@@ -19,15 +18,18 @@ function boundsOf(xs: number[], ys: number[]): Bounds | null {
  * space, so no alignment guesswork). Not a geographic map and not the decorative F1DB layout.
  */
 export function TrackCanvas({
-  replay,
-  clock,
+  track,
+  drivers,
+  time,
   getWindow,
   selected,
   follow,
   interpolate,
 }: {
-  replay: SessionReplay;
-  clock: RefObject<ClockState>;
+  track: SessionReplay["track"];
+  drivers: ReplayDriver[];
+  /** Session time to draw (epoch ms); called every frame. */
+  time: () => number;
   getWindow: (t: number) => PositionWindow | null;
   selected: number | null;
   follow: boolean;
@@ -46,7 +48,6 @@ export function TrackCanvas({
     const fg = css.getPropertyValue("--foreground").trim() || "#fff";
     const bg = css.getPropertyValue("--background").trim() || "#000";
     const muted = css.getPropertyValue("--muted-foreground").trim() || "#888";
-    const track = replay.track;
     // Expand-only: starts at the outline, grows to include any recorded position (e.g. pit lane).
     let b = track ? boundsOf(track.x, track.y) : null;
     let raf = 0;
@@ -63,9 +64,9 @@ export function TrackCanvas({
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, w, h);
 
-      const t = clock.current.t;
+      const t = time();
       const win = getWindow(t);
-      const cars = replay.drivers.map((d) => {
+      const cars = drivers.map((d) => {
         const s = win?.cars[d.number];
         return { d, fix: s ? carAt(s, t - win!.from, interpolate) : null };
       });
@@ -138,12 +139,12 @@ export function TrackCanvas({
       const missing = cars.filter((c) => !c.fix).length;
       if (win && missing) {
         ctx.fillStyle = muted;
-        ctx.fillText(`${missing} car${missing > 1 ? "s" : ""} without a recorded position now`, 8, h - 8);
+        ctx.fillText(`${missing} car${missing > 1 ? "s" : ""} without a position now`, 8, h - 8);
       }
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [replay, clock, getWindow, selected, follow, interpolate, resolvedTheme]);
+  }, [track, drivers, time, getWindow, selected, follow, interpolate, resolvedTheme]);
 
   const zoom = (f: number) => {
     view.current.zoom = Math.min(8, Math.max(1, view.current.zoom * f));
@@ -154,7 +155,7 @@ export function TrackCanvas({
       <canvas
         ref={canvas}
         role="img"
-        aria-label="Track map with recorded car positions; the timing tower lists the same cars as text"
+        aria-label="Track map with car positions; the timing tower lists the same cars as text"
         className="h-[360px] w-full touch-none rounded-lg border bg-muted/20 font-mono md:h-[480px]"
         onPointerDown={(e) => {
           drag.current = { x: e.clientX, y: e.clientY };

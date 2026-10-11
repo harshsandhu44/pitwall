@@ -1,7 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
-import { type LiveTimingSnapshot, type PositionWindow, timingAt } from "@pitwall/shared";
+import { type LiveTimingSnapshot, type PositionWindow, type SessionReplay, timingAt } from "@pitwall/shared";
 import * as mqtt from "./mqtt";
-import { LIVE_TOPICS, type LiveRows, type LiveTopic, liveStart, type SessionRow, toDrivers, toReplay } from "./providers/openf1";
+import { LIVE_LOCATION_MS, LIVE_TOPICS, type LiveRows, type LiveTopic, liveStart, type SessionRow, toDrivers, toReplay, toWindow } from "./providers/openf1";
 import { openf1Token, useOpenF1Login } from "./upstream";
 
 const BROKER = "https://mqtt.openf1.org:8084/mqtt";
@@ -19,6 +19,7 @@ const KEY: { [T in LiveTopic]: (r: LiveRows[T][number]) => string } = {
   "v1/race_control": (r) => `${r.date}/${r.message}`,
   "v1/position": (r) => `${r.driver_number}/${r.date}`,
   "v1/intervals": (r) => `${r.driver_number}`, // only the latest is shown
+  "v1/location": (r) => `${r.driver_number}/${r.date}`,
 };
 
 const observed = (r: object) => {
@@ -35,6 +36,7 @@ export class Feed {
   constructor(
     readonly session: SessionRow,
     readonly meetingName: string,
+    readonly track: SessionReplay["track"] = null,
   ) {}
 
   /** Rows fetched from OpenF1's REST API for this session (already validated). */
@@ -66,6 +68,10 @@ export class Feed {
   /** Null until any timed data has arrived. */
   snapshot(now: number): LiveTimingSnapshot | null {
     if (!this.observedAt) return null;
+    // Locations arrive ~4 times a second per car; keep only the newest few seconds.
+    const locations = this.rows.get("v1/location") ?? new Map<string, object>();
+    const newest = Math.max(0, ...[...locations.values()].map(observed));
+    for (const [k, r] of locations) if (observed(r) < newest - LIVE_LOCATION_MS) locations.delete(k);
     const season = new Date(this.session.date_start).getUTCFullYear();
     const replay = toReplay({
       session: this.session,
@@ -88,6 +94,8 @@ export class Feed {
       drivers: replay.drivers,
       rows: timingAt({ ...replay, track: null }, { from: 0, to: 0, cars: {}, intervals }, now),
       raceControl: replay.raceControl.slice(-20),
+      track: this.track,
+      positions: { ...toWindow(newest - LIVE_LOCATION_MS, this.all("v1/location"), []), to: newest },
     };
   }
 }
@@ -139,7 +147,7 @@ export class LiveFeed extends DurableObject<Env> {
       // Subscribe first and hold messages, so nothing is lost between the REST load and the stream.
       await this.subscribe(token);
       const s = await liveStart(sessionKey, Date.now(), this.env.USER_AGENT);
-      this.feed = new Feed(s.session, s.meetingName);
+      this.feed = new Feed(s.session, s.meetingName, s.track);
       this.feed.addAll(s.rows);
       for (const [topic, row] of this.pending) this.feed.message(topic, row);
       this.pending = [];

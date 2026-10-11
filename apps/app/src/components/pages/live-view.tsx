@@ -1,15 +1,16 @@
 "use client";
 
-import type { LiveStatus } from "@pitwall/shared";
+import type { LiveStatus, LiveTimingSnapshot } from "@pitwall/shared";
 import { SESSION_LABEL } from "@pitwall/shared";
 import { RadioTowerIcon } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ErrorState, QueryState, SourceNote } from "@/components/data/query-state";
 import { PageHeader } from "@/components/pages/page-header";
 import { RaceCountdown } from "@/components/racing/race-countdown";
 import { RaceControlFeed } from "@/components/replay/race-control-feed";
 import { TimingTower } from "@/components/replay/timing-tower";
+import { TrackCanvas } from "@/components/replay/track-canvas";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -135,6 +136,51 @@ function LiveTiming({ live }: { live: Extract<LiveStatus, { state: "LIVE" | "DEL
           <RaceControlFeed messages={t.raceControl} t={Infinity} />
         </CardContent>
       </Card>
+      <LiveTrack timing={t} selected={selected} />
     </div>
+  );
+}
+
+/** Cars are drawn this far behind the newest location sample, so they move smoothly between 3 s polls. */
+const MAP_DELAY_MS = 5_000;
+
+function LiveTrack({ timing, selected }: { timing: LiveTimingSnapshot; selected: number | null }) {
+  const [follow, setFollow] = useState(false);
+  const positions = useRef(timing.positions);
+  const anchor = useRef({ t: timing.positions.to - MAP_DELAY_MS, at: 0 });
+  useEffect(() => {
+    positions.current = timing.positions;
+    // ponytail: re-anchored on every poll, so a late poll nudges the cars; smooth it if that shows.
+    anchor.current = { t: timing.positions.to - MAP_DELAY_MS, at: performance.now() };
+  }, [timing.positions]);
+  const time = useCallback(() => anchor.current.t + performance.now() - anchor.current.at, []);
+  const getWindow = useCallback(() => positions.current, []);
+  const outlineBy = timing.track && timing.drivers.find((d) => d.number === timing.track!.driver);
+  return (
+    <Card className="lg:col-span-2">
+      <CardHeader>
+        <CardTitle>Track</CardTitle>
+        <CardDescription>
+          {timing.track
+            ? `Outline traced from ${outlineBy?.acronym ?? timing.track.driver}'s lap ${timing.track.lap} earlier this weekend. Cars are about ${MAP_DELAY_MS / 1000} s behind the timing. Drag to pan.`
+            : `No earlier session this weekend to trace an outline from; cars are drawn on OpenF1's x/y coordinates, about ${MAP_DELAY_MS / 1000} s behind the timing.`}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <TrackCanvas
+          track={timing.track}
+          drivers={timing.drivers}
+          time={time}
+          getWindow={getWindow}
+          selected={selected}
+          follow={follow && selected !== null}
+          interpolate
+        />
+        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+          <input type="checkbox" checked={follow} disabled={selected === null} onChange={(e) => setFollow(e.target.checked)} className="accent-foreground" />
+          Follow selected driver
+        </label>
+      </CardContent>
+    </Card>
   );
 }

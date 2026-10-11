@@ -182,9 +182,9 @@ export interface ReplayRaw {
   positions: Raw<typeof Position>;
 }
 
-export function toReplay(r: ReplayRaw): Omit<SessionReplay, "track"> {
+function toLaps(raw: Raw<typeof Lap>): SessionReplay["laps"] {
   const laps = groupBy(
-    r.laps.map((l) => ({
+    raw.map((l) => ({
       driver: l.driver_number,
       lap: l.lap_number,
       start: l.date_start ? Date.parse(l.date_start) : null,
@@ -194,14 +194,16 @@ export function toReplay(r: ReplayRaw): Omit<SessionReplay, "track"> {
     })),
     (l) => l.driver,
   );
+  return Object.fromEntries(Object.entries(laps).map(([d, ls]) => [d, ls.sort((a, b) => a.lap - b.lap).map(({ driver: _, ...l }) => l)]));
+}
+
+export function toReplay(r: ReplayRaw): Omit<SessionReplay, "track"> {
   const lapEnds = r.laps.flatMap((l) => (l.date_start && l.lap_duration ? [Date.parse(l.date_start) + l.lap_duration * 1000] : []));
   return {
     session: toSessions([r.session], [{ meeting_key: r.session.meeting_key, meeting_name: r.meetingName }])[0]!,
     range: { start: Date.parse(r.session.date_start), end: Math.max(Date.parse(r.session.date_end), ...lapEnds) },
     drivers: r.drivers,
-    laps: Object.fromEntries(
-      Object.entries(laps).map(([d, ls]) => [d, ls.sort((a, b) => a.lap - b.lap).map(({ driver: _, ...l }) => l)]),
-    ),
+    laps: toLaps(r.laps),
     stints: Object.fromEntries(
       Object.entries(
         groupBy(
@@ -351,16 +353,17 @@ export async function replay(key: number, ua: string): Promise<SessionReplay> {
     weather: await list("weather", q, Weather, ua),
     positions: await list("position", q, Position, ua),
   });
-  const lap = outlineLap(base.laps);
-  let track: SessionReplay["track"] = null;
-  if (lap) {
-    const pts = (await list("location", `${q}&driver_number=${lap.driver}&${between(lap.start, lap.start + lap.duration * 1000)}`, Location, ua))
-      .filter(hasFix)
-      .sort((a, b) => a.date.localeCompare(b.date));
-    // Too few samples can't describe a circuit; show no outline rather than a misleading one.
-    if (pts.length >= 50) track = { driver: lap.driver, lap: lap.lap, x: pts.map((p) => p.x), y: pts.map((p) => p.y) };
-  }
-  return { ...base, track };
+  return { ...base, track: await traceOutline(key, base.laps, ua) };
+}
+
+async function traceOutline(key: number, laps: SessionReplay["laps"], ua: string): Promise<SessionReplay["track"]> {
+  const lap = outlineLap(laps);
+  if (!lap) return null;
+  const pts = (await list("location", `session_key=${key}&driver_number=${lap.driver}&${between(lap.start, lap.start + lap.duration * 1000)}`, Location, ua))
+    .filter(hasFix)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  // Too few samples can't describe a circuit; show no outline rather than a misleading one.
+  return pts.length >= 50 ? { driver: lap.driver, lap: lap.lap, x: pts.map((p) => p.x), y: pts.map((p) => p.y) } : null;
 }
 
 export async function positionWindow(key: number, from: number, withIntervals: boolean, ua: string) {
@@ -580,7 +583,7 @@ export async function weekend(race: GrandPrix, meetingKey: number, s: Schedule, 
 
 // ---- Live feed ----
 
-/** MQTT topics a live timing view needs, with their row schemas. High-rate car data and locations are left out. */
+/** MQTT topics a live view needs, with their row schemas. High-rate car data (speed, throttle…) is left out. */
 export const LIVE_TOPICS = {
   "v1/drivers": ODriver,
   "v1/laps": Lap,
@@ -589,12 +592,19 @@ export const LIVE_TOPICS = {
   "v1/race_control": RaceControl,
   "v1/position": Position,
   "v1/intervals": Interval,
+  "v1/location": Location,
 } as const;
 export type LiveTopic = keyof typeof LIVE_TOPICS;
 export type LiveRows = { [T in LiveTopic]: z.infer<(typeof LIVE_TOPICS)[T]>[] };
 export type SessionRow = Raw<typeof Session>[number];
 
-/** Everything a session has recorded so far, for a live feed to start from. Intervals: the last minute only. */
+/** How much car location a live feed keeps (and loads at start). */
+export const LIVE_LOCATION_MS = 10_000;
+
+/**
+ * Everything a session has recorded so far, for a live feed to start from. Intervals: the last minute only;
+ * locations: the last few seconds. The track outline is borrowed from the meeting's latest finished session.
+ */
 export async function liveStart(key: number, now: number, ua: string) {
   const q = `session_key=${key}`;
   const [session] = await list("sessions", q, Session, ua);
@@ -608,6 +618,17 @@ export async function liveStart(key: number, now: number, ua: string) {
     "v1/race_control": await list("race_control", q, RaceControl, ua),
     "v1/position": await list("position", q, Position, ua),
     "v1/intervals": await list("intervals", `${q}&date%3E=${iso(now - 60_000)}`, Interval, ua),
+    "v1/location": await list("location", `${q}&date%3E=${iso(now - LIVE_LOCATION_MS)}`, Location, ua),
   };
-  return { session, meetingName: meeting?.meeting_name ?? session.country_name, rows };
+  let track: SessionReplay["track"] = null;
+  try {
+    const earlier = (await list("sessions", `meeting_key=${session.meeting_key}`, Session, ua))
+      .filter((s) => Date.parse(s.date_end) < Date.parse(session.date_start))
+      .sort((a, b) => a.date_start.localeCompare(b.date_start))
+      .at(-1);
+    if (earlier) track = await traceOutline(earlier.session_key, toLaps(await list("laps", `session_key=${earlier.session_key}`, Lap, ua)), ua);
+  } catch (e) {
+    console.error("no outline for live session", key, e); // no outline is better than no live timing
+  }
+  return { session, meetingName: meeting?.meeting_name ?? session.country_name, rows, track };
 }

@@ -146,13 +146,14 @@ Checked against Jolpica for 2026: standings, progression, points and wins are id
 
 ## Live timing
 
-`/live` shows the timing tower and race-control messages for the session on track. It uses OpenF1's sponsor feed, which is a few seconds behind the track.
+`/live` shows the timing tower, race-control messages and a track map for the session on track. It uses OpenF1's sponsor feed, which is a few seconds behind the track.
 
 - **When:** OpenF1 treats a session as live from 30 minutes before it starts until 30 minutes after it ends. Outside those windows, `/api/live/session` reports `UNAVAILABLE` (`no_session`) with the next session and the latest replay.
 - **One shared connection.** The `LiveFeed` Durable Object (`apps/api/src/live.ts`) holds the only connection to OpenF1's MQTT broker. The first live request inside a window opens it: the DO subscribes, loads the session so far from REST, then applies messages as they arrive. Messages that arrive during the load are held and applied afterwards. It disconnects once nobody has asked for two minutes, and reconnects after a drop with backoff (5 s doubling to 60 s).
 - **Same timing as replays.** The DO keeps the raw rows (laps, stints, pits, positions, race control, latest intervals, entry list) and builds the tower with the replay's own `toReplay` and `timingAt`.
-- **States.** `LIVE` while the newest source timestamp is under 15 s old, `DELAYED` (with `delaySeconds`) after that, for example under a red flag or after the chequered flag. `UNAVAILABLE` with `no_data_yet` before the first timed data, or `feed_unavailable` with the reason when OpenF1 can't be reached or refuses the login.
-- **Polling.** The page polls `/api/live/session` every 3 s while a session streams and every 30 s otherwise. `/api/live/timing` returns the same snapshot on its own. `/api/live/positions` (the live track map) isn't provided yet and returns 503.
+- **Track map.** The DO also subscribes to car locations (`v1/location`, about 4 a second per car) and keeps only the last 10 s. Each poll carries that window; the page draws the cars 5 s behind the newest sample with the replay's interpolation, so they move smoothly between polls. The outline is traced from the fastest clean lap of the meeting's latest finished session (OpenF1 uses the same coordinates across a weekend), so the weekend's first session shows cars without an outline.
+- **States.** `LIVE` while the newest source timestamp (car locations included) is under 15 s old, `DELAYED` (with `delaySeconds`) after that, for example under a red flag or after the chequered flag. `UNAVAILABLE` with `no_data_yet` before the first timed data, or `feed_unavailable` with the reason when OpenF1 can't be reached or refuses the login.
+- **Polling.** The page polls `/api/live/session` every 3 s while a session streams and every 30 s otherwise. `/api/live/timing` returns the same snapshot on its own.
 - **MQTT.** `apps/api/src/mqtt.ts` is a minimal MQTT 3.1.1 client (connect, QoS 0 subscribe, publish, keep-alive). mqtt.js doesn't work in workerd. Workers deliver WebSocket frames as Blobs unless `binaryType` is `"arraybuffer"`.
 - **Cost.** One viewer polling for a two-hour race is ~2,400 Worker requests and the same number of DO requests, well inside the Free plan's 100,000 a day. The DO stays in memory only while connected.
 

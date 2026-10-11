@@ -154,6 +154,8 @@ function Player({ replay, res }: { replay: SessionReplay; res: ApiResponse<Sessi
 
   const clock = useReplayClock(replay.range, ready);
   const t = clock.state.t;
+  // The React Compiler memoizes this, so the track map's draw loop isn't restarted on every render.
+  const time = () => clock.ref.current.t;
   const cur = windowStart(t);
   const current = useQuery(windowQuery(cur));
 
@@ -191,7 +193,7 @@ function Player({ replay, res }: { replay: SessionReplay; res: ApiResponse<Sessi
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <TrackCanvas replay={replay} clock={clock.ref} getWindow={getWindow} selected={selected} follow={follow && selected !== null} interpolate={interpolate} />
+            <TrackCanvas track={replay.track} drivers={replay.drivers} time={time} getWindow={getWindow} selected={selected} follow={follow && selected !== null} interpolate={interpolate} />
             {current.isError && <ErrorState error={current.error} onRetry={() => current.refetch()} />}
             <PlaybackControls state={clock.state} range={replay.range} onPlay={clock.play} onPause={clock.pause} onSeek={clock.seek} onSpeed={clock.setSpeed} />
             <div className="flex flex-wrap gap-4 text-xs">

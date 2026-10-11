@@ -1,5 +1,5 @@
 import type { TimingRow } from "./replay";
-import type { GrandPrix, ReplayDriver, ReplaySession, SessionReplay, WeekendSession } from "./types";
+import type { GrandPrix, PositionWindow, ReplayDriver, ReplaySession, SessionReplay, WeekendSession } from "./types";
 
 // ---- Live timing contract ----
 // Live data comes from OpenF1's sponsor feed through one shared connection in the API. Recorded data is
@@ -36,12 +36,10 @@ export interface LiveTimingSnapshot {
   rows: TimingRow[];
   /** Newest last. */
   raceControl: SessionReplay["raceControl"];
-}
-
-export interface LivePositionsSnapshot {
-  session: LiveSessionRef;
-  observedAt: string;
-  cars: { driver: number; x: number; y: number; t: string }[];
+  /** Outline from an earlier session of the same meeting (same coordinate space); null for the weekend's first. */
+  track: SessionReplay["track"];
+  /** Car locations over the last ~10 s, ending at the newest sample. */
+  positions: PositionWindow;
 }
 
 /** Older than this, live data is shown as DELAYED. */

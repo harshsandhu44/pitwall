@@ -416,7 +416,6 @@ const routes: [RegExp, Handler][] = [
       return { status: "ok", data: live.timing, source: "openf1", fetchedAt: new Date().toISOString(), observedAt: live.observedAt, cache: "none", maxAgeSeconds: 0 };
     },
   ],
-  [/^\/api\/live\/positions$/, async () => liveUnavailable("not_available: live track positions aren't provided yet; replays have them")],
   [
     /^\/api\/replay\/sessions$/,
     ({ url, env, ctx }) => replaySessions(env, ctx, param(Season, url.searchParams.get("season"), "season")),

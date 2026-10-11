@@ -7,12 +7,18 @@ import { resetUpstreamState } from "../src/upstream";
 import f from "./fixtures/openf1-monaco-2024.json";
 import { openf1Mock } from "./openf1-mock";
 
-// The 2024 Monaco weekend, recorded. Its race (session 9523) ran 13:00–15:00 UTC on 26 May.
+// The 2024 Monaco weekend, recorded. Its race (session 9523) ran 13:00–15:00 UTC on 26 May. Qualifying (9519)
+// gets one synthetic clean lap by Leclerc, traced by 60 location samples, for the live map's outline.
+const qualiLap = Date.parse("2024-05-25T14:40:00Z");
 const openf1 = openf1Mock({
   sessions: f.sessions,
   meetings: f.meetings,
   drivers: f.drivers,
-  laps: f.laps,
+  laps: [...f.laps, { session_key: 9519, driver_number: 16, lap_number: 2, date_start: new Date(qualiLap).toISOString(), lap_duration: 70.27, is_pit_out_lap: false }],
+  location: [
+    ...Array.from({ length: 60 }, (_, i) => ({ session_key: 9519, driver_number: 16, date: new Date(qualiLap + i * 1100).toISOString(), x: i, y: -i, z: 600 })),
+    { session_key: 9523, driver_number: 1, date: "2024-05-26T14:00:40.000Z", x: -700, y: -1000, z: 650 },
+  ],
   stints: f.stints,
   pit: f.pit,
   race_control: f.race_control,
@@ -101,6 +107,8 @@ describe("live", () => {
     broker.publish = [
       publishPacket("v1/intervals", { session_key: 9523, driver_number: 1, date: "2024-05-26T14:00:44.000Z", gap_to_leader: 1.234, interval: 1.234 }),
       publishPacket("v1/intervals", { session_key: 1, driver_number: 44, date: "2024-05-26T14:00:44.000Z", gap_to_leader: 99, interval: 99 }),
+      publishPacket("v1/location", { session_key: 9523, driver_number: 44, date: "2024-05-26T14:00:30.000Z", x: 5, y: 5, z: 650 }), // > 10 s old: dropped
+      publishPacket("v1/location", { session_key: 9523, driver_number: 16, date: "2024-05-26T14:00:44.500Z", x: -710, y: -990, z: 650 }),
     ];
     const live = (await get<LiveStatus>("/api/live/session")).body.data!;
     expect(live).toMatchObject({ state: "LIVE", session: { key: 9523, meetingName: "Monaco Grand Prix", name: "Race" } });
@@ -110,6 +118,12 @@ describe("live", () => {
     expect(live.timing.rows.find((r) => r.driver === 1)).toMatchObject({ gap: 1.234 });
     expect(live.timing.rows.find((r) => r.driver === 44)?.gap).not.toBe(99); // another session's message
     expect(broker).toMatchObject({ connects: 1, subscribed: true });
+    // The map gets the last 10 s of locations, ending at the newest, and qualifying's outline.
+    const p = live.timing.positions;
+    expect(p.to).toBe(Date.parse("2024-05-26T14:00:44.500Z"));
+    expect(p.cars).toEqual({ 1: { t: [p.to - p.from - 4_500], x: [-700], y: [-1000] }, 16: { t: [p.to - p.from], x: [-710], y: [-990] } });
+    expect(live.timing.track).toMatchObject({ driver: 16, lap: 2 });
+    expect(live.timing.track!.x).toHaveLength(60);
     expect(calls.some((u) => u.pathname === "/v1/laps" && u.searchParams.get("session_key") === "9523")).toBe(true);
 
     const timing = await get<LiveTimingSnapshot>("/api/live/timing");
@@ -135,11 +149,4 @@ describe("live", () => {
     expect((await get("/api/live/timing")).status).toBe(503);
   });
 
-  it("refuses live positions with 503 and the reason, without calling any upstream", async () => {
-    const { status, body } = await get("/api/live/positions");
-    expect(status).toBe(503);
-    expect(body).toMatchObject({ status: "unavailable", data: null });
-    expect(body.reason).toMatch(/^not_available/);
-    expect(calls).toHaveLength(0);
-  });
 });
