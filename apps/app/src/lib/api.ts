@@ -31,11 +31,15 @@ export async function apiGet<T>(path: string, signal?: AbortSignal): Promise<Api
   return body;
 }
 
-/** Query an API path; `null` disables the query until its inputs are known. */
-export function useApi<T>(path: string | null) {
+/**
+ * Query an API path; `null` disables the query until its inputs are known. `poll` returns how often to
+ * refetch (ms) given the latest response, or false to stop.
+ */
+export function useApi<T>(path: string | null, poll?: (res: ApiResponse<T> | undefined) => number | false) {
   return useQuery({
     queryKey: [path],
     queryFn: ({ signal }) => apiGet<T>(path!, signal),
     enabled: path !== null,
+    refetchInterval: poll && ((query) => poll(query.state.data)),
   });
 }

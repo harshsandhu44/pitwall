@@ -4,8 +4,9 @@ import {
   type ConstructorStanding,
   type DriverStanding,
   finalAt,
-  LIVE_UNAVAILABLE_DETAIL,
+  LIVE_MAX_AGE_MS,
   type LiveStatus,
+  type LiveUnavailableReason,
   nextSession,
   type PointsProgression,
   type ReplaySession,
@@ -213,9 +214,17 @@ const replaySessions = async (env: Env, ctx: ExecutionContext, season: number): 
 const replay = (env: Env, ctx: ExecutionContext, key: number) =>
   cached(env, ctx, { key: `replay/${key}`, source: "openf1", ttl: 30 * DAY }, () => openf1.replay(key, env.USER_AGENT));
 
-// ---- Live (contract only) ----
+// ---- Live (OpenF1 sponsor feed, through the LiveFeed Durable Object) ----
 
-/** Always UNAVAILABLE: there is no permitted free live source. Context (next session, latest replay) is best effort. */
+/** OpenF1 treats a session as live from 30 minutes before it starts until 30 minutes after it ends. */
+const LIVE_WINDOW_MS = 30 * 60_000;
+
+const NOT_LIVE: Record<Exclude<LiveUnavailableReason, "feed_unavailable">, string> = {
+  no_session: "No session is running right now. Live timing starts 30 minutes before each session.",
+  no_data_yet: "A session window is open, but no timing data has arrived yet.",
+};
+
+/** LIVE or DELAYED while a session's window is open and data flows; otherwise UNAVAILABLE with context (best effort). */
 async function liveStatus(env: Env, ctx: ExecutionContext): Promise<LiveStatus> {
   const optional = async <T>(f: () => Promise<T>) => {
     try {
@@ -224,7 +233,29 @@ async function liveStatus(env: Env, ctx: ExecutionContext): Promise<LiveStatus> 
       return null;
     }
   };
-  const latest = new Date().getUTCFullYear();
+  const now = Date.now();
+  const latest = new Date(now).getUTCFullYear();
+  const current = (await optional(async () => must(await schedule(env, ctx, latest))))?.sessions
+    .filter((s) => Date.parse(s.start) - LIVE_WINDOW_MS <= now && now <= Date.parse(s.end) + LIVE_WINDOW_MS)
+    .at(-1);
+
+  let reason: LiveUnavailableReason = "no_session";
+  let detail = NOT_LIVE.no_session;
+  if (current) {
+    const { snapshot, error } = await env.LIVE.get(env.LIVE.idFromName("openf1")).timing(current.key);
+    if (snapshot) {
+      const age = Math.max(0, now - Date.parse(snapshot.observedAt));
+      return {
+        state: age <= LIVE_MAX_AGE_MS ? "LIVE" : "DELAYED",
+        session: { key: snapshot.session.key, meetingName: snapshot.session.meetingName, name: snapshot.session.name },
+        observedAt: snapshot.observedAt,
+        delaySeconds: Math.round(age / 1000),
+        timing: snapshot,
+      };
+    }
+    [reason, detail] = error ? ["feed_unavailable", error] : ["no_data_yet", NOT_LIVE.no_data_yet];
+  }
+
   const next = await optional(async () => nextSession(must(await calendar(env, ctx, latest))));
   const latestReplay = await optional(async () => {
     const list = must(await replaySessions(env, ctx, latest));
@@ -232,22 +263,22 @@ async function liveStatus(env: Env, ctx: ExecutionContext): Promise<LiveStatus> 
   });
   return {
     state: "UNAVAILABLE",
-    reason: "no_permitted_free_source",
-    detail: LIVE_UNAVAILABLE_DETAIL,
+    reason,
+    detail,
     next: next && { race: next.race, session: next.session, inWindow: next.state === "in_window" },
     latestReplay,
   };
 }
 
-const liveUnavailable = (): ApiResponse<never> => ({
+const liveUnavailable = (reason: string): ApiResponse<never> => ({
   status: "unavailable",
   data: null,
-  source: "pitwall",
+  source: "openf1",
   fetchedAt: null,
   observedAt: null,
   cache: "none",
   maxAgeSeconds: 0,
-  reason: `no_permitted_free_source: ${LIVE_UNAVAILABLE_DETAIL}`,
+  reason,
 });
 
 // ---- Routes ----
@@ -361,17 +392,31 @@ const routes: [RegExp, Handler][] = [
   ],
   [
     /^\/api\/live\/session$/,
-    async ({ env, ctx }) => ({
-      status: "ok",
-      data: await liveStatus(env, ctx),
-      source: "pitwall",
-      fetchedAt: new Date().toISOString(),
-      observedAt: null,
-      cache: "none",
-      maxAgeSeconds: 60,
-    }),
+    async ({ env, ctx }) => {
+      const live = await liveStatus(env, ctx);
+      const observedAt = live.state === "LIVE" || live.state === "DELAYED" ? live.observedAt : null;
+      return {
+        status: "ok",
+        data: live,
+        source: observedAt ? "openf1" : "pitwall",
+        fetchedAt: new Date().toISOString(),
+        observedAt,
+        cache: "none",
+        maxAgeSeconds: observedAt ? 0 : 60,
+      };
+    },
   ],
-  [/^\/api\/live\/(timing|positions)$/, async () => liveUnavailable()],
+  [
+    /^\/api\/live\/timing$/,
+    async ({ env, ctx }) => {
+      const live = await liveStatus(env, ctx);
+      if (live.state !== "LIVE" && live.state !== "DELAYED") {
+        return liveUnavailable(live.state === "UNAVAILABLE" ? `${live.reason}: ${live.detail}` : live.state);
+      }
+      return { status: "ok", data: live.timing, source: "openf1", fetchedAt: new Date().toISOString(), observedAt: live.observedAt, cache: "none", maxAgeSeconds: 0 };
+    },
+  ],
+  [/^\/api\/live\/positions$/, async () => liveUnavailable("not_available: live track positions aren't provided yet; replays have them")],
   [
     /^\/api\/replay\/sessions$/,
     ({ url, env, ctx }) => replaySessions(env, ctx, param(Season, url.searchParams.get("season"), "season")),
@@ -459,3 +504,4 @@ const handler = {
 } satisfies ExportedHandler<Env>;
 
 export default handler;
+export { LiveFeed } from "./live";

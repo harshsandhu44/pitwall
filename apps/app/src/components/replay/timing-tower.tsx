@@ -37,6 +37,7 @@ export function TimingTower({
   selected,
   onSelect,
   intervals,
+  caption = "Timing at the replay position, from recorded OpenF1 data",
 }: {
   rows: TimingRow[];
   drivers: Map<number, ReplayDriver>;
@@ -44,10 +45,11 @@ export function TimingTower({
   onSelect: (n: number | null) => void;
   /** Gap/interval columns only make sense for races and sprints. */
   intervals: boolean;
+  caption?: string;
 }) {
   return (
     <Table className="text-xs">
-      <caption className="sr-only">Timing at the replay position, from recorded OpenF1 data</caption>
+      <caption className="sr-only">{caption}</caption>
       <TableHeader>
         <TableRow>
           <TableHead className="w-8">Pos</TableHead>

@@ -1,10 +1,9 @@
 import type { TimingRow } from "./replay";
-import type { GrandPrix, ReplaySession, WeekendSession } from "./types";
+import type { GrandPrix, ReplayDriver, ReplaySession, SessionReplay, WeekendSession } from "./types";
 
 // ---- Live timing contract ----
-// Provider-independent shapes a live adapter would fill. No adapter exists: OpenF1 live data is paid
-// and Formula 1's own timing feed isn't licensed for redistribution, so the API only ever reports
-// UNAVAILABLE. Recorded data is REPLAY and must never be labelled LIVE or DELAYED.
+// Live data comes from OpenF1's sponsor feed through one shared connection in the API. Recorded data is
+// REPLAY and must never be labelled LIVE or DELAYED.
 
 export type LiveState = "LIVE" | "DELAYED" | "REPLAY" | "UNAVAILABLE";
 
@@ -14,12 +13,15 @@ export interface LiveSessionRef {
   name: string;
 }
 
+/** No session in its live window; in one but no timing yet; or the live feed can't be reached. */
+export type LiveUnavailableReason = "no_session" | "no_data_yet" | "feed_unavailable";
+
 export type LiveStatus =
-  | { state: "LIVE" | "DELAYED"; session: LiveSessionRef; observedAt: string; delaySeconds: number }
+  | { state: "LIVE" | "DELAYED"; session: LiveSessionRef; observedAt: string; delaySeconds: number; timing: LiveTimingSnapshot }
   | { state: "REPLAY"; replay: ReplaySession }
   | {
       state: "UNAVAILABLE";
-      reason: "no_permitted_free_source";
+      reason: LiveUnavailableReason;
       detail: string;
       /** From the published calendar; `inWindow` means the slot is open, not that the session is confirmed running. */
       next: { race: GrandPrix; session: WeekendSession; inWindow: boolean } | null;
@@ -28,12 +30,12 @@ export type LiveStatus =
 
 /** Every snapshot carries the source's observation time; freshness is judged from it, never from fetch time. */
 export interface LiveTimingSnapshot {
-  session: LiveSessionRef;
+  session: LiveSessionRef & { type: string };
   observedAt: string;
-  lap: number | null;
-  totalLaps: number | null;
-  trackStatus: string | null;
+  drivers: ReplayDriver[];
   rows: TimingRow[];
+  /** Newest last. */
+  raceControl: SessionReplay["raceControl"];
 }
 
 export interface LivePositionsSnapshot {
@@ -42,5 +44,5 @@ export interface LivePositionsSnapshot {
   cars: { driver: number; x: number; y: number; t: string }[];
 }
 
-export const LIVE_UNAVAILABLE_DETAIL =
-  "No free source permits redistributing live Formula 1 timing. OpenF1 live data needs a paid subscription and Formula 1's own feed isn't licensed for reuse, so Pitwall shows recorded replays instead.";
+/** Older than this, live data is shown as DELAYED. */
+export const LIVE_MAX_AGE_MS = 15_000;

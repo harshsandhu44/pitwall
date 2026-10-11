@@ -89,7 +89,7 @@ export function useOpenF1Login(username: string | undefined, password: string | 
   login = username && password ? { username, password } : null;
 }
 
-async function openf1Token(userAgent: string): Promise<string | null> {
+export async function openf1Token(userAgent: string): Promise<string | null> {
   if (!login) return null;
   if (token && token.until > Date.now()) return token.value;
   try {

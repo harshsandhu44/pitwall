@@ -1,45 +1,81 @@
 import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
 import { env } from "cloudflare:workers";
-import type { ApiResponse, LiveStatus } from "@pitwall/shared";
+import type { ApiResponse, LiveStatus, LiveTimingSnapshot } from "@pitwall/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import worker from "../src/index";
 import { resetUpstreamState } from "../src/upstream";
+import f from "./fixtures/openf1-monaco-2024.json";
 import { openf1Mock } from "./openf1-mock";
 
-const meeting = (key: number, name: string, start: string) => ({ meeting_key: key, meeting_name: name, date_start: start, year: 2026, is_cancelled: false });
-const session = (key: number, meeting: number, name: string, start: string, end: string) => ({
-  session_key: key, session_name: name, session_type: name, date_start: start, date_end: end, meeting_key: meeting,
-  circuit_short_name: "Somewhere", country_name: "Somewhere", year: 2026, is_cancelled: false,
-});
+// The 2024 Monaco weekend, recorded. Its race (session 9523) ran 13:00–15:00 UTC on 26 May.
 const openf1 = openf1Mock({
-  meetings: [meeting(1, "Australian Grand Prix", "2026-03-06T01:30:00Z"), meeting(2, "Chinese Grand Prix", "2026-03-13T03:30:00Z")],
-  sessions: [
-    session(9693, 1, "Race", "2026-03-08T04:00:00Z", "2026-03-08T06:00:00Z"),
-    session(9701, 2, "Sprint", "2026-03-14T03:00:00Z", "2026-03-14T04:00:00Z"),
-    session(9705, 2, "Race", "2026-03-15T07:00:00Z", "2026-03-15T09:00:00Z"),
-  ],
+  sessions: f.sessions,
+  meetings: f.meetings,
+  drivers: f.drivers,
+  laps: f.laps,
+  stints: f.stints,
+  pit: f.pit,
+  race_control: f.race_control,
+  position: f.position,
+  intervals: f.window_intervals,
 });
+
+/**
+ * A fake OpenF1 MQTT broker on the other end of a WebSocketPair. Its socket belongs to the Durable Object
+ * that opened it, so it can't be driven from the test: messages are queued and sent right after SUBACK.
+ */
+const broker = { connects: 0, refuse: false, subscribed: false, publish: [] as Uint8Array[] };
+
+function brokerResponse() {
+  const { 0: client, 1: server } = new WebSocketPair();
+  server.accept();
+  server.addEventListener("message", async (e) => {
+    const b = new Uint8Array(typeof e.data === "string" ? new TextEncoder().encode(e.data) : e.data instanceof ArrayBuffer ? e.data : await (e.data as Blob).arrayBuffer());
+    if (b[0]! >> 4 === 1) server.send(new Uint8Array([0x20, 2, 0, broker.refuse ? 5 : 0])); // CONNECT → CONNACK
+    if (b[0]! >> 4 === 8) {
+      server.send(new Uint8Array([0x90, 3, 0, 1, 0])); // SUBSCRIBE → SUBACK
+      broker.subscribed = true;
+      for (const m of broker.publish) server.send(m);
+    }
+  });
+  broker.connects++;
+  return new Response(null, { status: 101, webSocket: client });
+}
+
+function publishPacket(topic: string, row: unknown) {
+  const t = new TextEncoder().encode(topic);
+  const body = [t.length >> 8, t.length & 0xff, ...t, ...new TextEncoder().encode(JSON.stringify(row))];
+  const len: number[] = [];
+  for (let n = body.length; ; ) {
+    const byte = n % 128;
+    n = Math.floor(n / 128);
+    len.push(n > 0 ? byte | 0x80 : byte);
+    if (!n) break;
+  }
+  return new Uint8Array([0x30, ...len, ...body]);
+}
+
 let calls: URL[];
 
 beforeEach(() => {
   resetUpstreamState({ paced: false });
   calls = [];
-  // Saturday of the Chinese GP weekend: the Australian race has been and gone.
-  vi.useFakeTimers({ toFake: ["Date"], now: Date.parse("2026-03-14T00:00:00Z") });
+  broker.connects = 0;
+  broker.refuse = false;
+  broker.subscribed = false;
+  broker.publish = [];
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const url = new URL(input instanceof Request ? input.url : String(input));
+    calls.push(url);
+    if (url.hostname === "mqtt.openf1.org") return brokerResponse();
+    if (url.pathname === "/token") return Response.json({ access_token: "t0k3n", expires_in: 3600 });
+    return openf1(url);
+  });
 });
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
 });
-
-function upstream(ok: boolean) {
-  vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
-    const url = new URL(String(input));
-    calls.push(url);
-    if (!ok) return new Response("down", { status: 503 });
-    return openf1(url);
-  });
-}
 
 async function get<T>(path: string) {
   const ctx = createExecutionContext();
@@ -48,35 +84,62 @@ async function get<T>(path: string) {
   return { status: res.status, body: (await res.json()) as ApiResponse<T> };
 }
 
+const at = (iso: string) => vi.useFakeTimers({ toFake: ["Date"], now: Date.parse(iso) });
+
 describe("live", () => {
-  // Runs first: later tests leave cached calendar/session data behind.
-  it("still answers when the calendar and OpenF1 are down", async () => {
-    upstream(false);
+  it("is unavailable outside every session window, with the latest replay, without connecting", async () => {
+    at("2024-05-26T18:00:00Z");
     const { status, body } = await get<LiveStatus>("/api/live/session");
     expect(status).toBe(200);
-    expect(body.data).toMatchObject({ state: "UNAVAILABLE", next: null, latestReplay: null });
+    expect(body.data).toMatchObject({ state: "UNAVAILABLE", reason: "no_session", latestReplay: { key: 9523 } });
+    expect(broker.connects).toBe(0);
   });
 
-  it("reports UNAVAILABLE with the next scheduled session and the latest replay", async () => {
-    upstream(true);
-    const { status, body } = await get<LiveStatus>("/api/live/session");
-    expect(status).toBe(200);
-    const live = body.data!;
-    expect(live.state).toBe("UNAVAILABLE");
-    if (live.state !== "UNAVAILABLE") return;
-    expect(live.reason).toBe("no_permitted_free_source");
-    expect(live.next).toMatchObject({ race: { name: "Chinese Grand Prix", circuit: { id: "shanghai" } }, session: { kind: "SPRINT" } });
-    expect(live.latestReplay).toMatchObject({ key: 9693, meetingName: "Australian Grand Prix" });
-    // Never touches OpenF1 data endpoints that could be mistaken for live data.
-    expect(calls.filter((u) => u.host === "api.openf1.org").map((u) => u.pathname).sort()).toEqual(["/v1/meetings", "/v1/sessions"]);
+  it("streams a session: starts from REST, then applies MQTT messages for that session only", async () => {
+    at("2024-05-26T14:00:45Z");
+    // Arrive while the session is still loading from REST: held, then applied.
+    broker.publish = [
+      publishPacket("v1/intervals", { session_key: 9523, driver_number: 1, date: "2024-05-26T14:00:44.000Z", gap_to_leader: 1.234, interval: 1.234 }),
+      publishPacket("v1/intervals", { session_key: 1, driver_number: 44, date: "2024-05-26T14:00:44.000Z", gap_to_leader: 99, interval: 99 }),
+    ];
+    const live = (await get<LiveStatus>("/api/live/session")).body.data!;
+    expect(live).toMatchObject({ state: "LIVE", session: { key: 9523, meetingName: "Monaco Grand Prix", name: "Race" } });
+    if (live.state !== "LIVE") return;
+    expect(live.timing.rows.map((r) => r.driver).sort()).toEqual([1, 16, 44]);
+    expect(live.timing.drivers.find((d) => d.number === 16)).toMatchObject({ acronym: "LEC", driverId: "leclerc" });
+    expect(live.timing.rows.find((r) => r.driver === 1)).toMatchObject({ gap: 1.234 });
+    expect(live.timing.rows.find((r) => r.driver === 44)?.gap).not.toBe(99); // another session's message
+    expect(broker).toMatchObject({ connects: 1, subscribed: true });
+    expect(calls.some((u) => u.pathname === "/v1/laps" && u.searchParams.get("session_key") === "9523")).toBe(true);
+
+    const timing = await get<LiveTimingSnapshot>("/api/live/timing");
+    expect(timing.status).toBe(200);
+    expect(timing.body).toMatchObject({ status: "ok", source: "openf1", data: { session: { key: 9523, type: "Race" } } });
+    expect(broker.connects).toBe(1); // one shared connection
   });
 
-  it.each(["timing", "positions"])("refuses %s with 503 and the reason, without calling any upstream", async (what) => {
-    upstream(true);
-    const { status, body } = await get(`/api/live/${what}`);
+  it("shows DELAYED once the newest data is older than 15 s", async () => {
+    at("2024-05-26T15:29:00Z"); // inside the window (ends 15:30); the newest recorded row is from 15:25:25
+    const live = (await get<LiveStatus>("/api/live/session")).body.data!;
+    expect(live.state).toBe("DELAYED");
+    if (live.state === "DELAYED") expect(live.delaySeconds).toBeGreaterThan(15);
+  });
+
+  it("reports the feed as unavailable when OpenF1 refuses the login, and backs off", async () => {
+    at("2024-05-25T14:30:00Z"); // qualifying: a different session, so the feed restarts
+    broker.refuse = true;
+    const { body } = await get<LiveStatus>("/api/live/session");
+    expect(body.data).toMatchObject({ state: "UNAVAILABLE", reason: "feed_unavailable", detail: expect.stringMatching(/refused the login/) });
+    await get<LiveStatus>("/api/live/session");
+    expect(broker.connects).toBe(1);
+    expect((await get("/api/live/timing")).status).toBe(503);
+  });
+
+  it("refuses live positions with 503 and the reason, without calling any upstream", async () => {
+    const { status, body } = await get("/api/live/positions");
     expect(status).toBe(503);
     expect(body).toMatchObject({ status: "unavailable", data: null });
-    expect(body.reason).toMatch(/^no_permitted_free_source/);
+    expect(body.reason).toMatch(/^not_available/);
     expect(calls).toHaveLength(0);
   });
 });

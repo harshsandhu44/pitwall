@@ -7,7 +7,8 @@ export default defineConfig(async () => {
     plugins: [
       cloudflareTest({
         wrangler: { configPath: "./wrangler.jsonc" },
-        miniflare: { bindings: { TEST_MIGRATIONS: migrations } },
+        // A dummy OpenF1 login so the live feed can be exercised; tests answer /token themselves.
+        miniflare: { bindings: { TEST_MIGRATIONS: migrations, OPENF1_USERNAME: "test", OPENF1_PASSWORD: "test" } },
       }),
     ],
     test: { setupFiles: ["./test/setup.ts"] },

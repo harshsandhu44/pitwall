@@ -142,7 +142,7 @@ describe("OpenF1 seasons", () => {
 
 // Cached units outlive a test, so each test asks for a season (with no fixture data) nothing has cached yet.
 describe("OpenF1 login", () => {
-  const withLogin = { ...env, OPENF1_USERNAME: "me", OPENF1_PASSWORD: "secret" };
+  const withLogin = env; // the test pool sets a dummy login
 
   it("logs in once and sends the token on every OpenF1 request", async () => {
     await get("/api/calendar?season=2027", withLogin);
@@ -167,7 +167,7 @@ describe("OpenF1 login", () => {
   });
 
   it("uses the free tier without a login", async () => {
-    await get("/api/calendar?season=2029");
+    await get("/api/calendar?season=2029", { ...env, OPENF1_USERNAME: "", OPENF1_PASSWORD: "" });
     expect(calls.some((u) => u.host === "api.openf1.org")).toBe(true);
     expect(calls.some((u) => u.pathname === "/token")).toBe(false);
     expect(lastAuth).toBeNull();

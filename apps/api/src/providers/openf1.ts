@@ -577,3 +577,37 @@ export async function weekend(race: GrandPrix, meetingKey: number, s: Schedule, 
     sprintQualifying: toQualifying(season, sq.rows, sq.people),
   };
 }
+
+// ---- Live feed ----
+
+/** MQTT topics a live timing view needs, with their row schemas. High-rate car data and locations are left out. */
+export const LIVE_TOPICS = {
+  "v1/drivers": ODriver,
+  "v1/laps": Lap,
+  "v1/stints": Stint,
+  "v1/pit": Pit,
+  "v1/race_control": RaceControl,
+  "v1/position": Position,
+  "v1/intervals": Interval,
+} as const;
+export type LiveTopic = keyof typeof LIVE_TOPICS;
+export type LiveRows = { [T in LiveTopic]: z.infer<(typeof LIVE_TOPICS)[T]>[] };
+export type SessionRow = Raw<typeof Session>[number];
+
+/** Everything a session has recorded so far, for a live feed to start from. Intervals: the last minute only. */
+export async function liveStart(key: number, now: number, ua: string) {
+  const q = `session_key=${key}`;
+  const [session] = await list("sessions", q, Session, ua);
+  if (!session) throw new UpstreamError("openf1", "not_found", `no OpenF1 session ${key}`);
+  const meeting = (await list("meetings", `meeting_key=${session.meeting_key}`, Meeting, ua))[0];
+  const rows: LiveRows = {
+    "v1/drivers": await list("drivers", q, ODriver, ua),
+    "v1/laps": await list("laps", q, Lap, ua),
+    "v1/stints": await list("stints", q, Stint, ua),
+    "v1/pit": await list("pit", q, Pit, ua),
+    "v1/race_control": await list("race_control", q, RaceControl, ua),
+    "v1/position": await list("position", q, Position, ua),
+    "v1/intervals": await list("intervals", `${q}&date%3E=${iso(now - 60_000)}`, Interval, ua),
+  };
+  return { session, meetingName: meeting?.meeting_name ?? session.country_name, rows };
+}

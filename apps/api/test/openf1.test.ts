@@ -31,6 +31,7 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"], now: Date.parse("2024-06-01T00:00:00Z") });
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
     const url = new URL(String(input instanceof Request ? input.url : input));
+    if (url.pathname === "/token") return Response.json({ access_token: "t0k3n", expires_in: 3600 });
     calls.push(url);
     const body = openf1(url);
     return body === undefined ? new Response("not mocked", { status: 500 }) : Response.json(body);
@@ -107,6 +108,7 @@ describe("position windows", () => {
   it("returns an empty window (not an error) when OpenF1 has no samples", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = new URL(String(input));
+      if (url.pathname === "/token") return Response.json({ access_token: "t0k3n", expires_in: 3600 });
       if (url.pathname === "/v1/location" && !url.searchParams.has("driver_number")) return Response.json({ detail: "No results found." }, { status: 404 });
       if (url.pathname === "/v1/intervals") return Response.json({ detail: "No results found." }, { status: 404 });
       return Response.json(openf1(url));

@@ -4,25 +4,32 @@ import type { LiveStatus } from "@pitwall/shared";
 import { SESSION_LABEL } from "@pitwall/shared";
 import { RadioTowerIcon } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 import { ErrorState, QueryState, SourceNote } from "@/components/data/query-state";
 import { PageHeader } from "@/components/pages/page-header";
 import { RaceCountdown } from "@/components/racing/race-countdown";
+import { RaceControlFeed } from "@/components/replay/race-control-feed";
+import { TimingTower } from "@/components/replay/timing-tower";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApi } from "@/lib/api";
 import { formatSessionTime } from "@/lib/format";
 
-/** Live timing status. Pitwall has no permitted free live source, so this explains that and points elsewhere. */
+const streaming = (s: LiveStatus | undefined) => s?.state === "LIVE" || s?.state === "DELAYED";
+
+/** Live timing from OpenF1 while a session is on; otherwise what's next and the latest replay. */
 export function LiveView() {
-  const status = useApi<LiveStatus>("/api/live/session");
+  // Every 3 s while a session streams; every 30 s otherwise, to notice when one starts.
+  const status = useApi<LiveStatus>("/api/live/session", (res) => (streaming(res?.data ?? undefined) ? 3_000 : 30_000));
   return (
     <>
-      <PageHeader title="Live" description="Live timing status for the current race weekend" />
+      <PageHeader title="Live" description="Live timing for the session on track right now" />
       <QueryState query={status} loading={<Skeleton className="h-64 w-full" />}>
         {(live, res) =>
-          live.state !== "UNAVAILABLE" ? (
-            // The API never reports anything else today; don't pretend to render live data we have no view for.
+          live.state === "LIVE" || live.state === "DELAYED" ? (
+            <LiveTiming live={live} />
+          ) : live.state !== "UNAVAILABLE" ? (
             <ErrorState error={new Error(`Unexpected live state "${live.state}".`)} />
           ) : (
             <div className="grid gap-4 lg:grid-cols-3">
@@ -30,7 +37,7 @@ export function LiveView() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <RadioTowerIcon aria-hidden className="size-4" />
-                    Live timing unavailable
+                    {live.reason === "no_session" ? "No live session" : "Live timing unavailable"}
                   </CardTitle>
                   <CardDescription>
                     <Badge variant="outline" role="status">
@@ -40,9 +47,6 @@ export function LiveView() {
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
                   <p>{live.detail}</p>
-                  <p className="text-muted-foreground">
-                    Positions, gaps and lap times are never shown as live here, and recorded sessions are always labelled as replays.
-                  </p>
                   {live.latestReplay && (
                     <p>
                       Latest recorded session:{" "}
@@ -91,5 +95,46 @@ export function LiveView() {
         }
       </QueryState>
     </>
+  );
+}
+
+function LiveTiming({ live }: { live: Extract<LiveStatus, { state: "LIVE" | "DELAYED" }> }) {
+  const [selected, setSelected] = useState<number | null>(null);
+  const t = live.timing;
+  return (
+    <div className="grid gap-4 lg:grid-cols-3">
+      <Card className="lg:col-span-2">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <RadioTowerIcon aria-hidden className="size-4" />
+            {t.session.meetingName} · {t.session.name}
+          </CardTitle>
+          <CardDescription className="flex flex-wrap items-center gap-2">
+            <Badge variant={live.state === "LIVE" ? "default" : "outline"} role="status">
+              {live.state === "LIVE" ? "Live" : `Delayed · last update ${live.delaySeconds} s ago`}
+            </Badge>
+            <span>OpenF1 timing, a few seconds behind the track</span>
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <TimingTower
+            rows={t.rows}
+            drivers={new Map(t.drivers.map((d) => [d.number, d]))}
+            selected={selected}
+            onSelect={setSelected}
+            intervals={t.session.type === "Race"}
+            caption={`Live timing for ${t.session.meetingName} ${t.session.name}, from OpenF1`}
+          />
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Race control</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <RaceControlFeed messages={t.raceControl} t={Infinity} />
+        </CardContent>
+      </Card>
+    </div>
   );
 }

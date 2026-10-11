@@ -20,6 +20,9 @@
       "migrations_dir": "migrations"
     }
   ],
+  // One shared OpenF1 live connection (src/live.ts). SQLite-backed, as the Free plan requires.
+  "durable_objects": { "bindings": [{ "name": "LIVE", "class_name": "LiveFeed" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["LiveFeed"] }],
   // No crons. An empty list (rather than none) makes deploy remove the old ones.
   "triggers": { "crons": [] }
 }
