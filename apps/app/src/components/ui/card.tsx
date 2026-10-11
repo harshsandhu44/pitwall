@@ -11,7 +11,7 @@ function Card({
       data-slot="card"
       data-size={size}
       className={cn(
-        "group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-lg bg-card py-(--card-spacing) text-xs/relaxed text-card-foreground ring-1 ring-foreground/10 [--card-spacing:--spacing(4)] has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] *:[img:first-child]:rounded-t-lg *:[img:last-child]:rounded-b-lg",
+        "group/card panel-cut flex flex-col gap-(--card-spacing) overflow-hidden border bg-card py-(--card-spacing) text-sm/relaxed text-card-foreground [--card-spacing:--spacing(4)] has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] *:[img:first-child]:rounded-t-lg *:[img:last-child]:rounded-b-lg",
         className
       )}
       {...props}
@@ -36,7 +36,11 @@ function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-title"
-      className={cn("font-heading text-sm font-medium", className)}
+      className={cn(
+        // Broadcast header: expanded caps with a signal-red stripe flush to the panel edge.
+        "-ml-(--card-spacing) border-l-[3px] border-live pl-[calc(var(--card-spacing)-3px)] font-display text-[13px] leading-5 font-extrabold tracking-wide uppercase",
+        className
+      )}
       {...props}
     />
   )
