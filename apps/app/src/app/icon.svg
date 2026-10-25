@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
   <style>
     .shell { fill: #0b0c0e; }
-    .visor { fill: #e01e26; }
+    .visor { fill: #000000; }
     .pat { fill: none; stroke: #d4ff1a; stroke-width: 1.6; stroke-linecap: round; }
     .gap { fill: none; stroke: #0b0c0e; stroke-width: 2.6; }
   </style>
