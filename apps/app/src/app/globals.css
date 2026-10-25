@@ -114,7 +114,13 @@
 /* Panels: square, with one cut top-right corner. The cut edge gets its own hairline. */
 @utility panel-cut {
   position: relative;
-  clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, 0 100%);
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--cut)) 0,
+    100% var(--cut),
+    100% 100%,
+    0 100%
+  );
   &::after {
     content: "";
     position: absolute;
@@ -123,7 +129,12 @@
     width: var(--cut);
     height: var(--cut);
     pointer-events: none;
-    background: linear-gradient(to bottom left, transparent 50%, var(--border) 50% calc(50% + 1.5px), transparent calc(50% + 1.5px));
+    background: linear-gradient(
+      to bottom left,
+      transparent 50%,
+      var(--border) 50% calc(50% + 1.5px),
+      transparent calc(50% + 1.5px)
+    );
   }
 }
 
@@ -147,9 +158,13 @@
   left: 0;
   width: 112vw;
   pointer-events: none;
-  background: linear-gradient(to right, var(--live) 12vw, var(--background) 12vw);
+  background: linear-gradient(
+    to right,
+    var(--live) 12vw,
+    var(--background) 12vw
+  );
   clip-path: polygon(4vw 0, 100% 0, 100% 100%, 0 100%);
-  animation: wipe 3s cubic-bezier(0.65, 0, 0.35, 1) both;
+  animation: wipe 1s cubic-bezier(0.65, 0, 0.35, 1) both;
 }
 @keyframes wipe {
   from {
