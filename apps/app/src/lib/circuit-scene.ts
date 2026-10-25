@@ -1,28 +1,28 @@
 // The 3D circuit on the home hero and the weekend page: the F1DB outline as a road, the way
 // drive.harshsandhu.com builds its tracks (a ribbon either side of the centreline, red and white kerbs
-// on the corners, mown grass, fog and its four lights). The only module that imports three; the
+// on the corners, its four lights), on a transparent canvas so it floats on the card. The only module that imports three; the
 // component loads it on demand so no other page pays for it. Track (x, y) is three (x, 0, y).
 import * as THREE from "three";
 import { kerbs, normals, type Pt, type Sky } from "./circuit-geo";
 
-// The drive's lights (scene.ts): sky and fog, the hemisphere's top and ground colours and strength,
+// The drive's lights (scene.ts): the hemisphere's top and ground colours and strength,
 // the sun's colour, strength and direction.
-type Light = { sky: string; top: string; low: string; hemi: number; sun: string; sunI: number; at: [number, number, number] };
+type Light = { top: string; low: string; hemi: number; sun: string; sunI: number; at: [number, number, number] };
 const LIGHTS: Record<Sky, Light> = {
-  day: { sky: "#c9d2d6", top: "#e4ebf0", low: "#3d5244", hemi: 1.4, sun: "#fff1dc", sunI: 2.6, at: [-40, 90, 30] },
-  golden: { sky: "#e7b48a", top: "#f3d3b2", low: "#4a4036", hemi: 1.15, sun: "#ffb26a", sunI: 2.4, at: [-95, 30, 40] },
-  sunset: { sky: "#6f4a6e", top: "#b88aa6", low: "#2b2530", hemi: 0.85, sun: "#ff7a45", sunI: 0.9, at: [-110, 10, 40] },
+  day: { top: "#e4ebf0", low: "#3d5244", hemi: 1.4, sun: "#fff1dc", sunI: 2.6, at: [-40, 90, 30] },
+  golden: { top: "#f3d3b2", low: "#4a4036", hemi: 1.15, sun: "#ffb26a", sunI: 2.4, at: [-95, 30, 40] },
+  sunset: { top: "#b88aa6", low: "#2b2530", hemi: 0.85, sun: "#ff7a45", sunI: 0.9, at: [-110, 10, 40] },
   // At night the "sun" is the floodlights, high and cool.
-  night: { sky: "#0a0e1c", top: "#a9b8e6", low: "#1b1e27", hemi: 0.9, sun: "#e8eeff", sunI: 1.9, at: [-15, 120, 10] },
+  night: { top: "#a9b8e6", low: "#1b1e27", hemi: 0.9, sun: "#e8eeff", sunI: 1.9, at: [-15, 120, 10] },
 };
-const GRASS = ["#56705c", "#5d7863"];
-const TARMAC = "#3e3e47";
+// Mid grey, not real tarmac: with no ground under it the road has to read on both the light and dark card.
+const TARMAC = "#7a7f8c";
 const KERB = ["#e10600", "#f7f7f7"];
 // Half the road's width and the kerb's, as shares of the lap's radius: exaggerated, as a real 12 m road is a
 // hairline from this far up, and the same on a 3 km street circuit as on Spa.
-const HALF_R = 1 / 45;
-const KERB_R_W = 1 / 150;
-// The camera's angle above the ground: low enough that the far side hazes into the fog.
+const HALF_R = 1 / 32;
+const KERB_R_W = 1 / 110;
+// The camera's angle above the ground.
 const TILT = 40;
 // One orbit every this many seconds.
 const ORBIT_S = 120;
@@ -50,30 +50,13 @@ function strip(a: Pt[], b: Pt[], y: number, keep: (i: number) => boolean, color?
 const flat = (g: THREE.BufferGeometry, p: THREE.MeshStandardMaterialParameters) =>
   new THREE.Mesh(g, new THREE.MeshStandardMaterial({ roughness: 0.95, side: THREE.DoubleSide, ...p }));
 
-// Mowing stripes, as a two-pixel texture repeated across the ground.
-function grass(size: number) {
-  const c = document.createElement("canvas");
-  [c.width, c.height] = [2, 1];
-  const ctx = c.getContext("2d")!;
-  GRASS.forEach((g, i) => {
-    ctx.fillStyle = g;
-    ctx.fillRect(i, 0, 1, 1);
-  });
-  const tex = new THREE.CanvasTexture(c);
-  tex.magFilter = THREE.NearestFilter;
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.repeat.set(size / 40, 1); // 20 m stripes
-  return tex;
-}
-
 /**
  * Renders the circuit into a canvas of its own inside `host`, sized to it, orbiting slowly while `running()`.
  * `still` (reduced motion) draws one frame and redraws only on resize.
  */
 export function createCircuitScene(host: HTMLElement, pts: Pt[], sky: Sky, still: boolean) {
   const L = LIGHTS[sky];
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.domElement.className = "block size-full";
   // ponytail: 1.5, not the screen's 2-3: a panel-sized scene doesn't need more, and phones keep their battery.
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
@@ -81,7 +64,6 @@ export function createCircuitScene(host: HTMLElement, pts: Pt[], sky: Sky, still
   host.append(renderer.domElement);
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(L.sky);
   const n = normals(pts);
   const off = (d: number): Pt[] => pts.map(([x, y], i) => [x + n[i]![0] * d, y + n[i]![1] * d]);
   const radius = Math.max(...pts.map(([x, y]) => Math.hypot(x, y)));
@@ -89,20 +71,11 @@ export function createCircuitScene(host: HTMLElement, pts: Pt[], sky: Sky, still
   const KERB_W = radius * KERB_R_W;
   // Layers sit this far above each other, in proportion too: the depth buffer is coarse from this far back.
   const LIFT = radius / 1500;
-  const fog = new THREE.Fog(L.sky, 1, 2);
-  scene.fog = fog;
 
   scene.add(new THREE.HemisphereLight(L.top, L.low, L.hemi));
   const sun = new THREE.DirectionalLight(L.sun, L.sunI);
   sun.position.set(...L.at);
   scene.add(sun);
-
-  const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(radius * 10, radius * 10),
-    new THREE.MeshStandardMaterial({ map: grass(radius * 10), roughness: 1 }),
-  );
-  ground.rotation.x = -Math.PI / 2;
-  scene.add(ground);
 
   const all = () => true;
   scene.add(flat(strip(off(HALF), off(-HALF), LIFT, all), { color: TARMAC }));
@@ -126,9 +99,6 @@ export function createCircuitScene(host: HTMLElement, pts: Pt[], sky: Sky, still
     const dist = (radius * 0.9) / Math.tan(Math.min(fov, Math.atan(Math.tan(fov) * camera.aspect)));
     camera.userData.dist = dist;
     camera.updateProjectionMatrix();
-    // Fog is measured from the camera: clear over the near side of the lap, hazing into the sky beyond it.
-    fog.near = dist * 0.95;
-    fog.far = dist * 2.4;
   };
   let angle = -Math.PI / 2;
   const frame = () => {
@@ -168,9 +138,7 @@ export function createCircuitScene(host: HTMLElement, pts: Pt[], sky: Sky, still
       scene.traverse((o) => {
         if (!(o instanceof THREE.Mesh)) return;
         o.geometry.dispose();
-        const m = o.material as THREE.MeshStandardMaterial;
-        m.map?.dispose();
-        m.dispose();
+        (o.material as THREE.Material).dispose();
       });
       renderer.dispose();
       renderer.domElement.remove();
