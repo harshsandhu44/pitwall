@@ -16,7 +16,7 @@ import {
 import { ArrowRightIcon, RadioTowerIcon } from "lucide-react";
 import Link from "next/link";
 import { QueryState, SourceNote } from "@/components/data/query-state";
-import { CircuitOutline } from "@/components/racing/circuit-outline";
+import { CircuitScene } from "@/components/racing/circuit-scene";
 import { ProvisionalNote } from "@/components/racing/provisional-note";
 import { RaceCountdown } from "@/components/racing/race-countdown";
 import { WeatherConditions } from "@/components/weather/weather-conditions-card";
@@ -33,7 +33,7 @@ import { cn } from "@/lib/utils";
 
 // Mirrors the hero's size so nothing below it jumps when the calendar arrives.
 function HeroSkeleton() {
-  return <Skeleton className="h-[340px] w-full sm:h-[300px]" aria-busy="true" aria-label="Loading" />;
+  return <Skeleton className="h-[640px] w-full sm:h-[340px]" aria-busy="true" aria-label="Loading" />;
 }
 
 /** Shown in the hero while a session streams: the session and the top three, linking to the live page. */
@@ -96,7 +96,11 @@ function Hero({ next }: { next: NextSession }) {
             </Link>
           )}
         </div>
-        <CircuitOutline circuit={race.circuit} className="mx-auto w-36 sm:w-52" />
+        <CircuitScene
+          circuit={race.circuit}
+          start={race.sessions.find((s) => s.kind === "RACE")?.start ?? null}
+          className="aspect-[16/9] w-full sm:aspect-auto sm:h-full sm:min-h-52 sm:w-72 lg:w-[28rem]"
+        />
       </div>
       <ol className="grid grid-cols-2 border-t sm:grid-cols-[repeat(auto-fit,minmax(0,1fr))]" aria-label="Sessions">
         {race.sessions.map((s) => {
