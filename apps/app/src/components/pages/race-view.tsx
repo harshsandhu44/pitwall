@@ -6,7 +6,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { EmptyState, ErrorState, QueryState, SourceNote } from "@/components/data/query-state";
 import { PageHeader } from "@/components/pages/page-header";
-import { CircuitOutline } from "@/components/racing/circuit-outline";
+import { CircuitScene } from "@/components/racing/circuit-scene";
 import { ClassificationTable, QualifyingTable } from "@/components/racing/classification-table";
 import { ProvisionalNote } from "@/components/racing/provisional-note";
 import { SessionSchedule } from "@/components/racing/session-schedule";
@@ -130,7 +130,7 @@ export function RaceView() {
                       <CardTitle>Weekend</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      <CircuitOutline circuit={race.circuit} className="mx-auto w-40" />
+                      <CircuitScene circuit={race.circuit} start={race.sessions.find((s) => s.kind === "RACE")?.start ?? null} className="aspect-[4/3] w-full" />
                       {race.circuit.layout?.lengthKm && (
                         <p className="text-center text-xs text-muted-foreground">
                           Lap length <span className="font-mono text-foreground">{race.circuit.layout.lengthKm.toFixed(3)} km</span>
