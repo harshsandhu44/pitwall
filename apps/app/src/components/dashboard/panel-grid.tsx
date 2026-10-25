@@ -1,7 +1,7 @@
 "use client";
 
-import { EllipsisIcon, LayoutGridIcon, RotateCcwIcon, Undo2Icon } from "lucide-react";
-import { type ReactNode, useEffect, useId, useState, useSyncExternalStore } from "react";
+import { EllipsisIcon, LayoutGridIcon, MaximizeIcon, MinimizeIcon, RotateCcwIcon, Undo2Icon } from "lucide-react";
+import { type ReactNode, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import ReactGridLayout, { type Layout, type LayoutItem, useContainerWidth } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,17 @@ export interface PanelDef {
   layout: { x: number; y: number; w: number; h: number; minW?: number; minH?: number };
   /** Phones only: always sits right after this panel (driver focus next to the timing it follows). */
   phoneAfter?: string;
+  /** Extra items at the top of the panel's ⋯ menu (e.g. the timing tower's columns). */
+  menu?: ReactNode;
+}
+
+type Spot = { x: number; y: number; w: number; h: number };
+
+/** A named arrangement in the Panels menu. Panels it doesn't place keep their default spot. */
+export interface LayoutPreset {
+  name: string;
+  layout: Record<string, Spot>;
+  hidden?: string[];
 }
 
 const ROW = 36;
@@ -38,7 +49,10 @@ const storageKey = (id: string) => `pitwall.layout.${id}.v1`;
 
 type Saved = { layout: Layout; hidden: string[] };
 
-const defaults = (panels: PanelDef[]): Saved => ({ layout: panels.map((p) => ({ i: p.id, ...p.layout })), hidden: [] });
+const defaults = (panels: PanelDef[], preset?: LayoutPreset): Saved => ({
+  layout: panels.map((p) => ({ i: p.id, minW: p.layout.minW, minH: p.layout.minH, ...p.layout, ...preset?.layout[p.id] })),
+  hidden: preset?.hidden ?? [],
+});
 
 /** The saved arrangement, fitted to today's panels: new panels get their default spot, removed ones are dropped. */
 function load(id: string, panels: PanelDef[]): Saved {
@@ -74,18 +88,39 @@ function useIsPhone() {
 }
 
 /**
- * Panels the viewer can rearrange: drag by the title, resize from the corner, or use each panel's menu
- * (the keyboard and touch path). Phones get one column in the saved order. Saved per browser.
+ * Panels the viewer can rearrange: drag by the title, resize from the right or bottom edge or the corner, or use
+ * each panel's menu (the keyboard and touch path). Phones get one column in the saved order. Saved per browser.
+ * A panel can be maximised, and the whole grid (with `footer`, e.g. playback controls) put in fullscreen.
  */
-export function PanelGrid({ id, panels }: { id: string; panels: PanelDef[] }) {
+export function PanelGrid({ id, panels, presets = [], footer }: { id: string; panels: PanelDef[]; presets?: LayoutPreset[]; footer?: ReactNode }) {
   // Only rendered on the client after data loads (static export), so reading storage here can't mismatch the HTML.
   const [saved, setSaved] = useState(() => load(id, panels));
   const phone = useIsPhone();
   const { width, containerRef, mounted } = useContainerWidth();
   // The desktop grid renders its panels only once it has measured the container.
   const arrival = useArrival<HTMLDivElement>(phone || mounted);
-  // The arrangement a reset threw away, offered back for a few seconds.
+  // The arrangement a reset or preset threw away, offered back for a few seconds.
   const [undo, setUndo] = useState<Saved | null>(null);
+  const replace = (next: Saved) => {
+    setUndo(saved);
+    setSaved(next);
+  };
+  const [maximised, setMaximised] = useState<string | null>(null);
+  useEffect(() => {
+    if (!maximised) return;
+    const close = (e: KeyboardEvent) => e.key === "Escape" && setMaximised(null);
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [maximised]);
+  const root = useRef<HTMLDivElement>(null);
+  const [canFullscreen] = useState(() => document.fullscreenEnabled);
+  const [fullscreen, setFullscreen] = useState(false);
+  useEffect(() => {
+    const sync = () => setFullscreen(!!root.current && document.fullscreenElement === root.current);
+    document.addEventListener("fullscreenchange", sync);
+    return () => document.removeEventListener("fullscreenchange", sync);
+  }, []);
+  const toggleFullscreen = () => void (fullscreen ? document.exitFullscreen() : root.current?.requestFullscreen())?.catch(() => {});
   useEffect(() => {
     if (!undo) return;
     const id = setTimeout(() => setUndo(null), 10_000);
@@ -143,11 +178,14 @@ export function PanelGrid({ id, panels }: { id: string; panels: PanelDef[] }) {
           ["Taller", () => act((l) => resize(l, p.id, 0, 2))],
           ["Shorter", () => act((l) => resize(l, p.id, 0, -2))],
         ];
-    return <Panel key={p.id} def={p} menu={menu} onHide={() => setHidden(p.id, true)} fill={!phone} />;
+    return (
+      <Panel key={p.id} def={p} menu={menu} onHide={() => setHidden(p.id, true)} onMaximise={() => setMaximised(p.id)} fill={!phone} away={maximised === p.id} />
+    );
   };
+  const big = maximised ? panels.find((p) => p.id === maximised && !saved.hidden.includes(p.id)) : undefined;
 
   return (
-    <div className="space-y-3">
+    <div ref={root} className={cn("space-y-3", fullscreen && "overflow-auto bg-background p-4")}>
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         <DropdownMenu>
           <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
@@ -164,8 +202,27 @@ export function PanelGrid({ id, panels }: { id: string; panels: PanelDef[] }) {
                 </DropdownMenuCheckboxItem>
               ))}
             </DropdownMenuGroup>
+            {presets.length > 0 && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Layouts</DropdownMenuLabel>
+                  {presets.map((preset) => (
+                    <DropdownMenuItem key={preset.name} onClick={() => replace(defaults(panels, preset))}>
+                      {preset.name}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuGroup>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
+        {canFullscreen && (
+          <Button variant="ghost" size="sm" aria-pressed={fullscreen} onClick={toggleFullscreen}>
+            {fullscreen ? <MinimizeIcon aria-hidden /> : <MaximizeIcon aria-hidden />}
+            {fullscreen ? "Exit fullscreen" : "Fullscreen"}
+          </Button>
+        )}
         {undo ? (
           <Button
             variant="ghost"
@@ -176,22 +233,19 @@ export function PanelGrid({ id, panels }: { id: string; panels: PanelDef[] }) {
             }}
           >
             <Undo2Icon aria-hidden />
-            Undo reset
+            Undo layout change
           </Button>
         ) : (
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => {
-              setUndo(saved);
-              setSaved(defaults(panels));
-            }}
+            onClick={() => replace(defaults(panels))}
           >
             <RotateCcwIcon aria-hidden />
             Reset layout
           </Button>
         )}
-        <span className="hidden md:inline">Drag a panel by its title, resize it from the bottom-right corner, or use its ⋯ menu.</span>
+        <span className="hidden md:inline">Drag a panel by its title, resize it from its right or bottom edge, or use its ⋯ menu.</span>
       </div>
 
       <div ref={containerRef}>
@@ -205,6 +259,7 @@ export function PanelGrid({ id, panels }: { id: string; panels: PanelDef[] }) {
               width={width}
               gridConfig={{ cols: COLS, rowHeight: ROW, margin: [GAP, GAP], containerPadding: [0, 0] }}
               dragConfig={{ handle: ".panel-drag", cancel: "button, a, input, label" }}
+              resizeConfig={{ handles: ["se", "e", "s"] }}
               onLayoutChange={onLayoutChange}
             >
               {visible.map((l) => panel(panels.find((p) => p.id === l.i)!))}
@@ -213,6 +268,14 @@ export function PanelGrid({ id, panels }: { id: string; panels: PanelDef[] }) {
         )}
         </div>
       </div>
+      {footer}
+      {big && (
+        // Inside the root, so it stays in fullscreen too; the footer comes along so playback stays reachable.
+        <div className="fixed inset-0 z-40 flex flex-col gap-3 bg-background p-3 md:p-6">
+          <Panel def={big} menu={[]} onRestore={() => setMaximised(null)} fill className="min-h-0 flex-1" />
+          {footer}
+        </div>
+      )}
     </div>
   );
 }
@@ -223,45 +286,68 @@ function Panel({
   def,
   menu,
   onHide,
+  onMaximise,
+  onRestore,
   fill,
+  away = false,
+  className,
   children,
   ...grid
 }: {
   def: PanelDef;
   menu: [string, () => void][];
-  onHide: () => void;
+  onHide?: () => void;
+  onMaximise?: () => void;
+  /** Set while the panel is maximised: a Restore button replaces the menu. */
+  onRestore?: () => void;
   fill: boolean;
+  /** Shown maximised elsewhere: keep the spot, don't render the content twice. */
+  away?: boolean;
+  className?: string;
   /** The resize handle react-grid-layout adds. */
   children?: ReactNode;
 }) {
   const titleId = useId();
   return (
     // react-grid-layout passes its positioning props (style, className, ref, handlers) through to this element.
-    <section aria-labelledby={titleId} {...grid}>
+    <section aria-labelledby={titleId} className={className} {...grid}>
       <Card data-rise className={cn("gap-0 py-0", fill && "h-full")}>
-        <header className="panel-drag flex items-start gap-2 border-b px-4 py-2.5 md:cursor-grab md:active:cursor-grabbing">
+        <header className={cn("flex items-start gap-2 border-b px-4 py-2.5", !onRestore && "panel-drag md:cursor-grab md:active:cursor-grabbing")}>
           <div className="min-w-0 flex-1">
             <CardTitle id={titleId} role="heading" aria-level={2}>
               {def.title}
             </CardTitle>
             {def.description && <div className="mt-0.5 text-xs text-muted-foreground">{def.description}</div>}
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={`${def.title} panel options`} />}>
-              <EllipsisIcon aria-hidden />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {menu.map(([label, run]) => (
-                <DropdownMenuItem key={label} onClick={run}>
-                  {label}
-                </DropdownMenuItem>
-              ))}
-              {menu.length > 0 && <DropdownMenuSeparator />}
-              <DropdownMenuItem onClick={onHide}>Hide panel</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {onRestore ? (
+            <Button variant="outline" size="sm" onClick={onRestore} autoFocus>
+              <MinimizeIcon aria-hidden />
+              Restore
+              <kbd className="hidden font-mono text-[10px] text-muted-foreground md:inline">Esc</kbd>
+            </Button>
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={`${def.title} panel options`} />}>
+                <EllipsisIcon aria-hidden />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {def.menu}
+                {def.menu && <DropdownMenuSeparator />}
+                {menu.map(([label, run]) => (
+                  <DropdownMenuItem key={label} onClick={run}>
+                    {label}
+                  </DropdownMenuItem>
+                ))}
+                {menu.length > 0 && <DropdownMenuSeparator />}
+                <DropdownMenuItem onClick={onMaximise}>Maximise</DropdownMenuItem>
+                <DropdownMenuItem onClick={onHide}>Hide panel</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </header>
-        <div className={cn("p-4", fill && "min-h-0 flex-1 overflow-auto")}>{def.content}</div>
+        <div className={cn("p-4", fill && "min-h-0 flex-1 overflow-auto")}>
+          {away ? <p className="text-xs text-muted-foreground">Shown maximised. Press Esc to restore.</p> : def.content}
+        </div>
       </Card>
       {children}
     </section>
