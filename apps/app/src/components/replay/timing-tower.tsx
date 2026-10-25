@@ -169,7 +169,7 @@ export function TimingTower({
         {rows.map((r) => {
           const d = drivers.get(r.driver);
           const sel = r.driver === selected;
-          const gained = r.position !== null && r.startPosition !== null ? r.startPosition - r.position : null;
+          const gained = r.position != null && r.startPosition != null ? r.startPosition - r.position : null;
           const pen = penalties?.get(r.driver);
           return (
             <TableRow key={r.driver} data-driver={r.driver} data-state={sel ? "selected" : undefined}>

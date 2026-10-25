@@ -73,7 +73,7 @@ export function DriverComparison({
       </div>
 
       <table className="w-full text-xs">
-        <caption className="sr-only">Comparison at the replay position</caption>
+        <caption className="sr-only">The two drivers now</caption>
         <thead className="text-muted-foreground">
           <tr className="text-left">
             <th className="font-normal">Driver</th>

@@ -76,6 +76,11 @@ describe("timingAt", () => {
     expect(at(T + 170_000)[1]!.sectorMark).toEqual(["personal", "personal", "session"]);
   });
 
+  it("keeps the latest stint going past its published end (live lags a lap)", () => {
+    const live = { ...replay, stints: { 16: [{ stint: 1, lapStart: 1, lapEnd: 1, compound: "SOFT", ageAtStart: 0 }] } } as unknown as SessionReplay;
+    expect(timingAt(live, null, T + 90_000)[0]).toMatchObject({ driver: 16, lap: 2, compound: "SOFT", tyreAge: 1 });
+  });
+
   it("does not leak later positions or completed laps", () => {
     expect(timingAt(replay, null, T + 40_000)[0]).toMatchObject({ driver: 1, position: 1 });
     expect(timingAt(replay, null, T + 79_000)[0]).toMatchObject({ driver: 16, lap: 1, lastLap: null, gap: null });
