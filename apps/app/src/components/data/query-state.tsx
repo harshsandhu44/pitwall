@@ -59,7 +59,7 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
         <p className="font-medium">{title}</p>
         {detail && <p className="text-xs break-words text-muted-foreground">{detail}</p>}
         {notFound && (
-          <Link href="/calendar" className="inline-block text-xs font-medium underline-offset-4 hover:underline">
+          <Link href="/calendar" className="inline-block text-xs font-medium underline-offset-4 hover:text-live hover:underline">
             Browse the calendar
           </Link>
         )}

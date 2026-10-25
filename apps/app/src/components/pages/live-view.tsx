@@ -91,7 +91,7 @@ export function LiveView() {
                 <CardContent className="space-y-3">
                   {live.next ? (
                     <>
-                      <Link href={`/race?season=${live.next.race.season}&round=${live.next.race.round}`} className="font-medium hover:underline">
+                      <Link href={`/race?season=${live.next.race.season}&round=${live.next.race.round}`} className="font-medium hover:text-live hover:underline">
                         {live.next.race.name}
                       </Link>
                       <RaceCountdown next={{ race: live.next.race, session: live.next.session, state: live.next.inWindow ? "in_window" : "upcoming" }} />
