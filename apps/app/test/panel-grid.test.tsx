@@ -50,6 +50,11 @@ describe("panel grid", () => {
     await userEvent.click(await screen.findByRole("menuitem", { name: "Move up" }));
     await userEvent.click(screen.getByRole("button", { name: "Reset layout" }));
     expect(saved()).toEqual({ layout: panels.map((p) => ({ i: p.id, ...p.layout })), hidden: [] });
+
+    // One click threw the arrangement away; Undo brings it back.
+    await userEvent.click(screen.getByRole("button", { name: "Undo reset" }));
+    expect(saved().layout.find((l: { i: string }) => l.i === "b").y).toBe(0);
+    expect(screen.getByRole("button", { name: "Reset layout" })).toBeInTheDocument();
   });
 
   it("starts from the defaults when the saved layout is unreadable", () => {

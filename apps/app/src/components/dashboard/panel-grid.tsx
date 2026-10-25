@@ -1,6 +1,6 @@
 "use client";
 
-import { EllipsisIcon, LayoutGridIcon, RotateCcwIcon } from "lucide-react";
+import { EllipsisIcon, LayoutGridIcon, RotateCcwIcon, Undo2Icon } from "lucide-react";
 import { type ReactNode, useEffect, useId, useState, useSyncExternalStore } from "react";
 import ReactGridLayout, { type Layout, type LayoutItem, useContainerWidth } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
@@ -27,6 +27,8 @@ export interface PanelDef {
   content: ReactNode;
   /** Default place in the 12-column grid, in rows of ROW px. */
   layout: { x: number; y: number; w: number; h: number; minW?: number; minH?: number };
+  /** Phones only: always sits right after this panel (driver focus next to the timing it follows). */
+  phoneAfter?: string;
 }
 
 const ROW = 36;
@@ -79,6 +81,13 @@ export function PanelGrid({ id, panels }: { id: string; panels: PanelDef[] }) {
   const [saved, setSaved] = useState(() => load(id, panels));
   const phone = useIsPhone();
   const { width, containerRef, mounted } = useContainerWidth();
+  // The arrangement a reset threw away, offered back for a few seconds.
+  const [undo, setUndo] = useState<Saved | null>(null);
+  useEffect(() => {
+    if (!undo) return;
+    const id = setTimeout(() => setUndo(null), 10_000);
+    return () => clearTimeout(id);
+  }, [undo]);
 
   useEffect(() => {
     try {
@@ -103,14 +112,24 @@ export function PanelGrid({ id, panels }: { id: string; panels: PanelDef[] }) {
     setLayout([...f(visible), ...hidden]);
   };
   const order = readingOrder(visible);
+  if (phone) {
+    for (const p of panels) {
+      if (!p.phoneAfter || !order.includes(p.id) || !order.includes(p.phoneAfter)) continue;
+      order.splice(order.indexOf(p.id), 1);
+      order.splice(order.indexOf(p.phoneAfter) + 1, 0, p.id);
+    }
+  }
   const swapInOrder = (panel: string, by: -1 | 1) => {
     const other = order[order.indexOf(panel) + by];
     if (other) act((l) => swap(l, panel, other));
   };
 
   const panel = (p: PanelDef) => {
+    const pinned = !!p.phoneAfter && order.includes(p.phoneAfter);
     const menu: [string, () => void][] = phone
-      ? [
+      ? pinned
+        ? []
+        : [
           ["Move up", () => swapInOrder(p.id, -1)],
           ["Move down", () => swapInOrder(p.id, 1)],
         ]
@@ -144,10 +163,31 @@ export function PanelGrid({ id, panels }: { id: string; panels: PanelDef[] }) {
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
-        <Button variant="ghost" size="sm" onClick={() => setSaved(defaults(panels))}>
-          <RotateCcwIcon aria-hidden />
-          Reset layout
-        </Button>
+        {undo ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setSaved(undo);
+              setUndo(null);
+            }}
+          >
+            <Undo2Icon aria-hidden />
+            Undo reset
+          </Button>
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setUndo(saved);
+              setSaved(defaults(panels));
+            }}
+          >
+            <RotateCcwIcon aria-hidden />
+            Reset layout
+          </Button>
+        )}
         <span className="hidden md:inline">Drag a panel by its title, resize it from the bottom-right corner, or use its ⋯ menu.</span>
       </div>
 
@@ -211,7 +251,7 @@ function Panel({
                   {label}
                 </DropdownMenuItem>
               ))}
-              <DropdownMenuSeparator />
+              {menu.length > 0 && <DropdownMenuSeparator />}
               <DropdownMenuItem onClick={onHide}>Hide panel</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

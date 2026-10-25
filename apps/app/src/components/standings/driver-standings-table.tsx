@@ -117,7 +117,7 @@ export function DriverStandingsTable({
                     <span className="font-medium">{driverName(e.driver)}</span>
                   </Link>
                   {e.driver.code && <span className="ml-1.5 font-mono text-[11px] text-muted-foreground">{e.driver.code}</span>}
-                  <span className="block text-[11px] text-muted-foreground sm:hidden">{e.constructors.map((c) => c.name).join(" / ")}</span>
+                  <span className="block text-xs text-muted-foreground sm:hidden">{e.constructors.map((c) => c.name).join(" / ")}</span>
                 </TableCell>
                 {!compact && (
                   <>
@@ -133,7 +133,13 @@ export function DriverStandingsTable({
                     </TableCell>
                   </>
                 )}
-                <TableCell className="text-right font-mono font-medium tabular-nums">{formatPoints(e.points)}</TableCell>
+                <TableCell className="text-right font-mono font-medium tabular-nums">
+                  {formatPoints(e.points)}
+                  {/* Phones drop the Gap column; how far behind still matters. */}
+                  {!compact && e.points !== leader && (
+                    <span className="block text-xs font-normal text-muted-foreground sm:hidden">−{formatPoints(leader - e.points)}</span>
+                  )}
+                </TableCell>
                 {!compact && (
                   <>
                     <TableCell className="hidden text-right font-mono text-muted-foreground tabular-nums sm:table-cell">

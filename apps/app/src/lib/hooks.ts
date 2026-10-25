@@ -23,8 +23,11 @@ export function useSeason() {
 
   const setSeason = useCallback(
     (next: number) => {
+      // A round or a recorded session belongs to one season: another season's round N is a different race.
+      if (pathname === "/race") return router.push(`/calendar?season=${next}`);
       const p = new URLSearchParams(params);
       p.set("season", String(next));
+      p.delete("session");
       router.push(`${pathname}?${p}`);
     },
     [params, pathname, router],
@@ -33,6 +36,18 @@ export function useSeason() {
 }
 
 export const useCalendar = (season: number | null) => useApi<GrandPrix[]>(season ? `/api/calendar?season=${season}` : null);
+
+/**
+ * The Grand Prix a recorded session belongs to, matched by date (a day either side of the weekend):
+ * OpenF1's meeting names don't always match Jolpica's race names.
+ */
+export function weekendOf(races: GrandPrix[], start: string) {
+  const t = Date.parse(start);
+  return races.find((r) => {
+    const times = r.sessions.map((s) => Date.parse(s.start ?? s.date));
+    return t >= Math.min(...times) - 86_400_000 && t <= Math.max(...times) + 86_400_000;
+  });
+}
 
 // A shared clock: one interval for every subscriber; null during SSR/prerender so nothing time-dependent hydrates.
 const listeners = new Set<() => void>();

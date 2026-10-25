@@ -94,7 +94,13 @@ export function ConstructorStandingsTable({
                   ))}
                 </TableCell>
               )}
-              <TableCell className="text-right font-mono font-medium tabular-nums">{formatPoints(e.points)}</TableCell>
+              <TableCell className="text-right font-mono font-medium tabular-nums">
+                  {formatPoints(e.points)}
+                  {/* Phones drop the Gap column; how far behind still matters. */}
+                  {!compact && e.points !== leader && (
+                    <span className="block text-xs font-normal text-muted-foreground sm:hidden">−{formatPoints(leader - e.points)}</span>
+                  )}
+                </TableCell>
               {!compact && (
                 <TableCell className="hidden text-right font-mono text-muted-foreground tabular-nums sm:table-cell">
                   {e.points === leader ? "—" : `−${formatPoints(leader - e.points)}`}

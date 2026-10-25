@@ -71,7 +71,7 @@ export function SeasonResultsMatrix({ results, order }: { results: SeasonResults
           ))}
         </tbody>
       </table>
-      <p className="border-t px-2 py-1.5 text-[11px] text-muted-foreground">
+      <p className="border-t px-2 py-1.5 text-xs text-muted-foreground">
         Shading: winner, podium, points (top 10 under current rules). Ret = retired; D = disqualified; W = withdrawn; N = not classified.
       </p>
     </div>

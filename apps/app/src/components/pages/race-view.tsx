@@ -31,9 +31,12 @@ export function RaceView() {
   const calendar = useCalendar(valid ? season : null);
   const router = useRouter();
   const pathname = usePathname();
-  // Forecasts only exist for the newest season; recorded sessions only from 2023.
+  // Forecasts only exist for the newest season and say nothing about a weekend that's over; recorded sessions only from 2023.
   const newest = useSeasons().data?.data?.[0];
-  const shown = TABS.filter((t) => t === "results" || (t === "weather" ? season === newest : season >= 2023));
+  const now = useNow();
+  const last = calendar.data?.data?.find((r) => r.round === round)?.sessions.at(-1);
+  const over = now !== null && !!last && scheduleState(last, now) === "finished";
+  const shown = TABS.filter((t) => t === "results" || (t === "weather" ? season === newest && !over : season >= 2023));
   const asked = params.get("tab") as Tab;
   const tab: Tab = shown.includes(asked) ? asked : "results";
   const setTab = (v: Tab) => {
@@ -53,12 +56,23 @@ export function RaceView() {
     ) : null;
 
   return (
-    <QueryState query={weekend} loading={<Skeleton className="h-96 w-full" />}>
+    <QueryState
+      query={weekend}
+      loading={
+        // Header-sized first, so the title lands where the skeleton was.
+        <>
+          <Skeleton className="mb-5 h-[73px] w-full" />
+          <Skeleton className="h-96 w-full" />
+        </>
+      }
+    >
       {(data, res) => {
         const { race, results, qualifying, sprint } = data;
         const sprintQualifying = data.sprintQualifying ?? [];
         // Open on the most significant session that has a classification.
         const firstResult = results.length ? "race" : qualifying.length ? "qualifying" : sprint.length ? "sprint" : sprintQualifying.length ? "sprintQualifying" : "race";
+        // Nothing classified yet: the schedule is what matters, so it leads on phones.
+        const upcoming = ![results, qualifying, sprint, sprintQualifying].some((x) => x.length > 0);
         return (
           <>
             <PageHeader
@@ -83,7 +97,7 @@ export function RaceView() {
                       <CardTitle>Classification</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      {[results, qualifying, sprint, sprintQualifying].some((x) => x.length > 0) && <ProvisionalNote race={race} className="mb-3" />}
+                      {!upcoming && <ProvisionalNote race={race} className="mb-3" />}
                       <Tabs defaultValue={firstResult}>
                         <TabsList className="mb-3 flex-wrap">
                           <TabsTrigger value="race">Race</TabsTrigger>
@@ -111,7 +125,7 @@ export function RaceView() {
                       </div>
                     </CardContent>
                   </Card>
-                  <Card>
+                  <Card className={upcoming ? "max-lg:order-first" : undefined}>
                     <CardHeader>
                       <CardTitle>Weekend</CardTitle>
                     </CardHeader>

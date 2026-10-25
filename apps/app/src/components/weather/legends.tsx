@@ -20,7 +20,7 @@ const RADAR: [dbz: number, color: string][] = [
 export function RadarLegend() {
   return (
     <figure className="space-y-1">
-      <figcaption className="text-[11px] text-muted-foreground">Radar reflectivity (dBZ) — higher means heavier precipitation</figcaption>
+      <figcaption className="text-xs text-muted-foreground">Radar reflectivity (dBZ) — higher means heavier precipitation</figcaption>
       <div className="flex h-2.5 overflow-hidden rounded-sm border" aria-hidden>
         {RADAR.map(([dbz, c]) => (
           <span key={dbz} className="flex-1" style={{ background: c }} />
@@ -39,7 +39,7 @@ export function RadarLegend() {
 export function CloudLegend() {
   return (
     <figure className="space-y-1">
-      <figcaption className="text-[11px] text-muted-foreground">Forecast cloud cover, 20% bands per model cell</figcaption>
+      <figcaption className="text-xs text-muted-foreground">Forecast cloud cover, 20% bands per model cell</figcaption>
       <div className="flex h-2.5 overflow-hidden rounded-sm border" aria-hidden>
         {[0, 1, 2, 3, 4, 5].map((b) => (
           <span key={b} className="flex-1 bg-foreground" style={{ opacity: b * CLOUD_OPACITY_STEP }} />

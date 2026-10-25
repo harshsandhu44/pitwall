@@ -72,7 +72,7 @@ export function PointsProgressionChart({ progression, type }: { progression: Poi
           ))}
         </LineChart>
       </ChartContainer>
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-xs text-muted-foreground">
         Cumulative points after each round, from the official standings published for that round.
       </p>
     </div>

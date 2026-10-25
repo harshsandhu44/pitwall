@@ -14,7 +14,8 @@ import { useSeason } from "@/lib/hooks";
 
 const ID = /^[a-z0-9_]{1,64}$/;
 
-function CareerTable({ career, seasonsTotal, kind }: { career: CareerSeason[]; seasonsTotal: number; kind: "drivers" | "teams" }) {
+function CareerTable({ career, seasonsTotal, kind, id }: { career: CareerSeason[]; seasonsTotal: number; kind: "drivers" | "teams"; id: string }) {
+  const page = kind === "drivers" ? "driver" : "team";
   return (
     <div className="space-y-2">
       <Table>
@@ -32,9 +33,12 @@ function CareerTable({ career, seasonsTotal, kind }: { career: CareerSeason[]; s
           {career.map((c) => (
             <TableRow key={c.season}>
               <TableCell>
-                <Link href={`/standings?season=${c.season}`} className="font-mono tabular-nums hover:underline">{c.season}</Link>
+                {/* The season's races on this profile; the position goes to that season's standings. */}
+                <Link href={`/${page}?id=${id}&season=${c.season}`} className="font-mono tabular-nums hover:underline">{c.season}</Link>
               </TableCell>
-              <TableCell className="font-mono tabular-nums">{c.positionText}</TableCell>
+              <TableCell className="font-mono tabular-nums">
+                <Link href={`/standings?season=${c.season}`} className="hover:underline" aria-label={`P${c.positionText} in the ${c.season} standings`}>{c.positionText}</Link>
+              </TableCell>
               <TableCell className="text-right font-mono tabular-nums">{formatPoints(c.points)}</TableCell>
               <TableCell className="text-right font-mono tabular-nums">{c.wins}</TableCell>
               {kind === "drivers" && (
@@ -52,7 +56,7 @@ function CareerTable({ career, seasonsTotal, kind }: { career: CareerSeason[]; s
         </TableBody>
       </Table>
       {seasonsTotal > career.length && (
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           Showing championship results for the most recent seasons only ({seasonsTotal} seasons entered in total).
         </p>
       )}
@@ -91,8 +95,12 @@ function SeasonRaces({ season, kind, id }: { season: number; kind: "drivers" | "
                   <TableCell>
                     <Link href={`/race?season=${season}&round=${race.round}`} className="hover:underline">{race.name}</Link>
                   </TableCell>
-                  {kind === "teams" && <TableCell>{e.driver.familyName}</TableCell>}
-                  <TableCell className="hidden text-right font-mono tabular-nums sm:table-cell">{e.grid === 0 ? "PL" : e.grid ?? "—"}</TableCell>
+                  {kind === "teams" && (
+                    <TableCell>
+                      {e.driver.id ? <Link href={`/driver?id=${e.driver.id}&season=${season}`} className="hover:underline">{e.driver.familyName}</Link> : e.driver.familyName}
+                    </TableCell>
+                  )}
+                  <TableCell className="hidden text-right font-mono tabular-nums sm:table-cell">{e.grid === 0 ? <abbr title="Started from the pit lane">PL</abbr> : e.grid ?? "—"}</TableCell>
                   <TableCell className="text-right font-mono tabular-nums" title={e.status}>{/^\d+$/.test(e.positionText) ? e.positionText : e.status}</TableCell>
                   <TableCell className="text-right font-mono tabular-nums">{formatPoints(e.points)}</TableCell>
                 </TableRow>
@@ -113,7 +121,15 @@ export function ProfileView({ kind }: { kind: "drivers" | "teams" }) {
   if (!valid) return <ErrorState error={new Error("This link is missing a valid id.")} />;
 
   return (
-    <QueryState query={profile} loading={<Skeleton className="h-96 w-full" />}>
+    <QueryState
+      query={profile}
+      loading={
+        <>
+          <Skeleton className="mb-5 h-[73px] w-full" />
+          <Skeleton className="h-96 w-full" />
+        </>
+      }
+    >
       {(p, res) => {
         const title = "driver" in p ? driverName(p.driver) : p.constructor.name;
         const bits =
@@ -133,7 +149,7 @@ export function ProfileView({ kind }: { kind: "drivers" | "teams" }) {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  <CareerTable career={p.career} seasonsTotal={p.seasonsTotal} kind={kind} />
+                  <CareerTable career={p.career} seasonsTotal={p.seasonsTotal} kind={kind} id={id} />
                   <SourceNote res={res} />
                 </CardContent>
               </Card>

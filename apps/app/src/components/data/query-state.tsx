@@ -3,6 +3,7 @@
 import type { ApiResponse, Source } from "@pitwall/shared";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { AlertTriangleIcon, ClockAlertIcon, RotateCwIcon } from "lucide-react";
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,7 +24,7 @@ export function SourceNote({ res }: { res: ApiResponse<unknown> }) {
   const now = useNow();
   const stale = res.status === "stale";
   return (
-    <p className="flex flex-wrap items-center gap-x-1.5 text-[11px] text-muted-foreground">
+    <p className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
       {stale && <ClockAlertIcon aria-hidden className="size-3" />}
       <span>{SOURCE_LABEL[res.source]}</span>
       <span aria-hidden>·</span>
@@ -37,20 +38,33 @@ export function SourceNote({ res }: { res: ApiResponse<unknown> }) {
 
 export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
   const res = error instanceof ApiError ? error.response : null;
-  const title =
-    res?.status === "not_found"
-      ? "Not found"
-      : res?.status === "unavailable"
-        ? `${SOURCE_LABEL[res.source]} is unavailable right now`
-        : "Something went wrong loading this data";
+  const notFound = res?.status === "not_found";
+  const title = notFound
+    ? "We couldn't find that"
+    : res?.status === "unavailable"
+      ? `${SOURCE_LABEL[res.source]} is unavailable right now`
+      : "Something went wrong loading this data";
+  // fetch rejects with a TypeError ("Failed to fetch") when the network is down; that wording helps no one.
+  const detail = notFound
+    ? "The link may be out of date, or the data hasn't been published yet."
+    : error instanceof TypeError
+      ? "Check your connection and try again."
+      : error instanceof Error
+        ? error.message
+        : String(error);
   return (
     <div role="alert" className="flex items-start gap-3 rounded-lg border border-dashed p-4 text-sm">
       <AlertTriangleIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-destructive" />
       <div className="min-w-0 flex-1 space-y-1">
         <p className="font-medium">{title}</p>
-        <p className="text-xs break-words text-muted-foreground">{error instanceof Error ? error.message : String(error)}</p>
+        {detail && <p className="text-xs break-words text-muted-foreground">{detail}</p>}
+        {notFound && (
+          <Link href="/calendar" className="inline-block text-xs font-medium underline-offset-4 hover:underline">
+            Browse the calendar
+          </Link>
+        )}
       </div>
-      {onRetry && res?.status !== "not_found" && (
+      {onRetry && !notFound && (
         <Button size="sm" variant="outline" onClick={onRetry}>
           <RotateCwIcon aria-hidden /> Retry
         </Button>

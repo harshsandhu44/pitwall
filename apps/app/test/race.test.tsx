@@ -86,6 +86,21 @@ describe("race weekend", () => {
     expect(nav.replace).toHaveBeenCalledWith("/?season=2026&round=17&tab=sessions", { scroll: false });
   });
 
+  it("drops the Weather tab once the weekend is over: a forecast says nothing about a past race", async () => {
+    vi.setSystemTime(Date.parse("2026-10-12T00:00:00Z"));
+    nav.params = new URLSearchParams("season=2026&round=17");
+    mockApi({
+      "/api/races/17?season=2026": () => envelope(weekend),
+      "/api/calendar?season=2026": () => envelope([race]),
+      "/api/team-colours?season=2026": () => envelope({}),
+      "/api/seasons": () => envelope([2026]),
+      "/api/replay/sessions?season=2026": () => envelope([], { source: "openf1" }),
+    });
+    renderWithQuery(<RaceView />);
+    await screen.findByRole("tab", { name: "Sessions" });
+    expect(screen.queryByRole("tab", { name: "Weather" })).not.toBeInTheDocument();
+  });
+
   it("opens the tab named in the URL, and only offers tabs that have data", async () => {
     nav.params = new URLSearchParams("season=2026&round=17&tab=sessions");
     mockApi({

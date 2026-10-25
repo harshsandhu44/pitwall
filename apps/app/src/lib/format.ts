@@ -18,6 +18,7 @@ export function formatSessionTime(s: WeekendSession, timeZone?: string) {
     month: "short",
     hour: "2-digit",
     minute: "2-digit",
+    timeZoneName: "short",
     timeZone,
   });
 }
@@ -71,7 +72,8 @@ export const formatHour = (iso: string, timeZone?: string) =>
 export const fmtLap = (s: number | null) => (s === null ? "—" : `${Math.floor(s / 60)}:${(s % 60).toFixed(3).padStart(6, "0")}`);
 /** Seconds as "+1.234", or OpenF1's own text such as "+1 LAP". */
 export const fmtGap = (v: number | string | null) => (v === null ? "—" : typeof v === "string" ? v : `+${v.toFixed(3)}`);
-export const fmtClock = (ms: number) => new Date(ms).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+export const fmtClock = (ms: number) =>
+  new Date(ms).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZoneName: "short" });
 export function fmtElapsed(ms: number) {
   const s = Math.max(0, Math.floor(ms / 1000));
   return `${Math.floor(s / 3600)}:${String(Math.floor(s / 60) % 60).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;

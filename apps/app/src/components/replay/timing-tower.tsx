@@ -76,12 +76,12 @@ export function TimingTower({
           <TableHead className="w-8">Pos</TableHead>
           <TableHead>Driver</TableHead>
           {intervals && <TableHead className="text-right">Gap</TableHead>}
-          {intervals && <TableHead className="text-right">Int</TableHead>}
+          {intervals && <TableHead className="text-right"><abbr title="Interval to the car ahead">Int</abbr></TableHead>}
           <TableHead className="text-right">Lap</TableHead>
           <TableHead className="hidden text-right sm:table-cell">Last</TableHead>
           <TableHead className="hidden text-right md:table-cell">Best</TableHead>
           <TableHead>Tyre</TableHead>
-          <TableHead className="text-right" title="Pit-lane visits, including red-flag entries">Pit</TableHead>
+          <TableHead className="text-right"><abbr title="Pit-lane visits, including red-flag entries">Pit</abbr></TableHead>
         </TableRow>
       </TableHeader>
       <TableBody ref={body}>

@@ -23,10 +23,11 @@ describe("live page", () => {
     vi.useFakeTimers({ toFake: ["Date"], now: Date.parse("2026-10-20T00:00:00Z") });
     mockApi({ "/api/live/session": () => envelope(status({}), { source: "pitwall" }) });
     renderWithQuery(<LiveView />);
-    expect(await screen.findByRole("status")).toHaveTextContent("Status: unavailable");
-    expect(screen.getByText("No live session")).toBeInTheDocument();
+    expect(await screen.findByText("No live session")).toBeInTheDocument();
+    // Nothing on track isn't an outage: no "unavailable" badge.
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
     expect(screen.getByText(/Live timing starts 30 minutes before/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Singapore Grand Prix · Qualifying" })).toHaveAttribute("href", "/replay?season=2026&session=11384");
+    expect(screen.getByRole("link", { name: "Replay Singapore Grand Prix · Qualifying" })).toHaveAttribute("href", "/replay?season=2026&session=11384");
     expect(screen.getByRole("link", { name: "United States Grand Prix" })).toBeInTheDocument();
     expect(screen.getByText("Practice 1 starts in")).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();

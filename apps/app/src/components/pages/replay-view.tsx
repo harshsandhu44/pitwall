@@ -2,7 +2,9 @@
 
 import { type ApiResponse, type PositionWindow, type ReplaySession, type SessionReplay, timingAt, trackStatus, WINDOW_MS, windowStart } from "@pitwall/shared";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { CalendarDaysIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { EmptyState, ErrorState, QueryState, SourceNote } from "@/components/data/query-state";
 import { PanelGrid } from "@/components/dashboard/panel-grid";
@@ -16,11 +18,11 @@ import { TimingTower } from "@/components/replay/timing-tower";
 import { TrackCanvas } from "@/components/replay/track-canvas";
 import { TrackWeather } from "@/components/replay/track-weather";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiGet } from "@/lib/api";
-import { useReplay, useReplaySessions, useSeason } from "@/lib/hooks";
+import { useCalendar, useReplay, useReplaySessions, useSeason, weekendOf } from "@/lib/hooks";
 import { fmtClock } from "@/lib/format";
 import { useReplayClock } from "@/lib/replay-clock";
 
@@ -49,6 +51,7 @@ export function ReplayView() {
   const router = useRouter();
   const pathname = usePathname();
   const sessions = useReplaySessions(season);
+  const calendar = useCalendar(season);
   const setSession = (key: number) => {
     const p = new URLSearchParams(params);
     p.set("session", String(key));
@@ -56,6 +59,12 @@ export function ReplayView() {
   };
 
   if (season === null) return <Skeleton className="h-96 w-full" />;
+  const loading = (
+    <>
+      <Skeleton className="mb-5 h-[73px] w-full" />
+      <Skeleton className="h-96 w-full" />
+    </>
+  );
   if (season < FIRST_SEASON) {
     return (
       <>
@@ -73,7 +82,7 @@ export function ReplayView() {
   }
 
   return (
-    <QueryState query={sessions} loading={<Skeleton className="h-96 w-full" />}>
+    <QueryState query={sessions} loading={loading}>
       {(list) => {
         if (!list.length) {
           return (
@@ -87,6 +96,7 @@ export function ReplayView() {
           list.find((s) => String(s.key) === params.get("session")) ?? [...list].reverse().find((s) => s.type === "Race") ?? list.at(-1)!;
         const meetings = [...new Map(list.map((s) => [s.meetingKey, s.meetingName])).entries()];
         const inMeeting = list.filter((s) => s.meetingKey === selected.meetingKey);
+        const weekend = calendar.data?.data ? weekendOf(calendar.data.data, selected.start) : undefined;
         return (
           <>
             <PageHeader
@@ -111,6 +121,16 @@ export function ReplayView() {
                   items={inMeeting.map((s) => ({ value: String(s.key), label: s.name }))}
                   onChange={(v) => setSession(Number(v))}
                 />
+                {weekend && (
+                  <Link
+                    href={`/race?season=${weekend.season}&round=${weekend.round}`}
+                    className={buttonVariants({ variant: "outline", size: "sm" })}
+                    aria-label={`${weekend.name} weekend page`}
+                  >
+                    <CalendarDaysIcon aria-hidden />
+                    <span className="hidden sm:inline">Weekend</span>
+                  </Link>
+                )}
               </div>
             </PageHeader>
             <ReplayLoader key={selected.key} sessionKey={selected.key} />
@@ -223,18 +243,7 @@ function Player({ replay, res }: { replay: SessionReplay; res: ApiResponse<Sessi
                   />
                 </div>
                 {current.isError && <ErrorState error={current.error} onRetry={() => current.refetch()} />}
-                <PlaybackControls state={clock.state} range={replay.range} onPlay={clock.play} onPause={clock.pause} onSeek={clock.seek} onSpeed={clock.setSpeed} />
-                <div className="flex flex-wrap gap-4 text-xs">
-                  <label className="inline-flex items-center gap-1.5">
-                    <input type="checkbox" checked={interpolate} onChange={(e) => setInterpolate(e.target.checked)} className="accent-primary" />
-                    Interpolate between samples
-                  </label>
-                  <label className="inline-flex items-center gap-1.5">
-                    <input type="checkbox" checked={follow} disabled={selected === null} onChange={(e) => setFollow(e.target.checked)} className="accent-primary" />
-                    Follow selected driver
-                  </label>
-                </div>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   Solid dot: a recorded sample{interpolate ? ", or a straight line between two samples less than 1 s apart" : ""}. Dashed ring: no sample for over
                   a second, shown at the last recorded spot.
                 </p>
@@ -257,6 +266,7 @@ function Player({ replay, res }: { replay: SessionReplay; res: ApiResponse<Sessi
           {
             id: "focus",
             title: "Driver focus",
+            phoneAfter: "timing",
             layout: { x: 8, y: 22, w: 4, h: 6, minW: 3, minH: 4 },
             content: <DriverFocus rows={rows} drivers={drivers} selected={selected} intervals={race} />,
           },
@@ -274,6 +284,20 @@ function Player({ replay, res }: { replay: SessionReplay; res: ApiResponse<Sessi
           },
         ]}
       />
+      {/* Outside the grid: hiding or scrolling past the Track panel never loses playback. Sits above the phone tab bar. */}
+      <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 space-y-2 border bg-background/95 p-3 backdrop-blur md:bottom-0">
+        <PlaybackControls state={clock.state} range={replay.range} onPlay={clock.play} onPause={clock.pause} onSeek={clock.seek} onSpeed={clock.setSpeed} />
+        <div className="flex flex-wrap gap-4 text-xs">
+          <label className="inline-flex min-h-8 items-center gap-1.5">
+            <input type="checkbox" checked={interpolate} onChange={(e) => setInterpolate(e.target.checked)} className="accent-primary" />
+            Interpolate between samples
+          </label>
+          <label className="inline-flex min-h-8 items-center gap-1.5">
+            <input type="checkbox" checked={follow} disabled={selected === null} onChange={(e) => setFollow(e.target.checked)} className="accent-primary" />
+            Follow selected driver
+          </label>
+        </div>
+      </div>
       <SourceNote res={res} />
     </div>
   );

@@ -4,7 +4,7 @@ import type { ApiResponse } from "@pitwall/shared";
 import { useQueryClient } from "@tanstack/react-query";
 import { CircleCheckIcon, CircleDashedIcon, ClockAlertIcon, CloudOffIcon } from "lucide-react";
 import { useSyncExternalStore } from "react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover } from "@base-ui/react/popover";
 import { ApiError } from "@/lib/api";
 
 type Health = "fresh" | "stale" | "failing" | "idle";
@@ -36,18 +36,25 @@ export function FreshnessIndicator() {
     () => "idle" as Health,
   );
   const v = VIEW[health];
+  // A popover, not a tooltip: touch can open it (tap), and hover still does on desktop.
   return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <span role="status" aria-live="polite" className={`flex items-center gap-1.5 text-xs ${v.className}`}>
-            <v.icon aria-hidden className="size-3.5" />
-            <span className="hidden md:inline">{v.label}</span>
-            <span className="sr-only md:hidden">{v.label}</span>
-          </span>
-        }
-      />
-      <TooltipContent>{v.detail}</TooltipContent>
-    </Tooltip>
+    <Popover.Root>
+      <Popover.Trigger
+        openOnHover
+        delay={0}
+        className={`flex min-h-8 items-center gap-1.5 px-1 text-xs pointer-coarse:min-h-11 pointer-coarse:min-w-11 pointer-coarse:justify-center ${v.className}`}
+      >
+        <v.icon aria-hidden className="size-3.5" />
+        <span role="status" aria-live="polite">
+          <span className="hidden md:inline">{v.label}</span>
+          <span className="sr-only md:hidden">{v.label}</span>
+        </span>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Positioner sideOffset={4} className="isolate z-50">
+          <Popover.Popup className="max-w-xs bg-foreground px-3 py-1.5 text-xs text-background outline-none">{v.detail}</Popover.Popup>
+        </Popover.Positioner>
+      </Popover.Portal>
+    </Popover.Root>
   );
 }

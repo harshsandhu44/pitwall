@@ -97,9 +97,9 @@ function Hero({ next }: { next: NextSession }) {
           const state = now === null ? "unknown" : scheduleState(s, now);
           return (
             <li key={s.kind} className={cn("space-y-0.5 border-r border-b px-4 py-3 last:border-r-0 sm:border-b-0", state === "in_window" && "bg-live/12")}>
-              <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">{SESSION_LABEL[s.kind]}</p>
+              <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">{SESSION_LABEL[s.kind]}</p>
               <p className="font-mono text-sm tabular-nums">{now === null ? "…" : formatSessionTime(s)}</p>
-              <p className="text-[11px] text-muted-foreground">{state === "finished" ? "Done" : state === "in_window" ? "Scheduled now" : "\u00a0"}</p>
+              <p className="text-xs text-muted-foreground">{state === "finished" ? "Done" : state === "in_window" ? "Scheduled now" : "\u00a0"}</p>
             </li>
           );
         })}
@@ -183,7 +183,13 @@ export function HomeView() {
                       {r.results.slice(0, 3).map((e) => (
                         <li key={e.driver.id} className="flex items-baseline gap-2 text-sm">
                           <span className="w-5 font-mono text-muted-foreground tabular-nums">P{e.positionText}</span>
-                          <span className="flex-1 font-medium">{driverName(e.driver)}</span>
+                          {e.driver.id ? (
+                            <Link href={`/driver?id=${e.driver.id}&season=${r.race.season}`} className="flex-1 font-medium hover:underline">
+                              {driverName(e.driver)}
+                            </Link>
+                          ) : (
+                            <span className="flex-1 font-medium">{driverName(e.driver)}</span>
+                          )}
                           <span className="font-mono text-xs text-muted-foreground tabular-nums">{e.time ?? e.status}</span>
                         </li>
                       ))}
@@ -192,7 +198,14 @@ export function HomeView() {
                       const fl = r.results.find((e) => e.fastestLap?.rank === 1);
                       return fl?.fastestLap?.time ? (
                         <p className="text-xs text-muted-foreground">
-                          Fastest lap: <span className="text-foreground">{driverName(fl.driver)}</span>{" "}
+                          Fastest lap:{" "}
+                          {fl.driver.id ? (
+                            <Link href={`/driver?id=${fl.driver.id}&season=${r.race.season}`} className="text-foreground hover:underline">
+                              {driverName(fl.driver)}
+                            </Link>
+                          ) : (
+                            <span className="text-foreground">{driverName(fl.driver)}</span>
+                          )}{" "}
                           <span className="font-mono tabular-nums">{fl.fastestLap.time}</span> (lap {fl.fastestLap.lap ?? "?"})
                         </p>
                       ) : null;
@@ -248,6 +261,9 @@ export function HomeView() {
         <CardHeader>
           <CardDescription>{season} championship</CardDescription>
           <CardTitle>Constructors</CardTitle>
+          <CardAction>
+            <Link href={`/standings?season=${season ?? ""}&view=constructors`} className="text-xs hover:underline">Full standings</Link>
+          </CardAction>
         </CardHeader>
         <CardContent>
           {constructors.isPending ? (

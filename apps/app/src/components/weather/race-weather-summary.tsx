@@ -32,7 +32,7 @@ export function RaceWeatherSummary({ race, forecast }: { race: GrandPrix; foreca
             <TableRow key={s.kind}>
               <TableCell>
                 <span className="font-medium">{SESSION_LABEL[s.kind]}</span>
-                <span className="block font-mono text-[11px] text-muted-foreground">{now === null ? "…" : formatSessionTime(s)}</span>
+                <span className="block font-mono text-xs text-muted-foreground">{now === null ? "…" : formatSessionTime(s)}</span>
               </TableCell>
               {!w?.atStart ? (
                 <TableCell colSpan={5} className="text-xs text-muted-foreground">
