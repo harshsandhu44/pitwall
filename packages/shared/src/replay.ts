@@ -97,7 +97,9 @@ export function timingAt(r: SessionReplay, w: PositionWindow | null, t: number):
   const sessionBest = [0, 1, 2].map((i) => Math.min(...[...states.values()].map((s) => s.best[i]!)));
   const rows = r.drivers.map((d): TimingRow => {
     const { lap, lastLap, bestLap, sectors, best } = states.get(d.number)!;
-    const stint = lap === null ? undefined : (r.stints[d.number] ?? []).find((s) => s.lapStart <= lap && lap <= s.lapEnd);
+    // The last stint counts as still running: live, OpenF1's lap_end lags the lap in progress.
+    const stints = r.stints[d.number] ?? [];
+    const stint = lap === null ? undefined : stints.find((s, i) => s.lapStart <= lap && (lap <= s.lapEnd || i === stints.length - 1));
     const iv = w?.intervals[d.number];
     const k = iv ? lastAtOrBefore(iv.t, t - w!.from) : -1;
     return {

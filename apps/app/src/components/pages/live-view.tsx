@@ -172,13 +172,13 @@ function LiveTiming({ live }: { live: Extract<LiveStatus, { state: "LIVE" | "DEL
           description: t.track
             ? `Outline traced from ${outlineBy?.acronym ?? t.track.driver}'s lap ${t.track.lap} earlier this weekend. Cars are about ${MAP_DELAY_MS / 1000} s behind the timing. Drag to pan, click a car to select it.`
             : `No earlier session this weekend to trace an outline from; cars are drawn on OpenF1's x/y coordinates, about ${MAP_DELAY_MS / 1000} s behind the timing.`,
-          layout: { x: 0, y: 3, w: 8, h: 12, minW: 4, minH: 6 },
+          layout: { x: 0, y: 3, w: 7, h: 12, minW: 4, minH: 6 },
           content: <LiveTrack timing={t} selected={selected} onSelect={toggle} />,
         },
         {
           id: "timing",
           title: "Timing",
-          layout: { x: 8, y: 3, w: 4, h: 18, minW: 3, minH: 6 },
+          layout: { x: 7, y: 3, w: 5, h: 18, minW: 3, minH: 6 },
           menu: <TowerColumnsMenu intervals={race} />,
           content: (
             <TimingTower
@@ -202,39 +202,39 @@ function LiveTiming({ live }: { live: Extract<LiveStatus, { state: "LIVE" | "DEL
         {
           id: "race-control",
           title: "Race control",
-          layout: { x: 4, y: 15, w: 4, h: 6, minW: 3, minH: 3 },
+          layout: { x: 4, y: 15, w: 3, h: 6, minW: 3, minH: 3 },
           content: <RaceControlFeed messages={t.raceControl} t={Infinity} limit={20} />,
         },
         {
           id: "weather",
           title: "Track weather",
-          layout: { x: 8, y: 21, w: 4, h: 4, minW: 3, minH: 3 },
+          layout: { x: 7, y: 21, w: 5, h: 4, minW: 3, minH: 3 },
           content: <TrackWeather weather={t.weather ?? []} t={Infinity} />,
         },
         {
           id: "comparison",
           title: "Driver comparison",
-          layout: { x: 0, y: 21, w: 8, h: 16, minW: 4, minH: 6 },
+          layout: { x: 0, y: 21, w: 7, h: 16, minW: 4, minH: 6 },
           content: <DriverComparison sessionKey={t.session.key} drivers={t.drivers} laps={laps} rows={t.rows} t={Infinity} pair={shownPair} onPair={setPair} />,
         },
         {
           id: "penalties",
           title: "Penalties",
           description: "Penalties, investigations, deleted laps and warnings so far.",
-          layout: { x: 8, y: 25, w: 4, h: 8, minW: 3, minH: 4 },
+          layout: { x: 7, y: 25, w: 5, h: 8, minW: 3, minH: 4 },
           content: <Penalties items={stewards} drivers={drivers} selected={selected} onSelect={setSelected} />,
         },
         {
           id: "tyres",
           title: "Tyres",
           description: "Stints so far in running order, with laps on the current set and the compounds used.",
-          layout: { x: 0, y: 37, w: 8, h: 10, minW: 4, minH: 5 },
+          layout: { x: 0, y: 37, w: 7, h: 10, minW: 4, minH: 5 },
           content: <TyreStrip rows={t.rows} drivers={drivers} stints={stints} selected={selected} onSelect={setSelected} />,
         },
         {
           id: "championship",
           title: "Championship",
-          layout: { x: 8, y: 33, w: 4, h: 12, minW: 3, minH: 5 },
+          layout: { x: 7, y: 33, w: 5, h: 12, minW: 3, minH: 5 },
           content: (
             <Championship
               season={new Date(t.observedAt).getUTCFullYear()}

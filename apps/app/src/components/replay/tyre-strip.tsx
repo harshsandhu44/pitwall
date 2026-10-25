@@ -31,7 +31,16 @@ export function TyreStrip({
 }) {
   // Scale to the longest stint record (the race distance in a replay) or the leader's lap, whichever is more.
   const total = Math.max(1, ...rows.map((r) => r.lap ?? 0), ...Object.values(stints).flat().map((s) => s.lapEnd));
-  const shown = rows.map((r) => ({ r, stints: (stints[r.driver] ?? []).filter((s) => r.lap !== null && s.lapStart <= r.lap) }));
+  // Each stint ends at its last lap so far; the latest runs to the current lap (live, lap_end lags a lap).
+  const shown = rows.map((r) => {
+    const all = stints[r.driver] ?? [];
+    return {
+      r,
+      stints: all
+        .filter((s) => r.lap !== null && s.lapStart <= r.lap)
+        .map((s) => ({ ...s, lapEnd: s === all.at(-1) ? r.lap! : Math.min(s.lapEnd, r.lap!) })),
+    };
+  });
   if (!shown.some((s) => s.stints.length)) return <EmptyState>Tyre stints appear once cars are on track.</EmptyState>;
   return (
     <ol className="space-y-1 text-xs">
@@ -50,9 +59,9 @@ export function TyreStrip({
             >
               {d?.acronym ?? r.driver}
             </button>
-            <div className="relative h-4 flex-1" aria-label={`${d?.acronym ?? r.driver}: ${list.map((s) => `${s.compound?.toLowerCase() ?? "unknown"} laps ${s.lapStart}-${Math.min(s.lapEnd, r.lap!)}`).join(", ")}`} role="img">
+            <div className="relative h-4 flex-1" aria-label={`${d?.acronym ?? r.driver}: ${list.map((s) => `${s.compound?.toLowerCase() ?? "unknown"} laps ${s.lapStart}-${s.lapEnd}`).join(", ")}`} role="img">
               {list.map((s) => {
-                const end = Math.min(s.lapEnd, r.lap!);
+                const end = s.lapEnd;
                 return (
                   <span
                     key={s.stint}

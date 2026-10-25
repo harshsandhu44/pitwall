@@ -10,6 +10,6 @@ export const PRESETS: LayoutPreset[] = [
   { name: "Track focus", layout: { track: { x: 0, y: 3, w: 12, h: 20 }, timing: { x: 0, y: 23, w: 6, h: 19 }, focus: { x: 6, y: 23, w: 6, h: 6 } } },
   {
     name: "Strategy",
-    layout: { tyres: { x: 0, y: 3, w: 8, h: 12 }, penalties: { x: 8, y: 3, w: 4, h: 12 }, timing: { x: 8, y: 15, w: 4, h: 19 }, track: { x: 0, y: 15, w: 8, h: 12 } },
+    layout: { tyres: { x: 0, y: 3, w: 7, h: 12 }, penalties: { x: 7, y: 3, w: 5, h: 12 }, timing: { x: 7, y: 15, w: 5, h: 19 }, track: { x: 0, y: 15, w: 7, h: 12 } },
   },
 ];

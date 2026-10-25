@@ -246,7 +246,7 @@ function Player({ replay, res }: { replay: SessionReplay; res: ApiResponse<Sessi
             description: replay.track
               ? `Outline traced from ${drivers.get(replay.track.driver)?.acronym ?? replay.track.driver}'s lap ${replay.track.lap}. Drag to pan, click a car to select it.`
               : "No clean lap to trace an outline from; cars are drawn on OpenF1's recorded x/y coordinates.",
-            layout: { x: 0, y: 3, w: 8, h: 15, minW: 4, minH: 8 },
+            layout: { x: 0, y: 3, w: 7, h: 15, minW: 4, minH: 8 },
             content: (
               <div className="flex h-full min-h-72 flex-col gap-3">
                 <div className="min-h-0 flex-1">
@@ -274,14 +274,14 @@ function Player({ replay, res }: { replay: SessionReplay; res: ApiResponse<Sessi
             id: "timing",
             title: "Timing",
             description: race ? "Gaps update about every 4 s in the recording." : "Gaps are only recorded for races and sprints.",
-            layout: { x: 8, y: 3, w: 4, h: 19, minW: 3, minH: 6 },
+            layout: { x: 7, y: 3, w: 5, h: 19, minW: 3, minH: 6 },
             menu: <TowerColumnsMenu intervals={race} />,
             content: <TimingTower rows={rows} drivers={drivers} selected={selected} onSelect={setSelected} intervals={race} penalties={penalties} />,
           },
           {
             id: "comparison",
             title: "Driver comparison",
-            layout: { x: 0, y: 18, w: 8, h: 16, minW: 4, minH: 6 },
+            layout: { x: 0, y: 18, w: 7, h: 16, minW: 4, minH: 6 },
             content: (
               <DriverComparison sessionKey={key} drivers={replay.drivers} laps={replay.laps} rows={rows} t={t} pair={shownPair} onPair={setPair} />
             ),
@@ -290,27 +290,27 @@ function Player({ replay, res }: { replay: SessionReplay; res: ApiResponse<Sessi
             id: "focus",
             title: "Driver focus",
             phoneAfter: "timing",
-            layout: { x: 8, y: 22, w: 4, h: 6, minW: 3, minH: 4 },
+            layout: { x: 7, y: 22, w: 5, h: 6, minW: 3, minH: 4 },
             content: <DriverFocus rows={rows} drivers={drivers} selected={selected} intervals={race} />,
           },
           {
             id: "penalties",
             title: "Penalties",
             description: "Penalties, investigations, deleted laps and warnings published so far.",
-            layout: { x: 8, y: 28, w: 4, h: 8, minW: 3, minH: 4 },
+            layout: { x: 7, y: 28, w: 5, h: 8, minW: 3, minH: 4 },
             content: <Penalties items={stewards} drivers={drivers} selected={selected} onSelect={setSelected} />,
           },
           {
             id: "tyres",
             title: "Tyres",
             description: "Stints so far in running order, with laps on the current set and the compounds used.",
-            layout: { x: 0, y: 34, w: 8, h: 10, minW: 4, minH: 5 },
+            layout: { x: 0, y: 34, w: 7, h: 10, minW: 4, minH: 5 },
             content: <TyreStrip rows={rows} drivers={drivers} stints={replay.stints} selected={selected} onSelect={setSelected} />,
           },
           {
             id: "championship",
             title: "Championship",
-            layout: { x: 8, y: 36, w: 4, h: 12, minW: 3, minH: 5 },
+            layout: { x: 7, y: 36, w: 5, h: 12, minW: 3, minH: 5 },
             content: (
               <Championship
                 season={new Date(replay.session.start).getUTCFullYear()}
@@ -325,13 +325,13 @@ function Player({ replay, res }: { replay: SessionReplay; res: ApiResponse<Sessi
           {
             id: "race-control",
             title: "Race control",
-            layout: { x: 0, y: 44, w: 8, h: 6, minW: 3, minH: 3 },
+            layout: { x: 0, y: 44, w: 7, h: 6, minW: 3, minH: 3 },
             content: <RaceControlFeed messages={replay.raceControl} t={t} limit={20} />,
           },
           {
             id: "weather",
             title: "Track weather",
-            layout: { x: 8, y: 48, w: 4, h: 5, minW: 3, minH: 3 },
+            layout: { x: 7, y: 48, w: 5, h: 5, minW: 3, minH: 3 },
             content: <TrackWeather weather={replay.weather} t={t} />,
           },
         ]}
