@@ -140,6 +140,57 @@
   font-style: italic;
 }
 
+/* The broadcast wipe: a slanted red band trailing a page-coloured fill, swept left to right, so the page
+   appears behind the band. Page changes run it under the header; the pre-loader runs it full screen. */
+@utility wipe {
+  position: fixed;
+  left: 0;
+  width: 112vw;
+  pointer-events: none;
+  background: linear-gradient(to right, var(--live) 12vw, var(--background) 12vw);
+  clip-path: polygon(4vw 0, 100% 0, 100% 100%, 0 100%);
+  animation: wipe 0.5s cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+@keyframes wipe {
+  from {
+    transform: translateX(-12vw);
+  }
+  to {
+    transform: translateX(100vw);
+    visibility: hidden;
+  }
+}
+
+/* The pre-loader: five start lights come on one by one, go out together, then the wipe. */
+.preloader {
+  animation-delay: 1.05s;
+}
+.lamp {
+  background: color-mix(in oklab, var(--muted-foreground) 22%, transparent);
+  animation:
+    lamp-on 1ms calc(0.12s + var(--i) * 0.16s) forwards,
+    lamp-off 1ms 0.95s forwards;
+}
+@keyframes lamp-on {
+  to {
+    background: var(--live);
+  }
+}
+@keyframes lamp-off {
+  to {
+    background: color-mix(in oklab, var(--muted-foreground) 22%, transparent);
+  }
+}
+/* Once per session (the inline script in layout.tsx), never under reduced motion. */
+.lights-seen .preloader {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wipe {
+    display: none;
+  }
+}
+
 /* react-grid-layout: themed drop placeholder and resize grip. */
 .react-grid-item.react-grid-placeholder {
   background: var(--live);

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Archivo, Geist_Mono } from "next/font/google";
 import { AppShell } from "@/components/layout/app-shell";
+import { Preloader } from "@/components/layout/preloader";
 import "./globals.css";
 import { Providers } from "./providers";
 
@@ -29,7 +30,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
       className={`${archivo.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        {/* Before paint: the start lights play once per browser session. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{sessionStorage.getItem("pw-lights")?document.documentElement.classList.add("lights-seen"):sessionStorage.setItem("pw-lights","1")}catch(e){}`,
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col">
+        <Preloader />
         <Providers>
           <AppShell>{children}</AppShell>
         </Providers>

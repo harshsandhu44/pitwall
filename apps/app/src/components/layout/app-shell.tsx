@@ -4,7 +4,7 @@ import { nextSession } from "@pitwall/shared";
 import { CalendarDaysIcon, HistoryIcon, HouseIcon, RadioTowerIcon, TrophyIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { type ReactNode, Suspense } from "react";
+import { type ReactNode, Suspense, useState } from "react";
 import { ErrorState } from "@/components/data/query-state";
 import { useCalendar, useNow, useSeasons } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
@@ -69,6 +69,18 @@ function SeasonsError() {
   );
 }
 
+/** The broadcast wipe on each page change, not on query changes such as the season. A new key replays the CSS. */
+function RouteWipe() {
+  const pathname = usePathname();
+  const [last, setLast] = useState(pathname);
+  const [wipes, setWipes] = useState(0);
+  if (pathname !== last) {
+    setLast(pathname);
+    setWipes(wipes + 1);
+  }
+  return wipes > 0 && <div key={wipes} aria-hidden className="wipe top-[calc(3.5rem+1px)] bottom-0 z-20" />;
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   return (
     <>
@@ -101,6 +113,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <SeasonsError />
         {children}
       </main>
+      <RouteWipe />
       {/* Bottom padding on phones clears the tab bar. */}
       <footer className="mx-auto w-full max-w-[1600px] px-3 pt-2 pb-24 text-xs leading-relaxed text-muted-foreground sm:px-5 md:pb-6">
         Unofficial. Not associated with Formula 1 companies. Data: Jolpica F1, OpenF1, Open-Meteo (CC BY 4.0), RainViewer. Maps: OpenFreeMap, © OpenStreetMap.

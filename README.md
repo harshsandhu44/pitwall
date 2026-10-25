@@ -52,11 +52,12 @@ Every page also takes `?season=`. Query parameters, not path segments, keep the 
 
 ## Design
 
-- **Tokens** live in `apps/app/src/app/globals.css`: graphite surfaces and a signal red (`--live` for stripes and the LIVE marker, a deeper `--primary` for filled buttons so white text keeps 4.5:1), defined for both themes. Theme follows the system until the toggle picks one.
+- **Tokens** live in `apps/app/src/app/globals.css`: graphite surfaces and a signal red (`--live` for stripes, the LIVE marker, active controls, link hovers and leaders, a deeper `--primary` for filled buttons so white text keeps 4.5:1), defined for both themes. Theme follows the system until the toggle picks one.
 - **Type:** Archivo, with its widest cut (`font-display`) for page titles and panel headers; Geist Mono for times and gaps.
 - **Shape:** square everywhere; panels have one cut corner (`panel-cut`) and a red stripe on the header. Flag, tyre and team colours are data colours, not accents.
 - **Motion:** GSAP, for arrival only (`src/lib/motion.tsx`): titles rise, the red stripe wipes in, rows and panels stagger, points count up, countdown digits roll. Reduced motion renders it all static.
-- **Circuits in 3D:** the home hero and the weekend page draw the F1DB layout as a road in Three.js (`src/lib/circuit-scene.ts`, after drive.harshsandhu.com), lit for the race's local start time. It loads on demand; without WebGL the flat outline stays.
+- **Loading:** the first load of a session plays five start lights, then lights out; each page change runs a red broadcast wipe under the header (CSS, `globals.css`). Both are off under reduced motion.
+- **Circuits in 3D:** the home hero and the weekend page draw the F1DB layout as a road in Three.js (`src/lib/circuit-scene.ts`, after drive.harshsandhu.com) on a transparent canvas, lit for the race's local start time. It loads on demand; without WebGL the flat outline stays.
 - **Navigation:** a top bar, and a bottom tab bar on phones. Live gets a dot while the calendar says a session is in its slot (no extra requests).
 
 ## Dashboard panels
