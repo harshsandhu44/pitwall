@@ -9,6 +9,7 @@ const archivo = Archivo({
   variable: "--font-sans",
   subsets: ["latin"],
   axes: ["wdth"],
+  style: ["normal", "italic"],
 });
 
 const geistMono = Geist_Mono({

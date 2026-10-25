@@ -133,6 +133,13 @@
   font-stretch: 125%;
 }
 
+/* The widest cut, italic, as drive.harshsandhu.com sets its titles: hero titles only. */
+@utility font-display-italic {
+  font-family: var(--font-sans);
+  font-stretch: 125%;
+  font-style: italic;
+}
+
 /* react-grid-layout: themed drop placeholder and resize grip. */
 .react-grid-item.react-grid-placeholder {
   background: var(--live);

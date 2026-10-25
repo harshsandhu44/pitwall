@@ -8,6 +8,7 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { formatPoints } from "@/lib/format";
 import { lastTwo, PositionChange } from "./position-change";
 import { TeamMark } from "@/components/racing/team-mark";
+import { Arrive, CountUp } from "@/lib/motion";
 
 export function ConstructorStandingsTable({
   standings,
@@ -53,6 +54,7 @@ export function ConstructorStandingsTable({
   const compact = limit !== undefined;
 
   return (
+    <Arrive>
     <Table>
       <TableCaption className="sr-only">
         {standings.season} constructors&apos; championship after round {standings.round}
@@ -71,7 +73,7 @@ export function ConstructorStandingsTable({
         {rows.map((e) => {
           const change = changes.get(e.constructor.id);
           return (
-            <TableRow key={e.constructor.id}>
+            <TableRow key={e.constructor.id} data-rise>
               <TableCell className="font-mono tabular-nums">
                 <span className="inline-flex w-full items-center justify-between gap-1">
                   {e.positionText}
@@ -95,7 +97,7 @@ export function ConstructorStandingsTable({
                 </TableCell>
               )}
               <TableCell className="text-right font-mono font-medium tabular-nums">
-                  {formatPoints(e.points)}
+                  <CountUp value={e.points} format={formatPoints} />
                   {/* Phones drop the Gap column; how far behind still matters. */}
                   {!compact && e.points !== leader && (
                     <span className="block text-xs font-normal text-muted-foreground sm:hidden">−{formatPoints(leader - e.points)}</span>
@@ -112,5 +114,6 @@ export function ConstructorStandingsTable({
         })}
       </TableBody>
     </Table>
+    </Arrive>
   );
 }

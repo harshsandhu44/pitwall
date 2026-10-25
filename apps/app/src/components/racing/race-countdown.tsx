@@ -3,6 +3,7 @@
 import { type NextSession, SESSION_LABEL } from "@pitwall/shared";
 import { formatCountdown } from "@/lib/format";
 import { useNow } from "@/lib/hooks";
+import { Rolling } from "@/lib/motion";
 
 export function RaceCountdown({ next, className = "text-3xl" }: { next: NextSession; /** Size of the countdown digits. */ className?: string }) {
   const now = useNow();
@@ -25,7 +26,7 @@ export function RaceCountdown({ next, className = "text-3xl" }: { next: NextSess
         // Announce once per minute at most, not every second.
         aria-label={`${label} starts in ${formatCountdown(ms - (ms % 60_000))}`}
       >
-        {formatCountdown(ms)}
+        <Rolling text={formatCountdown(ms)} />
       </p>
     </div>
   );
