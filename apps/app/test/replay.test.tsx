@@ -61,8 +61,8 @@ describe("timing tower", () => {
     [81, { number: 81, acronym: "PIA", name: "Oscar Piastri", team: "McLaren", colour: "#FF8000", driverId: "piastri" }],
   ]);
   const rows: TimingRow[] = [
-    { driver: 16, position: 1, gap: 0, interval: 0, lap: 35, lastLap: 79.319, bestLap: 78.5, compound: "HARD", tyreAge: 34, pits: 1 },
-    { driver: 81, position: 2, gap: "+1 LAP", interval: 1.309, lap: 35, lastLap: null, bestLap: null, compound: null, tyreAge: null, pits: 0 },
+    { driver: 16, position: 1, gap: 0, interval: 0, lap: 35, lastLap: 79.319, bestLap: 78.5, compound: "HARD", tyreAge: 34, pits: 1, startPosition: null, sectors: [null, null, null], sectorMark: [null, null, null] },
+    { driver: 81, position: 2, gap: "+1 LAP", interval: 1.309, lap: 35, lastLap: null, bestLap: null, compound: null, tyreAge: null, pits: 0, startPosition: null, sectors: [null, null, null], sectorMark: [null, null, null] },
   ];
 
   it("shows recorded values and leaves unknown ones as dashes", async () => {
@@ -96,7 +96,7 @@ describe("replay page", () => {
 
 describe("battles on the track map", () => {
   const row = (driver: number, position: number | null, interval: number | string | null): TimingRow => ({
-    driver, position, gap: null, interval, lap: 10, lastLap: null, bestLap: null, compound: null, tyreAge: null, pits: 0,
+    driver, position, gap: null, interval, lap: 10, lastLap: null, bestLap: null, compound: null, tyreAge: null, pits: 0, startPosition: null, sectors: [null, null, null], sectorMark: [null, null, null],
   });
 
   it("links consecutive cars under a second apart, in running order, ignoring text intervals and unplaced cars", () => {

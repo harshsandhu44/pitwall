@@ -4,3 +4,6 @@ export * from "./session";
 export * from "./weather";
 export * from "./replay";
 export * from "./live";
+export * from "./stewards";
+export * from "./championship";
+export * from "./compare";

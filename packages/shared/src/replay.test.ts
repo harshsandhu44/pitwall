@@ -57,6 +57,25 @@ describe("timingAt", () => {
     expect(p2).toMatchObject({ driver: 1, position: 2, lap: null, lastLap: null, compound: null, pits: 0, gap: null });
   });
 
+  it("keeps the starting place and marks sector bests from completed laps only", () => {
+    const r = {
+      ...replay,
+      laps: {
+        1: [{ lap: 1, start: T, duration: 80, sectors: [25, 30, 25], pitOut: false }],
+        16: [
+          { lap: 1, start: T, duration: 81, sectors: [24.9, 31, 25.1], pitOut: false },
+          { lap: 2, start: T + 81_000, duration: 79, sectors: [25, 29, 25], pitOut: false },
+        ],
+      },
+    } as unknown as SessionReplay;
+    const at = (t: number) => Object.fromEntries(timingAt(r, null, t).map((x) => [x.driver, x]));
+    expect(at(T + 60_000)[16]).toMatchObject({ startPosition: 2, position: 1, sectors: [null, null, null] });
+    expect(at(T + 90_000)[16]).toMatchObject({ sectors: [24.9, 31, 25.1], sectorMark: ["session", "personal", "personal"] });
+    expect(at(T + 90_000)[1]).toMatchObject({ sectors: [25, 30, 25], sectorMark: ["personal", "session", "session"] });
+    expect(at(T + 170_000)[16]).toMatchObject({ sectors: [25, 29, 25], sectorMark: [null, "session", "session"] });
+    expect(at(T + 170_000)[1]!.sectorMark).toEqual(["personal", "personal", "session"]);
+  });
+
   it("does not leak later positions or completed laps", () => {
     expect(timingAt(replay, null, T + 40_000)[0]).toMatchObject({ driver: 1, position: 1 });
     expect(timingAt(replay, null, T + 79_000)[0]).toMatchObject({ driver: 16, lap: 1, lastLap: null, gap: null });

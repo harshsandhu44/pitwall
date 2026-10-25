@@ -55,21 +55,33 @@ export interface TimingRow {
   compound: string | null;
   tyreAge: number | null;
   pits: number;
+  /** First recorded running-order place (the grid, in a race). */
+  startPosition: number | null;
+  /** The last completed lap's sector times (three), seconds. */
+  sectors: (number | null)[];
+  /** Per sector: the session's fastest so far, the driver's own fastest, or neither. */
+  sectorMark: ("session" | "personal" | null)[];
 }
+
+const done = (l: ReplayLap, t: number) => l.start !== null && l.duration !== null && l.start + l.duration * 1000 <= t;
 
 function lapState(laps: ReplayLap[], t: number) {
   let lap: number | null = null;
   let lastLap: number | null = null;
   let bestLap: number | null = null;
+  let last: ReplayLap | null = null;
+  const best = [Infinity, Infinity, Infinity];
   for (const l of laps) {
     if (l.start === null || l.start > t) continue;
     lap = l.lap;
-    if (l.duration !== null && l.start + l.duration * 1000 <= t) {
+    if (done(l, t)) {
+      last = l;
       lastLap = l.duration;
-      bestLap = bestLap === null ? l.duration : Math.min(bestLap, l.duration);
+      bestLap = bestLap === null ? l.duration : Math.min(bestLap, l.duration!);
+      l.sectors.forEach((s, i) => s !== null && (best[i] = Math.min(best[i]!, s)));
     }
   }
-  return { lap, lastLap, bestLap };
+  return { lap, lastLap, bestLap, sectors: last?.sectors ?? [null, null, null], best };
 }
 
 /** The timing tower at time `t`, built only from records published at or before `t`. */
@@ -79,8 +91,12 @@ export function timingAt(r: SessionReplay, w: PositionWindow | null, t: number):
     if (p.t > t) break;
     position.set(p.driver, p.position);
   }
+  const start = new Map<number, number>();
+  for (const p of r.positions) if (!start.has(p.driver)) start.set(p.driver, p.position);
+  const states = new Map(r.drivers.map((d) => [d.number, lapState(r.laps[d.number] ?? [], t)]));
+  const sessionBest = [0, 1, 2].map((i) => Math.min(...[...states.values()].map((s) => s.best[i]!)));
   const rows = r.drivers.map((d): TimingRow => {
-    const { lap, lastLap, bestLap } = lapState(r.laps[d.number] ?? [], t);
+    const { lap, lastLap, bestLap, sectors, best } = states.get(d.number)!;
     const stint = lap === null ? undefined : (r.stints[d.number] ?? []).find((s) => s.lapStart <= lap && lap <= s.lapEnd);
     const iv = w?.intervals[d.number];
     const k = iv ? lastAtOrBefore(iv.t, t - w!.from) : -1;
@@ -95,6 +111,9 @@ export function timingAt(r: SessionReplay, w: PositionWindow | null, t: number):
       compound: stint?.compound ?? null,
       tyreAge: stint && stint.ageAtStart !== null && lap !== null ? stint.ageAtStart + lap - stint.lapStart : null,
       pits: r.pits.filter((p) => p.driver === d.number && p.t <= t).length,
+      startPosition: start.get(d.number) ?? null,
+      sectors,
+      sectorMark: sectors.map((s, i) => (s === null ? null : s <= sessionBest[i]! ? "session" : s <= best[i]! ? "personal" : null)),
     };
   });
   return rows.sort((a, b) => (a.position ?? 99) - (b.position ?? 99) || a.driver - b.driver);
