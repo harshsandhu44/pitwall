@@ -292,7 +292,8 @@ export interface ReplayLap {
   start: number | null;
   /** Seconds. */
   duration: number | null;
-  sectors: [number | null, number | null, number | null];
+  /** S1, S2, S3 seconds. An array, not a tuple: the live Durable Object's RPC types widen tuples. */
+  sectors: (number | null)[];
   pitOut: boolean;
 }
 
@@ -338,4 +339,18 @@ export interface PositionWindow {
   cars: Record<number, { t: number[]; x: number[]; y: number[] }>;
   /** Races and sprints only: seconds, or text such as "+1 LAP". */
   intervals: Record<number, { t: number[]; gap: (number | string | null)[]; interval: (number | string | null)[] }>;
+}
+
+/** One driver's car data over one lap (OpenF1 car_data, ~3.7 Hz). `t` is ms from the lap start; speed km/h, throttle %, brake 0/100. */
+export interface LapTelemetry {
+  driver: number;
+  lap: number;
+  /** Seconds, as in ReplayLap. */
+  duration: number;
+  sectors: [number | null, number | null, number | null];
+  t: number[];
+  speed: number[];
+  throttle: number[];
+  brake: number[];
+  gear: number[];
 }

@@ -54,14 +54,17 @@ describe("live page", () => {
           { number: 4, acronym: "NOR", name: "Lando Norris", team: "McLaren", colour: "#FF8000", driverId: "norris" },
         ],
         rows: [
-          { driver: 4, position: 1, gap: 0, interval: 0, lap: 30, lastLap: 98.1, bestLap: 97.5, compound: "MEDIUM", tyreAge: 12, pits: 1 },
-          { driver: 1, position: 2, gap: 2.345, interval: 2.345, lap: 30, lastLap: 98.4, bestLap: 97.9, compound: "HARD", tyreAge: 4, pits: 1 },
+          { driver: 4, position: 1, gap: 0, interval: 0, lap: 30, lastLap: 98.1, bestLap: 97.5, compound: "MEDIUM", tyreAge: 12, pits: 1, startPosition: null, sectors: [null, null, null], sectorMark: [null, null, null] },
+          { driver: 1, position: 2, gap: 2.345, interval: 2.345, lap: 30, lastLap: 98.4, bestLap: 97.9, compound: "HARD", tyreAge: 4, pits: 1, startPosition: null, sectors: [null, null, null], sectorMark: [null, null, null] },
         ],
         raceControl: [{ t: Date.parse("2026-10-11T12:29:00Z"), lap: 30, category: "Flag", flag: "YELLOW", driver: null, message: "YELLOW IN TRACK SECTOR 7" }],
         status: { kind: "yellow", label: "Yellow S7", sectors: [7] },
         track: { driver: 4, lap: 12, x: [0, 100, 100, 0], y: [0, 0, 100, 100] },
         weather: [{ t: Date.parse("2026-10-11T12:29:30Z"), air: 29.1, track: 41.6, humidity: 74, windSpeed: 1.2, windDirection: 180, rainfall: false }],
         positions: { from: Date.parse("2026-10-11T12:29:50Z"), to: Date.parse("2026-10-11T12:30:00Z"), cars: { 4: { t: [0, 250], x: [10, 12], y: [0, 0] } }, intervals: {} },
+        stewards: [],
+        stints: {},
+        laps: {},
       },
     };
     mockApi({ "/api/live/session": () => envelope(live, { source: "openf1" }) });

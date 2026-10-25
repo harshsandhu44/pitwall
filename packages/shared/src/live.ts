@@ -44,6 +44,11 @@ export interface LiveTimingSnapshot {
   weather: SessionReplay["weather"];
   /** Car locations over the last ~10 s, ending at the newest sample. */
   positions: PositionWindow;
+  /** Every stewards' message so far (penalties, investigations, deleted laps); see isStewards. */
+  stewards: SessionReplay["raceControl"];
+  stints: SessionReplay["stints"];
+  /** Completed laps only, per driver. */
+  laps: SessionReplay["laps"];
 }
 
 /** Older than this, live data is shown as DELAYED. */
