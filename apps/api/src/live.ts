@@ -1,5 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-import { type LiveTimingSnapshot, type PositionWindow, type SessionReplay, timingAt, trackStatus } from "@pitwall/shared";
+import { isStewards, type LiveTimingSnapshot, type PositionWindow, type SessionReplay, timingAt, trackStatus } from "@pitwall/shared";
 import * as mqtt from "./mqtt";
 import { LIVE_LOCATION_MS, LIVE_TOPICS, type LiveRows, type LiveTopic, liveStart, type SessionRow, toDrivers, toReplay, toWindow } from "./providers/openf1";
 import { openf1Token, useOpenF1Login } from "./upstream";
@@ -99,6 +99,9 @@ export class Feed {
       track: this.track,
       weather: replay.weather.slice(-1),
       positions: { ...toWindow(newest - LIVE_LOCATION_MS, this.all("v1/location"), []), to: newest },
+      stewards: replay.raceControl.filter(isStewards),
+      stints: replay.stints,
+      laps: Object.fromEntries(Object.entries(replay.laps).map(([n, laps]) => [n, laps.filter((l) => l.duration !== null)])),
     };
   }
 }

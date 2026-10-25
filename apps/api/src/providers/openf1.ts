@@ -4,7 +4,9 @@ import {
   type ConstructorStanding,
   type Driver,
   type DriverStanding,
+  type ChampionshipBase,
   type GrandPrix,
+  type LapTelemetry,
   type PositionWindow,
   type QualifyingEntry,
   type RaceWeekendResults,
@@ -373,6 +375,36 @@ export async function positionWindow(key: number, from: number, withIntervals: b
   return toWindow(from, loc, iv);
 }
 
+const CarData = z.object({ date: z.string(), speed: n, throttle: n, brake: n, n_gear: n });
+
+/** One lap's car data, times from the lap start; null when the lap has no recorded start and time yet. */
+export async function lapTelemetry(key: number, driver: number, lap: number, ua: string): Promise<LapTelemetry | null> {
+  const l = (await list("laps", `session_key=${key}&driver_number=${driver}&lap_number=${lap}`, Lap, ua))[0];
+  if (!l?.date_start || l.lap_duration == null) return null;
+  const start = Date.parse(l.date_start);
+  const end = start + l.lap_duration * 1000;
+  const rows = await list("car_data", `session_key=${key}&driver_number=${driver}&${between(start, end)}`, CarData, ua);
+  const out: LapTelemetry = {
+    driver,
+    lap,
+    duration: l.lap_duration,
+    sectors: [l.duration_sector_1 ?? null, l.duration_sector_2 ?? null, l.duration_sector_3 ?? null],
+    t: [],
+    speed: [],
+    throttle: [],
+    brake: [],
+    gear: [],
+  };
+  for (const r of rows.map((r) => ({ ...r, t: Date.parse(r.date) - start })).sort((a, b) => a.t - b.t)) {
+    out.t.push(r.t);
+    out.speed.push(r.speed ?? 0);
+    out.throttle.push(r.throttle ?? 0);
+    out.brake.push(r.brake ?? 0);
+    out.gear.push(r.n_gear ?? 0);
+  }
+  return out.t.length > 1 ? out : null;
+}
+
 // ---- Seasons from 2023: calendar, standings and results ----
 // Each unit below is cached separately and kept small: the Workers Free plan allows 10 ms of CPU per request,
 // and a whole season of OpenF1 drivers or results is ~1 MB of JSON. Season-wide queries are filtered to race
@@ -444,6 +476,21 @@ export async function championship(s: Schedule, ua: string): Promise<Championshi
     drivers: drivers.map((r) => ({ session: r.session_key, number: r.driver_number, position: r.position_current ?? null, points: r.points_current })),
     teams: teams.map((r) => ({ session: r.session_key, team: r.team_name, position: r.position_current ?? null, points: r.points_current })),
     winners: winners.map((r) => ({ session: r.session_key, number: r.driver_number })),
+  };
+}
+
+/** Championship points before `sessionKey`: from the latest race or sprint that started earlier; empty before round 1. */
+export function championshipBefore(sessionKey: number, s: Schedule, c: Championship): ChampionshipBase {
+  const start = new Map(s.sessions.map((x) => [x.key, x.start]));
+  const at = start.get(sessionKey);
+  if (at === undefined) return { drivers: [], teams: [] };
+  const last = [...new Set(c.drivers.map((r) => r.session))]
+    .filter((k) => (start.get(k) ?? "\uffff") < at)
+    .sort((a, b) => start.get(a)!.localeCompare(start.get(b)!))
+    .at(-1);
+  return {
+    drivers: c.drivers.filter((r) => r.session === last).map((r) => ({ number: r.number, points: r.points })),
+    teams: c.teams.filter((r) => r.session === last).map((r) => ({ team: r.team, points: r.points })),
   };
 }
 
