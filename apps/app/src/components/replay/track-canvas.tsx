@@ -153,8 +153,13 @@ export function TrackCanvas({
     return () => cancelAnimationFrame(raf);
   }, [track, drivers, time, getWindow, selected, follow, interpolate, resolvedTheme]);
 
+  // Zoomed in, a touch drag pans the map in every direction; at full view it scrolls the page.
+  const touchPan = () => {
+    if (canvas.current) canvas.current.style.touchAction = view.current.zoom > 1 ? "none" : "";
+  };
   const zoom = (f: number) => {
     view.current.zoom = Math.min(8, Math.max(1, view.current.zoom * f));
+    touchPan();
   };
 
   return (
@@ -163,13 +168,14 @@ export function TrackCanvas({
         ref={canvas}
         role="img"
         aria-label="Track map with car positions; the timing tower lists the same cars as text"
-        className="h-full min-h-60 w-full touch-none border bg-muted/30 font-mono"
+        className="h-full min-h-60 w-full touch-pan-y border bg-muted/30 font-mono"
         onPointerDown={(e) => {
           drag.current = { x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY };
           e.currentTarget.setPointerCapture(e.pointerId);
         }}
         onPointerMove={(e) => {
-          if (!drag.current) return;
+          // On touch, a drag at full view scrolls the page (touch-pan-y); it pans only once zoomed in.
+          if (!drag.current || (e.pointerType === "touch" && view.current.zoom === 1)) return;
           view.current.panX -= (e.clientX - drag.current.x) / scaleRef.current;
           view.current.panY += (e.clientY - drag.current.y) / scaleRef.current;
           drag.current = { ...drag.current, x: e.clientX, y: e.clientY };
@@ -194,7 +200,10 @@ export function TrackCanvas({
         <Button size="icon-sm" variant="outline" aria-label="Zoom out" onClick={() => zoom(1 / 1.5)}>
           <MinusIcon aria-hidden />
         </Button>
-        <Button size="icon-sm" variant="outline" aria-label="Reset view" onClick={() => (view.current = { zoom: 1, panX: 0, panY: 0 })}>
+        <Button size="icon-sm" variant="outline" aria-label="Reset view" onClick={() => {
+            view.current = { zoom: 1, panX: 0, panY: 0 };
+            touchPan();
+          }}>
           <ScanIcon aria-hidden />
         </Button>
       </div>

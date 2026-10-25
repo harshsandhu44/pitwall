@@ -5,6 +5,7 @@ import { CalendarDaysIcon, HistoryIcon, HouseIcon, RadioTowerIcon, TrophyIcon } 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { type ReactNode, Suspense } from "react";
+import { ErrorState } from "@/components/data/query-state";
 import { useCalendar, useNow, useSeasons } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
 import { FreshnessIndicator } from "./freshness-indicator";
@@ -43,7 +44,7 @@ function NavLinks({ variant }: { variant: "bar" | "tabs" }) {
           "flex items-center gap-1.5 font-semibold tracking-wide uppercase transition-colors outline-none focus-visible:bg-muted",
           variant === "bar"
             ? "h-14 border-b-2 border-transparent px-3 text-xs text-muted-foreground hover:text-foreground aria-[current=page]:border-live aria-[current=page]:text-foreground"
-            : "flex-1 flex-col justify-center gap-0.5 border-t-2 border-transparent py-1.5 text-[10px] text-muted-foreground aria-[current=page]:border-live aria-[current=page]:text-foreground",
+            : "flex-1 flex-col justify-center gap-0.5 border-t-2 border-transparent py-1.5 text-xs text-muted-foreground aria-[current=page]:border-live aria-[current=page]:text-foreground",
         )}
       >
         <span className="relative">
@@ -55,6 +56,17 @@ function NavLinks({ variant }: { variant: "bar" | "tabs" }) {
       </Link>
     );
   });
+}
+
+/** Every season-dependent query waits on /api/seasons; without this a failure leaves pages blank. */
+function SeasonsError() {
+  const seasons = useSeasons();
+  if (!seasons.isError) return null;
+  return (
+    <div className="mb-4">
+      <ErrorState error={seasons.error} onRetry={() => seasons.refetch()} />
+    </div>
+  );
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -86,10 +98,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
       <main id="main" className="mx-auto w-full max-w-[1600px] flex-1 p-3 sm:p-5">
+        <SeasonsError />
         {children}
       </main>
       {/* Bottom padding on phones clears the tab bar. */}
-      <footer className="mx-auto w-full max-w-[1600px] px-3 pt-2 pb-24 text-[11px] leading-relaxed text-muted-foreground sm:px-5 md:pb-6">
+      <footer className="mx-auto w-full max-w-[1600px] px-3 pt-2 pb-24 text-xs leading-relaxed text-muted-foreground sm:px-5 md:pb-6">
         Unofficial. Not associated with Formula 1 companies. Data: Jolpica F1, OpenF1, Open-Meteo (CC BY 4.0), RainViewer. Maps: OpenFreeMap, © OpenStreetMap.
         Circuit layouts: F1DB (CC BY 4.0).
       </footer>

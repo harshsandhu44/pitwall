@@ -2,15 +2,23 @@
 
 import { scheduleState } from "@pitwall/shared";
 import Link from "next/link";
+import { useRef } from "react";
 import { QueryState, SourceNote } from "@/components/data/query-state";
 import { CircuitOutline } from "@/components/racing/circuit-outline";
 import { Badge } from "@/components/ui/badge";
-import { formatDateRange } from "@/lib/format";
+import { formatDateRange, formatSessionTime } from "@/lib/format";
 import { useCalendar, useNow, useSeason } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
 
 export function CalendarView() {
   const { season } = useSeason();
+  // Late in the season the next race is a long scroll down on phones: start there, once per visit.
+  const scrolled = useRef(false);
+  const scrollToNext = (el: HTMLLIElement | null) => {
+    if (!el || scrolled.current) return;
+    scrolled.current = true;
+    if (el.getBoundingClientRect().bottom > window.innerHeight) el.scrollIntoView?.({ block: "center" });
+  };
   const calendar = useCalendar(season);
   const now = useNow();
   return (
@@ -26,7 +34,7 @@ export function CalendarView() {
                 const done = now !== null && scheduleState(raceSession, now) === "finished";
                 const isNext = race.round === nextRound;
                 return (
-                  <li key={race.round}>
+                  <li key={race.round} ref={isNext ? scrollToNext : undefined}>
                     <Link
                       href={`/race?season=${race.season}&round=${race.round}`}
                       className={cn(
@@ -47,6 +55,9 @@ export function CalendarView() {
                           {race.circuit.locality}, {race.circuit.country}
                         </p>
                         <p className="font-mono text-xs tabular-nums">{formatDateRange(race.sessions)}</p>
+                        <p className="font-mono text-xs text-muted-foreground tabular-nums">
+                          Race {now === null ? "…" : formatSessionTime(raceSession)}
+                        </p>
                       </div>
                       <CircuitOutline circuit={race.circuit} className="w-16 shrink-0 self-center" />
                     </Link>

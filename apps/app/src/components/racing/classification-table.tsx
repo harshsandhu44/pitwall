@@ -35,18 +35,18 @@ export function ClassificationTable({ entries, season, caption }: { entries: Cla
             <TableCell className="font-mono tabular-nums">{e.positionText}</TableCell>
             <TableCell>
               <ProfileLink id={e.driver.id} href={`/driver?id=${e.driver.id}&season=${season}`} className="font-medium hover:underline">{driverName(e.driver)}</ProfileLink>
-              <span className="block text-[11px] text-muted-foreground sm:hidden">{e.constructor.name}</span>
+              <span className="block text-xs text-muted-foreground sm:hidden">{e.constructor.name}</span>
             </TableCell>
             <TableCell className="hidden sm:table-cell">
               <TeamMark id={e.constructor.id} season={season} />
               <ProfileLink id={e.constructor.id} href={`/team?id=${e.constructor.id}&season=${season}`} className="hover:underline">{e.constructor.name}</ProfileLink>
             </TableCell>
-            <TableCell className="hidden text-right font-mono tabular-nums md:table-cell">{e.grid === 0 ? "PL" : e.grid ?? "—"}</TableCell>
+            <TableCell className="hidden text-right font-mono tabular-nums md:table-cell">{e.grid === 0 ? <abbr title="Started from the pit lane">PL</abbr> : e.grid ?? "—"}</TableCell>
             <TableCell className="hidden text-right font-mono tabular-nums md:table-cell">{e.laps ?? "—"}</TableCell>
             <TableCell className="font-mono text-xs tabular-nums">{e.time ?? e.status}</TableCell>
             <TableCell className="hidden text-right font-mono text-xs tabular-nums lg:table-cell">
               {e.fastestLap?.time ?? "—"}
-              {e.fastestLap?.rank === 1 && <span className="ml-1 rounded-sm bg-foreground px-1 text-background">FL</span>}
+              {e.fastestLap?.rank === 1 && <abbr title="Fastest lap of the race" className="ml-1 rounded-sm bg-foreground px-1 text-background no-underline">FL</abbr>}
             </TableCell>
             <TableCell className="text-right font-mono tabular-nums">{formatPoints(e.points)}</TableCell>
           </TableRow>
@@ -89,7 +89,10 @@ export function QualifyingTable({
             <TableCell>
               <ProfileLink id={e.driver.id} href={`/driver?id=${e.driver.id}&season=${season}`} className="font-medium hover:underline">{driverName(e.driver)}</ProfileLink>
             </TableCell>
-            <TableCell className="hidden sm:table-cell">{e.constructor.name}</TableCell>
+            <TableCell className="hidden sm:table-cell">
+              <TeamMark id={e.constructor.id} season={season} />
+              <ProfileLink id={e.constructor.id} href={`/team?id=${e.constructor.id}&season=${season}`} className="hover:underline">{e.constructor.name}</ProfileLink>
+            </TableCell>
             {[e.q1, e.q2, e.q3].map((t, i) => (
               <TableCell key={i} className="text-right font-mono text-xs tabular-nums">{t ?? "—"}</TableCell>
             ))}

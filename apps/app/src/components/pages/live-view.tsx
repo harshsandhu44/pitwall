@@ -1,8 +1,8 @@
 "use client";
 
 import type { LiveStatus, LiveTimingSnapshot } from "@pitwall/shared";
-import { SESSION_LABEL, trackStatus } from "@pitwall/shared";
-import { RadioTowerIcon } from "lucide-react";
+import { nextSession, SESSION_LABEL, trackStatus } from "@pitwall/shared";
+import { CalendarDaysIcon, HistoryIcon, RadioTowerIcon } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ErrorState, QueryState, SourceNote } from "@/components/data/query-state";
@@ -16,10 +16,12 @@ import { TimingTower } from "@/components/replay/timing-tower";
 import { TrackCanvas } from "@/components/replay/track-canvas";
 import { TrackWeather } from "@/components/replay/track-weather";
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApi } from "@/lib/api";
 import { formatSessionTime } from "@/lib/format";
+import { useCalendar, useNow, useSeasons } from "@/lib/hooks";
 
 const streaming = (s: LiveStatus | undefined) => s?.state === "LIVE" || s?.state === "DELAYED";
 const liveTitle = (s: LiveStatus) => (s.state === "LIVE" || s.state === "DELAYED" ? `${s.session.meetingName} · ${s.session.name}` : "Live");
@@ -28,12 +30,23 @@ const liveTitle = (s: LiveStatus) => (s.state === "LIVE" || s.state === "DELAYED
 export function LiveView() {
   // Every 3 s while a session streams; every 30 s otherwise, to notice when one starts.
   const status = useApi<LiveStatus>("/api/live/session", (res) => (streaming(res?.data ?? undefined) ? 3_000 : 30_000));
+  const on = streaming(status.data?.data ?? undefined);
+  // The weekend a streaming session belongs to is the calendar's in-window race (no extra requests: the header loads it).
+  const calendar = useCalendar(useSeasons().data?.data?.[0] ?? null);
+  const now = useNow();
+  const weekend = on && calendar.data?.data && now !== null ? nextSession(calendar.data.data, now)?.race : null;
   return (
     <>
       <PageHeader
         title={status.data?.data ? liveTitle(status.data.data) : "Live"}
-        description="Live timing for the session on track right now"
-      />
+        description={on ? "Live timing for the session on track right now" : "Live timing appears here while a session is on track."}
+      >
+        {weekend && (
+          <Link href={`/race?season=${weekend.season}&round=${weekend.round}`} className={buttonVariants({ variant: "outline", size: "sm" })}>
+            <CalendarDaysIcon aria-hidden /> Weekend
+          </Link>
+        )}
+      </PageHeader>
       <QueryState query={status} loading={<Skeleton className="h-64 w-full" />}>
         {(live, res) =>
           live.state === "LIVE" || live.state === "DELAYED" ? (
@@ -48,24 +61,24 @@ export function LiveView() {
                     <RadioTowerIcon aria-hidden className="size-4" />
                     {live.reason === "no_session" ? "No live session" : "Live timing unavailable"}
                   </CardTitle>
-                  <CardDescription>
-                    <Badge variant="outline" role="status">
-                      Status: unavailable
-                    </Badge>
-                  </CardDescription>
+                  {live.reason === "feed_unavailable" && (
+                    <CardDescription>
+                      <Badge variant="outline" role="status">
+                        Feed unreachable
+                      </Badge>
+                    </CardDescription>
+                  )}
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
                   <p>{live.detail}</p>
                   {live.latestReplay && (
-                    <p>
-                      Latest recorded session:{" "}
-                      <Link
-                        className="font-medium underline"
-                        href={`/replay?season=${new Date(live.latestReplay.start).getUTCFullYear()}&session=${live.latestReplay.key}`}
-                      >
-                        {live.latestReplay.meetingName} · {live.latestReplay.name}
-                      </Link>
-                    </p>
+                    <Link
+                      className={buttonVariants({ variant: "outline" })}
+                      href={`/replay?season=${new Date(live.latestReplay.start).getUTCFullYear()}&session=${live.latestReplay.key}`}
+                    >
+                      <HistoryIcon aria-hidden />
+                      Replay {live.latestReplay.meetingName} · {live.latestReplay.name}
+                    </Link>
                   )}
                 </CardContent>
               </Card>
@@ -168,6 +181,7 @@ function LiveTiming({ live }: { live: Extract<LiveStatus, { state: "LIVE" | "DEL
         {
           id: "focus",
           title: "Driver focus",
+          phoneAfter: "timing",
           layout: { x: 0, y: 15, w: 4, h: 6, minW: 3, minH: 4 },
           content: <DriverFocus rows={t.rows} drivers={drivers} selected={selected} intervals={race} />,
         },

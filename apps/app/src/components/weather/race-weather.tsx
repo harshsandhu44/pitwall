@@ -114,7 +114,7 @@ export function RaceWeather({ race, now }: { race: GrandPrix; now: number }) {
                 />
               )}
               <RadarLegend />
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Radar coverage depends on national networks; an empty map can mean no precipitation or no coverage. Data:{" "}
                 <a href="https://www.rainviewer.com/" target="_blank" rel="noreferrer" className="underline">RainViewer</a> (personal/educational use).
               </p>

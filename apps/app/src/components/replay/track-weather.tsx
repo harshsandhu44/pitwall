@@ -25,7 +25,7 @@ export function TrackWeather({ weather, t }: { weather: SessionReplay["weather"]
           </div>
         ))}
       </dl>
-      <p className="text-[11px] text-muted-foreground">Observed at the track at {fmtClock(w.t)}.</p>
+      <p className="text-xs text-muted-foreground">Observed at the track at {fmtClock(w.t)}.</p>
     </div>
   );
 }

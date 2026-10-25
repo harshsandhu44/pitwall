@@ -98,7 +98,7 @@ export function DriverComparison({
       </table>
 
       <div className="space-y-1">
-        <p className="text-[11px] text-muted-foreground">Tyre strategy (laps)</p>
+        <p className="text-xs text-muted-foreground">Tyre strategy (laps)</p>
         {[da, db].map((d) => {
           const lap = rows.find((r) => r.driver === d.number)?.lap ?? 0;
           return (
@@ -145,7 +145,7 @@ export function DriverComparison({
               <Line dataKey="b" stroke="var(--color-b)" strokeDasharray="6 3" strokeWidth={2} dot={false} isAnimationActive={false} connectNulls={false} />
             </LineChart>
           </ChartContainer>
-          <p className="text-[11px] text-muted-foreground">Laps more than 12% slower than the fastest shown (pit stops, safety car) run off the top of the chart.</p>
+          <p className="text-xs text-muted-foreground">Laps more than 12% slower than the fastest shown (pit stops, safety car) run off the top of the chart.</p>
         </div>
       )}
     </div>
