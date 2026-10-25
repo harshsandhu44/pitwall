@@ -15,7 +15,7 @@ import { PlaybackControls } from "@/components/replay/playback-controls";
 import { RaceControlFeed } from "@/components/replay/race-control-feed";
 import { SessionStatus } from "@/components/replay/session-status";
 import { TimingTower } from "@/components/replay/timing-tower";
-import { TrackCanvas } from "@/components/replay/track-canvas";
+import { battlesOf, TrackCanvas } from "@/components/replay/track-canvas";
 import { TrackWeather } from "@/components/replay/track-weather";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -239,13 +239,14 @@ function Player({ replay, res }: { replay: SessionReplay; res: ApiResponse<Sessi
                     selected={selected}
                     follow={follow && selected !== null}
                     interpolate={interpolate}
+                    battles={race ? battlesOf(rows) : undefined}
                     onSelect={(n) => setSelected((s) => (s === n ? null : n))}
                   />
                 </div>
                 {current.isError && <ErrorState error={current.error} onRetry={() => current.refetch()} />}
                 <p className="text-xs text-muted-foreground">
                   Solid dot: a recorded sample{interpolate ? ", or a straight line between two samples less than 1 s apart" : ""}. Dashed ring: no sample for over
-                  a second, shown at the last recorded spot.
+                  a second, shown at the last recorded spot. Tail: the last two seconds.{race ? " Red dashed link: under a second behind the car ahead." : ""}
                 </p>
               </div>
             ),

@@ -13,7 +13,7 @@ import { DriverFocus } from "@/components/replay/driver-focus";
 import { RaceControlFeed } from "@/components/replay/race-control-feed";
 import { SessionStatus } from "@/components/replay/session-status";
 import { TimingTower } from "@/components/replay/timing-tower";
-import { TrackCanvas } from "@/components/replay/track-canvas";
+import { battlesOf, TrackCanvas } from "@/components/replay/track-canvas";
 import { TrackWeather } from "@/components/replay/track-weather";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -227,6 +227,7 @@ function LiveTrack({ timing, selected, onSelect }: { timing: LiveTimingSnapshot;
           selected={selected}
           follow={follow && selected !== null}
           interpolate
+          battles={timing.session.type === "Race" ? battlesOf(timing.rows) : undefined}
           onSelect={onSelect}
         />
       </div>
