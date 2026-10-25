@@ -1,20 +1,25 @@
 "use client";
 
 import type { LiveStatus, LiveTimingSnapshot } from "@pitwall/shared";
-import { nextSession, SESSION_LABEL, trackStatus } from "@pitwall/shared";
+import { nextSession, penaltyLabel, pendingPenalties, SESSION_LABEL, stewardsAt, trackStatus } from "@pitwall/shared";
 import { CalendarDaysIcon, HistoryIcon, RadioTowerIcon } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ErrorState, QueryState, SourceNote } from "@/components/data/query-state";
 import { PanelGrid } from "@/components/dashboard/panel-grid";
+import { PRESETS } from "@/components/dashboard/presets";
 import { PageHeader } from "@/components/pages/page-header";
 import { RaceCountdown } from "@/components/racing/race-countdown";
+import { Championship } from "@/components/replay/championship";
+import { DriverComparison } from "@/components/replay/driver-comparison";
 import { DriverFocus } from "@/components/replay/driver-focus";
+import { Penalties } from "@/components/replay/penalties";
 import { RaceControlFeed } from "@/components/replay/race-control-feed";
 import { SessionStatus } from "@/components/replay/session-status";
-import { TimingTower } from "@/components/replay/timing-tower";
+import { TimingTower, TowerColumnsMenu } from "@/components/replay/timing-tower";
 import { battlesOf, TrackCanvas } from "@/components/replay/track-canvas";
 import { TrackWeather } from "@/components/replay/track-weather";
+import { TyreStrip } from "@/components/replay/tyre-strip";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -127,11 +132,18 @@ function LiveTiming({ live }: { live: Extract<LiveStatus, { state: "LIVE" | "DEL
   const race = t.session.type === "Race";
   const toggle = (n: number | null) => setSelected((s) => (s === n ? null : n));
   const outlineBy = t.track && drivers.get(t.track.driver);
-  // ponytail: a live DO can serve the previous API version for minutes after a deploy; fall back to the 20 messages sent.
-  const status = (t.status as LiveTimingSnapshot["status"] | undefined) ?? trackStatus(t.raceControl, Infinity);
+  // ponytail: a live DO can serve the previous API version for minutes after a deploy; fall back to what it sends.
+  const old = t as Partial<LiveTimingSnapshot>;
+  const status = old.status ?? trackStatus(t.raceControl, Infinity);
+  const stewards = stewardsAt(old.stewards ?? t.raceControl, Infinity);
+  const [laps, stints] = [old.laps ?? {}, old.stints ?? {}];
+  const penalties = new Map([...pendingPenalties(stewards)].map(([n, p]) => [n, penaltyLabel(p)!]));
+  const [pair, setPair] = useState<[number, number] | null>(null);
+  const shownPair: [number, number] = pair ?? [t.rows[0]?.driver ?? t.drivers[0]!.number, t.rows[1]?.driver ?? t.drivers[1]?.number ?? t.drivers[0]!.number];
   return (
     <PanelGrid
       id="live"
+      presets={PRESETS}
       panels={[
         {
           id: "status",
@@ -167,6 +179,7 @@ function LiveTiming({ live }: { live: Extract<LiveStatus, { state: "LIVE" | "DEL
           id: "timing",
           title: "Timing",
           layout: { x: 8, y: 3, w: 4, h: 18, minW: 3, minH: 6 },
+          menu: <TowerColumnsMenu intervals={race} />,
           content: (
             <TimingTower
               rows={t.rows}
@@ -174,6 +187,7 @@ function LiveTiming({ live }: { live: Extract<LiveStatus, { state: "LIVE" | "DEL
               selected={selected}
               onSelect={setSelected}
               intervals={race}
+              penalties={penalties}
               caption={`Live timing for ${t.session.meetingName} ${t.session.name}, from OpenF1`}
             />
           ),
@@ -194,8 +208,43 @@ function LiveTiming({ live }: { live: Extract<LiveStatus, { state: "LIVE" | "DEL
         {
           id: "weather",
           title: "Track weather",
-          layout: { x: 0, y: 21, w: 4, h: 4, minW: 3, minH: 3 },
+          layout: { x: 8, y: 21, w: 4, h: 4, minW: 3, minH: 3 },
           content: <TrackWeather weather={t.weather ?? []} t={Infinity} />,
+        },
+        {
+          id: "comparison",
+          title: "Driver comparison",
+          layout: { x: 0, y: 21, w: 8, h: 16, minW: 4, minH: 6 },
+          content: <DriverComparison sessionKey={t.session.key} drivers={t.drivers} laps={laps} rows={t.rows} t={Infinity} pair={shownPair} onPair={setPair} />,
+        },
+        {
+          id: "penalties",
+          title: "Penalties",
+          description: "Penalties, investigations, deleted laps and warnings so far.",
+          layout: { x: 8, y: 25, w: 4, h: 8, minW: 3, minH: 4 },
+          content: <Penalties items={stewards} drivers={drivers} selected={selected} onSelect={setSelected} />,
+        },
+        {
+          id: "tyres",
+          title: "Tyres",
+          description: "Stints so far in running order, with laps on the current set and the compounds used.",
+          layout: { x: 0, y: 37, w: 8, h: 10, minW: 4, minH: 5 },
+          content: <TyreStrip rows={t.rows} drivers={drivers} stints={stints} selected={selected} onSelect={setSelected} />,
+        },
+        {
+          id: "championship",
+          title: "Championship",
+          layout: { x: 8, y: 33, w: 4, h: 12, minW: 3, minH: 5 },
+          content: (
+            <Championship
+              season={new Date(t.observedAt).getUTCFullYear()}
+              sessionKey={t.session.key}
+              projected={race}
+              sprint={t.session.name === "Sprint"}
+              rows={t.rows}
+              drivers={t.drivers}
+            />
+          ),
         },
       ]}
     />

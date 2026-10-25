@@ -268,7 +268,8 @@ export function PanelGrid({ id, panels, presets = [], footer }: { id: string; pa
         )}
         </div>
       </div>
-      {footer}
+      {/* Once only: the footer may hold window shortcuts (replay keys). */}
+      {!big && footer}
       {big && (
         // Inside the root, so it stays in fullscreen too; the footer comes along so playback stays reachable.
         <div className="fixed inset-0 z-40 flex flex-col gap-3 bg-background p-3 md:p-6">
