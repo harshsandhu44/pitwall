@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ReplayView } from "@/components/pages/replay-view";
 import { PlaybackControls } from "@/components/replay/playback-controls";
 import { TimingTower } from "@/components/replay/timing-tower";
+import { battlesOf } from "@/components/replay/track-canvas";
 import { useReplayClock } from "@/lib/replay-clock";
 import { envelope, mockApi, nav, renderWithQuery } from "./utils";
 
@@ -90,5 +91,19 @@ describe("replay page", () => {
     renderWithQuery(<ReplayView />);
     expect(await screen.findByText(/start with the 2023 season/)).toBeInTheDocument();
     expect(fetch.mock.calls.map(([u]) => String(u))).not.toContainEqual(expect.stringContaining("/api/replay"));
+  });
+});
+
+describe("battles on the track map", () => {
+  const row = (driver: number, position: number | null, interval: number | string | null): TimingRow => ({
+    driver, position, gap: null, interval, lap: 10, lastLap: null, bestLap: null, compound: null, tyreAge: null, pits: 0,
+  });
+
+  it("links consecutive cars under a second apart, in running order, ignoring text intervals and unplaced cars", () => {
+    const rows = [row(4, 3, 0.4), row(1, 1, null), row(16, 2, 2.1), row(44, 4, "+1 LAP"), row(63, null, 0.2), row(81, 5, 0.9)];
+    expect(battlesOf(rows)).toEqual([
+      { ahead: 16, behind: 4, interval: 0.4 },
+      { ahead: 44, behind: 81, interval: 0.9 },
+    ]);
   });
 });
