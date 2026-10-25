@@ -58,4 +58,12 @@ describe("telemetry", () => {
     expect(sectors[0]).toBeCloseTo(0.25 / 1.2);
     expect(sectors[1]).toBeCloseTo(0.5 / 1.2);
   });
+
+  it("ends on the lap-time difference even when samples miss the line", () => {
+    const a = { ...tel([300, 300, 300, 300]), t: [100, 400, 700, 900], duration: 1.05 };
+    const b = { ...tel([300, 300, 300, 300]), t: [50, 300, 600, 850], duration: 0.95 };
+    const { rows } = alignLaps(a, b, 11);
+    expect(rows[0]!.delta).toBe(0);
+    expect(rows.at(-1)!.delta).toBeCloseTo(0.1);
+  });
 });

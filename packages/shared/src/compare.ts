@@ -61,11 +61,23 @@ function lerp(xs: number[], ys: number[], x: number) {
   return x1 === x0 ? ys[i]! : ys[i - 1]! + ((ys[i]! - ys[i - 1]!) * (x - x0)) / (x1 - x0);
 }
 
+/** Samples rarely fall on the line: pin the trace to the lap's start (0) and its timed end, holding the nearest sample. */
+function anchored(tel: LapTelemetry): LapTelemetry {
+  const end = tel.duration * 1000;
+  const keys = ["speed", "throttle", "brake", "gear"] as const;
+  const out = { ...tel, t: [0, ...tel.t.filter((t) => t > 0 && t < end), end] };
+  const inside = tel.t.map((t, i) => [t, i] as const).filter(([t]) => t > 0 && t < end).map(([, i]) => i);
+  const [first, last] = [inside[0] ?? 0, inside.at(-1) ?? tel.t.length - 1];
+  for (const k of keys) out[k] = [tel[k][first]!, ...inside.map((i) => tel[k][i]!), tel[k][last]!];
+  return out;
+}
+
 /**
  * Two laps on one distance grid of `n` points: both drivers' traces, and `delta`, seconds A is behind B
  * at that point. `sectors` are A's sector ends as lap fractions, for reference lines.
  */
-export function alignLaps(a: LapTelemetry, b: LapTelemetry, n = 300) {
+export function alignLaps(rawA: LapTelemetry, rawB: LapTelemetry, n = 300) {
+  const [a, b] = [anchored(rawA), anchored(rawB)];
   const [da, db] = [lapDistance(a), lapDistance(b)];
   const rows = Array.from({ length: n }, (_, k) => {
     const d = k / (n - 1);
