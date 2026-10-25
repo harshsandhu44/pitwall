@@ -39,6 +39,9 @@ const Round = z.coerce.number().int().min(1).max(40);
 const Id = z.string().regex(/^[a-z0-9_]{1,64}$/);
 const Championship = z.enum(["drivers", "constructors"]);
 const Timestamp = z.coerce.number().int().min(0);
+const CarNumber = z.coerce.number().int().min(1).max(99);
+const LapNumber = z.coerce.number().int().min(1).max(200);
+const SessionKey = z.coerce.number().int().min(1).max(9_999_999);
 
 class BadRequest extends Error {}
 
@@ -432,6 +435,31 @@ const routes: [RegExp, Handler][] = [
       // Recorded data never changes: cache for a long time, but only in the Cache API (too bulky for D1).
       return cached(env, ctx, { key: `replay/${key}/window/${from}`, source: "openf1", ttl: 30 * DAY, persist: false }, () =>
         openf1.positionWindow(key, from, r.session.type === "Race", env.USER_AGENT),
+      );
+    },
+  ],
+  [
+    /^\/api\/replay\/(\d{1,7})\/telemetry$/,
+    ({ url, env, ctx, match }) => {
+      const key = Number(match[1]);
+      const driver = param(CarNumber, url.searchParams.get("driver"), "driver");
+      const lap = param(LapNumber, url.searchParams.get("lap"), "lap");
+      // A finished lap's car data never changes; an unfinished one is not_found and isn't cached.
+      return cached(env, ctx, { key: `replay/${key}/telemetry/${driver}/${lap}`, source: "openf1", ttl: 30 * DAY, persist: false }, async () => {
+        const tel = await openf1.lapTelemetry(key, driver, lap, env.USER_AGENT);
+        if (!tel) throw new UpstreamError("openf1", "not_found", `no car data for car ${driver} lap ${lap} of session ${key}`);
+        return tel;
+      });
+    },
+  ],
+  [
+    /^\/api\/championship\/before$/,
+    ({ url, env, ctx }) => {
+      const season = param(Season, url.searchParams.get("season"), "season");
+      const session = param(SessionKey, url.searchParams.get("session"), "session");
+      if (!isOpenF1(season)) throw new BadRequest(`championship points per session start with ${openf1.FIRST_SEASON}`);
+      return cached(env, ctx, { key: `championship/before/${season}/${session}`, source: "openf1", ttl: seasonTtl(season, OPENF1_FRESH) }, async () =>
+        openf1.championshipBefore(session, must(await schedule(env, ctx, season)), must(await championship(env, ctx, season))),
       );
     },
   ],
