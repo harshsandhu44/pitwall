@@ -14,6 +14,7 @@
   --color-raised: var(--raised);
   --color-gain: var(--gain);
   --color-loss: var(--loss);
+  --color-purple: var(--purple);
   --animate-live-pulse: live-pulse 1.6s ease-in-out infinite;
   --animate-slide-in: slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   --color-chart-5: var(--chart-5);
@@ -71,6 +72,8 @@
   --raised: #f5f6f8;
   --gain: #0b7a40;
   --loss: #d1242a;
+  /* Timing purple: the session's fastest sector. */
+  --purple: #8a2be2;
   --chart-1: #d1242a;
   --chart-2: #2f74c0;
   --chart-3: #12151a;
@@ -104,6 +107,7 @@
   --raised: #1c2027;
   --gain: #3ccf7f;
   --loss: #f0484b;
+  --purple: #c084fc;
   --chart-1: #f0484b;
   --chart-2: #5aa9e6;
   --chart-3: #e8eaed;
@@ -213,10 +217,51 @@
 }
 .react-grid-item > .react-resizable-handle {
   z-index: 1;
-  opacity: 0.6;
+  opacity: 1;
 }
 .react-grid-item > .react-resizable-handle::after {
   border-color: var(--muted-foreground);
+}
+.react-grid-item > .react-resizable-handle-se::after {
+  right: 4px;
+  bottom: 4px;
+  width: 8px;
+  height: 8px;
+}
+.react-grid-item > .react-resizable-handle:hover::after,
+.react-grid-item.resizing > .react-resizable-handle::after {
+  border-color: var(--live);
+}
+/* Edge handles: a full-length strip that shows a red line on hover. */
+.react-grid-item > .react-resizable-handle.react-resizable-handle-e {
+  top: 0;
+  right: -5px;
+  width: 10px;
+  height: 100%;
+  margin-top: 0;
+  transform: none;
+}
+.react-grid-item > .react-resizable-handle.react-resizable-handle-s {
+  bottom: -5px;
+  left: 0;
+  width: 100%;
+  height: 10px;
+  margin-left: 0;
+  transform: none;
+}
+.react-grid-item > .react-resizable-handle-e::after,
+.react-grid-item > .react-resizable-handle-s::after {
+  inset: 4px 0;
+  width: auto;
+  height: auto;
+  border: 0;
+}
+.react-grid-item > .react-resizable-handle-e::after {
+  inset: 0 4px;
+}
+.react-grid-item > .react-resizable-handle-e:hover::after,
+.react-grid-item > .react-resizable-handle-s:hover::after {
+  background: var(--live);
 }
 
 @keyframes live-pulse {
