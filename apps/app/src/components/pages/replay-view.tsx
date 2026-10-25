@@ -1,6 +1,18 @@
 "use client";
 
-import { type ApiResponse, type PositionWindow, type ReplaySession, type SessionReplay, timingAt, trackStatus, WINDOW_MS, windowStart } from "@pitwall/shared";
+import {
+  type ApiResponse,
+  penaltyLabel,
+  pendingPenalties,
+  type PositionWindow,
+  type ReplaySession,
+  type SessionReplay,
+  stewardsAt,
+  timingAt,
+  trackStatus,
+  WINDOW_MS,
+  windowStart,
+} from "@pitwall/shared";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -8,15 +20,19 @@ import { CalendarDaysIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { EmptyState, ErrorState, QueryState, SourceNote } from "@/components/data/query-state";
 import { PanelGrid } from "@/components/dashboard/panel-grid";
+import { PRESETS } from "@/components/dashboard/presets";
 import { PageHeader } from "@/components/pages/page-header";
 import { DriverComparison } from "@/components/replay/driver-comparison";
 import { DriverFocus } from "@/components/replay/driver-focus";
-import { PlaybackControls } from "@/components/replay/playback-controls";
+import { Championship } from "@/components/replay/championship";
+import { Penalties } from "@/components/replay/penalties";
+import { PlaybackControls, replayMarkers } from "@/components/replay/playback-controls";
 import { RaceControlFeed } from "@/components/replay/race-control-feed";
 import { SessionStatus } from "@/components/replay/session-status";
-import { TimingTower } from "@/components/replay/timing-tower";
+import { TimingTower, TowerColumnsMenu } from "@/components/replay/timing-tower";
 import { battlesOf, TrackCanvas } from "@/components/replay/track-canvas";
 import { TrackWeather } from "@/components/replay/track-weather";
+import { TyreStrip } from "@/components/replay/tyre-strip";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -198,6 +214,9 @@ function Player({ replay, res }: { replay: SessionReplay; res: ApiResponse<Sessi
   const shownPair: [number, number] = pair ?? [rows[0]?.driver ?? replay.drivers[0]!.number, rows[1]?.driver ?? replay.drivers[1]?.number ?? replay.drivers[0]!.number];
   const drivers = new Map(replay.drivers.map((d) => [d.number, d]));
   const race = replay.session.type === "Race";
+  const stewards = stewardsAt(replay.raceControl, t);
+  const penalties = new Map([...pendingPenalties(stewards)].map(([n, p]) => [n, penaltyLabel(p)!]));
+  const markers = replayMarkers(replay);
 
   return (
     <div className="space-y-4">
@@ -256,13 +275,16 @@ function Player({ replay, res }: { replay: SessionReplay; res: ApiResponse<Sessi
             title: "Timing",
             description: race ? "Gaps update about every 4 s in the recording." : "Gaps are only recorded for races and sprints.",
             layout: { x: 8, y: 3, w: 4, h: 19, minW: 3, minH: 6 },
-            content: <TimingTower rows={rows} drivers={drivers} selected={selected} onSelect={setSelected} intervals={race} />,
+            menu: <TowerColumnsMenu intervals={race} />,
+            content: <TimingTower rows={rows} drivers={drivers} selected={selected} onSelect={setSelected} intervals={race} penalties={penalties} />,
           },
           {
             id: "comparison",
             title: "Driver comparison",
-            layout: { x: 0, y: 18, w: 8, h: 10, minW: 4, minH: 5 },
-            content: <DriverComparison replay={replay} rows={rows} t={t} pair={shownPair} onPair={setPair} />,
+            layout: { x: 0, y: 18, w: 8, h: 16, minW: 4, minH: 6 },
+            content: (
+              <DriverComparison sessionKey={key} drivers={replay.drivers} laps={replay.laps} rows={rows} t={t} pair={shownPair} onPair={setPair} />
+            ),
           },
           {
             id: "focus",
@@ -272,33 +294,73 @@ function Player({ replay, res }: { replay: SessionReplay; res: ApiResponse<Sessi
             content: <DriverFocus rows={rows} drivers={drivers} selected={selected} intervals={race} />,
           },
           {
+            id: "penalties",
+            title: "Penalties",
+            description: "Penalties, investigations, deleted laps and warnings published so far.",
+            layout: { x: 8, y: 28, w: 4, h: 8, minW: 3, minH: 4 },
+            content: <Penalties items={stewards} drivers={drivers} selected={selected} onSelect={setSelected} />,
+          },
+          {
+            id: "tyres",
+            title: "Tyres",
+            description: "Stints so far in running order, with laps on the current set and the compounds used.",
+            layout: { x: 0, y: 34, w: 8, h: 10, minW: 4, minH: 5 },
+            content: <TyreStrip rows={rows} drivers={drivers} stints={replay.stints} selected={selected} onSelect={setSelected} />,
+          },
+          {
+            id: "championship",
+            title: "Championship",
+            layout: { x: 8, y: 36, w: 4, h: 12, minW: 3, minH: 5 },
+            content: (
+              <Championship
+                season={new Date(replay.session.start).getUTCFullYear()}
+                sessionKey={key}
+                projected={race}
+                sprint={replay.session.name === "Sprint"}
+                rows={rows}
+                drivers={replay.drivers}
+              />
+            ),
+          },
+          {
             id: "race-control",
             title: "Race control",
-            layout: { x: 0, y: 28, w: 8, h: 6, minW: 3, minH: 3 },
+            layout: { x: 0, y: 44, w: 8, h: 6, minW: 3, minH: 3 },
             content: <RaceControlFeed messages={replay.raceControl} t={t} limit={20} />,
           },
           {
             id: "weather",
             title: "Track weather",
-            layout: { x: 8, y: 28, w: 4, h: 5, minW: 3, minH: 3 },
+            layout: { x: 8, y: 48, w: 4, h: 5, minW: 3, minH: 3 },
             content: <TrackWeather weather={replay.weather} t={t} />,
           },
         ]}
+        presets={PRESETS}
+        footer={
+          // Outside the panels: hiding or scrolling past the Track panel never loses playback. Sits above the phone tab bar.
+          <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 space-y-2 border bg-background/95 p-3 backdrop-blur md:bottom-0">
+            <PlaybackControls
+              state={clock.state}
+              range={replay.range}
+              onPlay={clock.play}
+              onPause={clock.pause}
+              onSeek={clock.seek}
+              onSpeed={clock.setSpeed}
+              markers={markers}
+            />
+            <div className="flex flex-wrap gap-4 text-xs">
+              <label className="inline-flex min-h-8 items-center gap-1.5">
+                <input type="checkbox" checked={interpolate} onChange={(e) => setInterpolate(e.target.checked)} className="accent-primary" />
+                Interpolate between samples
+              </label>
+              <label className="inline-flex min-h-8 items-center gap-1.5">
+                <input type="checkbox" checked={follow} disabled={selected === null} onChange={(e) => setFollow(e.target.checked)} className="accent-primary" />
+                Follow selected driver
+              </label>
+            </div>
+          </div>
+        }
       />
-      {/* Outside the grid: hiding or scrolling past the Track panel never loses playback. Sits above the phone tab bar. */}
-      <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 space-y-2 border bg-background/95 p-3 backdrop-blur md:bottom-0">
-        <PlaybackControls state={clock.state} range={replay.range} onPlay={clock.play} onPause={clock.pause} onSeek={clock.seek} onSpeed={clock.setSpeed} />
-        <div className="flex flex-wrap gap-4 text-xs">
-          <label className="inline-flex min-h-8 items-center gap-1.5">
-            <input type="checkbox" checked={interpolate} onChange={(e) => setInterpolate(e.target.checked)} className="accent-primary" />
-            Interpolate between samples
-          </label>
-          <label className="inline-flex min-h-8 items-center gap-1.5">
-            <input type="checkbox" checked={follow} disabled={selected === null} onChange={(e) => setFollow(e.target.checked)} className="accent-primary" />
-            Follow selected driver
-          </label>
-        </div>
-      </div>
       <SourceNote res={res} />
     </div>
   );

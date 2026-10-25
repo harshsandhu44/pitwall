@@ -83,6 +83,10 @@ describe("live page", () => {
       "Driver focus",
       "Race control",
       "Track weather",
+      "Driver comparison",
+      "Penalties",
+      "Tyres",
+      "Championship",
     ]);
     expect(screen.getByText("Yellow S7")).toBeInTheDocument();
     expect(screen.getByText("Select a driver in Timing or on the track map.")).toBeInTheDocument();

@@ -3,19 +3,20 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ReplayView } from "@/components/pages/replay-view";
-import { PlaybackControls } from "@/components/replay/playback-controls";
-import { TimingTower } from "@/components/replay/timing-tower";
+import { type Marker, PlaybackControls } from "@/components/replay/playback-controls";
+import { TimingTower, TowerColumnsMenu } from "@/components/replay/timing-tower";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { battlesOf } from "@/components/replay/track-canvas";
 import { useReplayClock } from "@/lib/replay-clock";
 import { envelope, mockApi, nav, renderWithQuery } from "./utils";
 
 const range = { start: Date.parse("2024-05-26T13:00:00Z"), end: Date.parse("2024-05-26T15:00:00Z") };
 
-function Player({ ready = () => true }: { ready?: (t: number) => boolean }) {
+function Player({ ready = () => true, markers }: { ready?: (t: number) => boolean; markers?: Marker[] }) {
   const c = useReplayClock(range, ready);
   return (
     <>
-      <PlaybackControls state={c.state} range={range} onPlay={c.play} onPause={c.pause} onSeek={c.seek} onSpeed={c.setSpeed} />
+      <PlaybackControls state={c.state} range={range} onPlay={c.play} onPause={c.pause} onSeek={c.seek} onSpeed={c.setSpeed} markers={markers} />
       <output>{`${c.state.t - range.start}|${c.state.speed}`}</output>
     </>
   );
@@ -34,6 +35,34 @@ describe("replay playback", () => {
     fireEvent.change(screen.getByRole("slider", { name: "Replay position" }), { target: { value: String(range.start + 3_600_000) } });
     expect(screen.getByRole("status")).toHaveTextContent(/^3600000\|/);
     expect(screen.getByRole("slider", { name: "Replay position" })).toHaveAttribute("aria-valuetext", expect.stringContaining("1:00:00 into the session"));
+  });
+
+  it("takes keyboard shortcuts, but not while typing", async () => {
+    render(
+      <>
+        <Player />
+        <input aria-label="Notes" />
+      </>,
+    );
+    await userEvent.keyboard("{ArrowRight}{ArrowRight}{Shift>}{ArrowRight}{/Shift}]]");
+    expect(screen.getByRole("status")).toHaveTextContent(/^80000\|5$/);
+    await userEvent.keyboard("{ArrowLeft}[[");
+    expect(screen.getByRole("status")).toHaveTextContent(/^70000\|2$/);
+    await userEvent.keyboard(" ");
+    expect(screen.getByRole("button", { name: "Pause replay" })).toBeInTheDocument();
+    await userEvent.keyboard(" ");
+    expect(screen.getByRole("button", { name: "Play replay" })).toBeInTheDocument();
+    const t = screen.getByRole("status").textContent;
+    await userEvent.click(screen.getByRole("textbox", { name: "Notes" }));
+    await userEvent.keyboard(" ]");
+    expect(screen.getByRole("status")).toHaveTextContent(t!);
+    expect(screen.getByRole("button", { name: "Play replay" })).toBeInTheDocument();
+  });
+
+  it("jumps to an event marker", async () => {
+    render(<Player markers={[{ t: range.start + 1_800_000, kind: "sc", label: "Safety car, lap 23" }]} />);
+    await userEvent.click(screen.getByRole("button", { name: "Jump to Safety car, lap 23" }));
+    expect(screen.getByRole("status")).toHaveTextContent(/^1800000\|/);
   });
 
   it("advances by wall time × speed and holds while positions are loading", async () => {
@@ -64,6 +93,31 @@ describe("timing tower", () => {
     { driver: 16, position: 1, gap: 0, interval: 0, lap: 35, lastLap: 79.319, bestLap: 78.5, compound: "HARD", tyreAge: 34, pits: 1, startPosition: null, sectors: [null, null, null], sectorMark: [null, null, null] },
     { driver: 81, position: 2, gap: "+1 LAP", interval: 1.309, lap: 35, lastLap: null, bestLap: null, compound: null, tyreAge: null, pits: 0, startPosition: null, sectors: [null, null, null], sectorMark: [null, null, null] },
   ];
+
+  it("hides and shows columns from its menu", async () => {
+    render(
+      <>
+        <DropdownMenu>
+          <DropdownMenuTrigger>Timing options</DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <TowerColumnsMenu intervals />
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <TimingTower rows={rows} drivers={drivers} selected={null} onSelect={() => {}} intervals />
+      </>,
+    );
+    expect(screen.getByRole("columnheader", { name: "Gap" })).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "S1" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Timing options" }));
+    await userEvent.click(await screen.findByRole("menuitemcheckbox", { name: "Gap to leader" }));
+    await userEvent.click(await screen.findByRole("menuitemcheckbox", { name: "Last-lap sectors" }));
+    expect(screen.queryByRole("columnheader", { name: "Gap" })).not.toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "S1" })).toBeInTheDocument();
+    // Back to the defaults for the other tests in this file.
+    await userEvent.click(await screen.findByRole("menuitemcheckbox", { name: "Gap to leader" }));
+    await userEvent.click(await screen.findByRole("menuitemcheckbox", { name: "Last-lap sectors" }));
+    expect(screen.getByRole("columnheader", { name: "Gap" })).toBeInTheDocument();
+  });
 
   it("shows recorded values and leaves unknown ones as dashes", async () => {
     const onSelect = vi.fn();
