@@ -33,7 +33,7 @@ import { cn } from "@/lib/utils";
 
 // Mirrors the hero's size so nothing below it jumps when the calendar arrives.
 function HeroSkeleton() {
-  return <Skeleton className="h-[640px] w-full sm:h-[340px]" aria-busy="true" aria-label="Loading" />;
+  return <Skeleton className="h-[772px] w-full sm:h-[451px]" aria-busy="true" aria-label="Loading" />;
 }
 
 /** Shown in the hero while a session streams: the session and the top three, linking to the live page. */
@@ -99,7 +99,7 @@ function Hero({ next }: { next: NextSession }) {
         <CircuitScene
           circuit={race.circuit}
           start={race.sessions.find((s) => s.kind === "RACE")?.start ?? null}
-          className="aspect-[16/9] w-full sm:aspect-auto sm:h-full sm:min-h-52 sm:w-72 lg:w-[28rem]"
+          className="aspect-[4/3] w-full sm:aspect-auto sm:h-full sm:min-h-72 sm:w-96 lg:min-h-80 lg:w-[36rem]"
         />
       </div>
       <ol className="grid grid-cols-2 border-t sm:grid-cols-[repeat(auto-fit,minmax(0,1fr))]" aria-label="Sessions">

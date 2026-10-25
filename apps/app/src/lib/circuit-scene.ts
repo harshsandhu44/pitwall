@@ -94,10 +94,13 @@ export function createCircuitScene(host: HTMLElement, pts: Pt[], sky: Sky, still
     const h = host.clientHeight || 1;
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
-    const fov = THREE.MathUtils.degToRad(camera.fov) / 2;
-    // The lap seen at TILT is foreshortened top to bottom, so it fits closer than its radius suggests.
-    const dist = (radius * 0.9) / Math.tan(Math.min(fov, Math.atan(Math.tan(fov) * camera.aspect)));
-    camera.userData.dist = dist;
+    const v = THREE.MathUtils.degToRad(camera.fov) / 2;
+    const across = Math.atan(Math.tan(v) * camera.aspect);
+    const t = THREE.MathUtils.degToRad(TILT);
+    // The closest the camera can be with the lap's bounding circle (plus the road) in frame at any orbit
+    // angle: top to bottom the circle's near edge sets it, across its sides do.
+    const r = radius + HALF + KERB_W;
+    camera.userData.dist = Math.max(r / (Math.cos(t) - Math.sin(t) / Math.tan(t + v)), r / Math.sin(across));
     camera.updateProjectionMatrix();
   };
   let angle = -Math.PI / 2;
