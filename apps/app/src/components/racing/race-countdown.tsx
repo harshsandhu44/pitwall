@@ -22,7 +22,7 @@ export function RaceCountdown({ next, className = "text-3xl" }: { next: NextSess
     <div>
       <p className="text-xs text-muted-foreground">{label} starts in</p>
       <p
-        className={`font-mono font-semibold tracking-tight tabular-nums ${className}`}
+        className={`font-mono font-semibold tracking-tight text-live tabular-nums ${className}`}
         // Announce once per minute at most, not every second.
         aria-label={`${label} starts in ${formatCountdown(ms - (ms % 60_000))}`}
       >

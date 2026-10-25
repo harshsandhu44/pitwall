@@ -74,7 +74,7 @@ export function ConstructorStandingsTable({
           const change = changes.get(e.constructor.id);
           return (
             <TableRow key={e.constructor.id} data-rise>
-              <TableCell className="font-mono tabular-nums">
+              <TableCell className={`font-mono tabular-nums ${e.position === 1 ? "font-bold text-live" : ""}`}>
                 <span className="inline-flex w-full items-center justify-between gap-1">
                   {e.positionText}
                   {change && <PositionChange {...change} />}
@@ -82,7 +82,7 @@ export function ConstructorStandingsTable({
               </TableCell>
               <TableCell>
                 <TeamMark id={e.constructor.id} season={standings.season} />
-                <Link href={`/team?id=${e.constructor.id}&season=${standings.season}`} className="font-medium hover:underline">
+                <Link href={`/team?id=${e.constructor.id}&season=${standings.season}`} className="font-medium hover:text-live hover:underline">
                   {e.constructor.name}
                 </Link>
               </TableCell>
@@ -91,7 +91,7 @@ export function ConstructorStandingsTable({
                   {(drivers.get(e.constructor.id) ?? []).map((d, i) => (
                     <span key={d.id}>
                       {i > 0 && ", "}
-                      <Link href={`/driver?id=${d.id}&season=${standings.season}`} className="hover:text-foreground hover:underline">{d.name}</Link>
+                      <Link href={`/driver?id=${d.id}&season=${standings.season}`} className="hover:text-live hover:underline">{d.name}</Link>
                     </span>
                   ))}
                 </TableCell>

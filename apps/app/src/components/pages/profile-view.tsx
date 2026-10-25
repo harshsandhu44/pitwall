@@ -34,10 +34,10 @@ function CareerTable({ career, seasonsTotal, kind, id }: { career: CareerSeason[
             <TableRow key={c.season}>
               <TableCell>
                 {/* The season's races on this profile; the position goes to that season's standings. */}
-                <Link href={`/${page}?id=${id}&season=${c.season}`} className="font-mono tabular-nums hover:underline">{c.season}</Link>
+                <Link href={`/${page}?id=${id}&season=${c.season}`} className="font-mono tabular-nums hover:text-live hover:underline">{c.season}</Link>
               </TableCell>
               <TableCell className="font-mono tabular-nums">
-                <Link href={`/standings?season=${c.season}`} className="hover:underline" aria-label={`P${c.positionText} in the ${c.season} standings`}>{c.positionText}</Link>
+                <Link href={`/standings?season=${c.season}`} className="hover:text-live hover:underline" aria-label={`P${c.positionText} in the ${c.season} standings`}>{c.positionText}</Link>
               </TableCell>
               <TableCell className="text-right font-mono tabular-nums">{formatPoints(c.points)}</TableCell>
               <TableCell className="text-right font-mono tabular-nums">{c.wins}</TableCell>
@@ -46,7 +46,7 @@ function CareerTable({ career, seasonsTotal, kind, id }: { career: CareerSeason[
                   {c.constructors.map((t, i) => (
                     <span key={t.id}>
                       {i > 0 && " / "}
-                      <Link href={`/team?id=${t.id}&season=${c.season}`} className="hover:underline">{t.name}</Link>
+                      <Link href={`/team?id=${t.id}&season=${c.season}`} className="hover:text-live hover:underline">{t.name}</Link>
                     </span>
                   ))}
                 </TableCell>
@@ -93,11 +93,11 @@ function SeasonRaces({ season, kind, id }: { season: number; kind: "drivers" | "
                 <TableRow key={`${race.round}-${e.driver.id}`}>
                   <TableCell className="font-mono tabular-nums">{race.round}</TableCell>
                   <TableCell>
-                    <Link href={`/race?season=${season}&round=${race.round}`} className="hover:underline">{race.name}</Link>
+                    <Link href={`/race?season=${season}&round=${race.round}`} className="hover:text-live hover:underline">{race.name}</Link>
                   </TableCell>
                   {kind === "teams" && (
                     <TableCell>
-                      {e.driver.id ? <Link href={`/driver?id=${e.driver.id}&season=${season}`} className="hover:underline">{e.driver.familyName}</Link> : e.driver.familyName}
+                      {e.driver.id ? <Link href={`/driver?id=${e.driver.id}&season=${season}`} className="hover:text-live hover:underline">{e.driver.familyName}</Link> : e.driver.familyName}
                     </TableCell>
                   )}
                   <TableCell className="hidden text-right font-mono tabular-nums sm:table-cell">{e.grid === 0 ? <abbr title="Started from the pit lane">PL</abbr> : e.grid ?? "—"}</TableCell>

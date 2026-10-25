@@ -90,13 +90,13 @@ export function TimingTower({
           const sel = r.driver === selected;
           return (
             <TableRow key={r.driver} data-driver={r.driver} data-state={sel ? "selected" : undefined}>
-              <TableCell className="font-mono tabular-nums">{r.position ?? "—"}</TableCell>
+              <TableCell className={`font-mono tabular-nums ${r.position === 1 ? "font-bold text-live" : ""}`}>{r.position ?? "—"}</TableCell>
               <TableCell>
                 <button
                   type="button"
                   aria-pressed={sel}
                   onClick={() => onSelect(sel ? null : r.driver)}
-                  className="inline-flex items-center gap-1.5 hover:underline"
+                  className="inline-flex items-center gap-1.5 hover:text-live hover:underline"
                 >
                   <span aria-hidden className="h-3 w-1 rounded-full bg-muted-foreground/40" style={d?.colour ? { backgroundColor: d.colour } : undefined} />
                   <span className="font-mono font-medium">{d?.acronym ?? r.driver}</span>

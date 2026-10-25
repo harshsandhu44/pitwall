@@ -44,7 +44,7 @@ export function SeasonResultsMatrix({ results, order }: { results: SeasonResults
           {rows.map(([id, row]) => (
             <tr key={id} className="border-t">
               <th scope="row" className="sticky left-0 z-10 bg-background px-2 py-1 text-left font-normal whitespace-nowrap">
-                <Link href={`/driver?id=${id}&season=${results.season}`} className="hover:underline">
+                <Link href={`/driver?id=${id}&season=${results.season}`} className="hover:text-live hover:underline">
                   {row.code ?? row.name}
                 </Link>
               </th>

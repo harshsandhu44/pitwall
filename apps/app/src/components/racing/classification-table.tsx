@@ -32,14 +32,14 @@ export function ClassificationTable({ entries, season, caption }: { entries: Cla
       <TableBody>
         {entries.map((e) => (
           <TableRow key={rowKey(e)}>
-            <TableCell className="font-mono tabular-nums">{e.positionText}</TableCell>
+            <TableCell className={`font-mono tabular-nums ${e.positionText === "1" ? "font-bold text-live" : ""}`}>{e.positionText}</TableCell>
             <TableCell>
-              <ProfileLink id={e.driver.id} href={`/driver?id=${e.driver.id}&season=${season}`} className="font-medium hover:underline">{driverName(e.driver)}</ProfileLink>
+              <ProfileLink id={e.driver.id} href={`/driver?id=${e.driver.id}&season=${season}`} className="font-medium hover:text-live hover:underline">{driverName(e.driver)}</ProfileLink>
               <span className="block text-xs text-muted-foreground sm:hidden">{e.constructor.name}</span>
             </TableCell>
             <TableCell className="hidden sm:table-cell">
               <TeamMark id={e.constructor.id} season={season} />
-              <ProfileLink id={e.constructor.id} href={`/team?id=${e.constructor.id}&season=${season}`} className="hover:underline">{e.constructor.name}</ProfileLink>
+              <ProfileLink id={e.constructor.id} href={`/team?id=${e.constructor.id}&season=${season}`} className="hover:text-live hover:underline">{e.constructor.name}</ProfileLink>
             </TableCell>
             <TableCell className="hidden text-right font-mono tabular-nums md:table-cell">{e.grid === 0 ? <abbr title="Started from the pit lane">PL</abbr> : e.grid ?? "—"}</TableCell>
             <TableCell className="hidden text-right font-mono tabular-nums md:table-cell">{e.laps ?? "—"}</TableCell>
@@ -85,13 +85,13 @@ export function QualifyingTable({
       <TableBody>
         {entries.map((e) => (
           <TableRow key={rowKey(e)}>
-            <TableCell className="font-mono tabular-nums">{e.position ?? "—"}</TableCell>
+            <TableCell className={`font-mono tabular-nums ${e.position === 1 ? "font-bold text-live" : ""}`}>{e.position ?? "—"}</TableCell>
             <TableCell>
-              <ProfileLink id={e.driver.id} href={`/driver?id=${e.driver.id}&season=${season}`} className="font-medium hover:underline">{driverName(e.driver)}</ProfileLink>
+              <ProfileLink id={e.driver.id} href={`/driver?id=${e.driver.id}&season=${season}`} className="font-medium hover:text-live hover:underline">{driverName(e.driver)}</ProfileLink>
             </TableCell>
             <TableCell className="hidden sm:table-cell">
               <TeamMark id={e.constructor.id} season={season} />
-              <ProfileLink id={e.constructor.id} href={`/team?id=${e.constructor.id}&season=${season}`} className="hover:underline">{e.constructor.name}</ProfileLink>
+              <ProfileLink id={e.constructor.id} href={`/team?id=${e.constructor.id}&season=${season}`} className="hover:text-live hover:underline">{e.constructor.name}</ProfileLink>
             </TableCell>
             {[e.q1, e.q2, e.q3].map((t, i) => (
               <TableCell key={i} className="text-right font-mono text-xs tabular-nums">{t ?? "—"}</TableCell>

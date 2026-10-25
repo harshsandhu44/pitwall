@@ -83,7 +83,7 @@ function Hero({ next }: { next: NextSession }) {
               Round {race.round} · {race.circuit.locality}, {race.circuit.country} · {formatDateRange(race.sessions)}
             </p>
             <h2 className="overflow-hidden pb-1 font-display-italic text-3xl leading-[1.1] font-black tracking-tight text-balance uppercase sm:text-5xl">
-              <Link data-title href={`/race?season=${race.season}&round=${race.round}`} className="block hover:underline">
+              <Link data-title href={`/race?season=${race.season}&round=${race.round}`} className="block hover:text-live hover:underline">
                 {race.name}
               </Link>
             </h2>
@@ -158,7 +158,7 @@ export function HomeView() {
           <CardTitle>{nextRace ? nextRace.circuit.locality : "—"}</CardTitle>
           {nextRace && (
             <CardAction>
-              <Link href={`/race?season=${nextRace.season}&round=${nextRace.round}&tab=weather`} className="text-xs hover:underline">Weather detail</Link>
+              <Link href={`/race?season=${nextRace.season}&round=${nextRace.round}&tab=weather`} className="text-xs hover:text-live hover:underline">Weather detail</Link>
             </CardAction>
           )}
         </CardHeader>
@@ -192,9 +192,9 @@ export function HomeView() {
                     <ol className="space-y-1.5" aria-label="Podium">
                       {r.results.slice(0, 3).map((e) => (
                         <li key={e.driver.id} className="flex items-baseline gap-2 text-sm">
-                          <span className="w-5 font-mono text-muted-foreground tabular-nums">P{e.positionText}</span>
+                          <span className={`w-5 font-mono tabular-nums ${e.positionText === "1" ? "font-bold text-live" : "text-muted-foreground"}`}>P{e.positionText}</span>
                           {e.driver.id ? (
-                            <Link href={`/driver?id=${e.driver.id}&season=${r.race.season}`} className="flex-1 font-medium hover:underline">
+                            <Link href={`/driver?id=${e.driver.id}&season=${r.race.season}`} className="flex-1 font-medium hover:text-live hover:underline">
                               {driverName(e.driver)}
                             </Link>
                           ) : (
@@ -210,7 +210,7 @@ export function HomeView() {
                         <p className="text-xs text-muted-foreground">
                           Fastest lap:{" "}
                           {fl.driver.id ? (
-                            <Link href={`/driver?id=${fl.driver.id}&season=${r.race.season}`} className="text-foreground hover:underline">
+                            <Link href={`/driver?id=${fl.driver.id}&season=${r.race.season}`} className="text-foreground hover:text-live hover:underline">
                               {driverName(fl.driver)}
                             </Link>
                           ) : (
@@ -230,7 +230,7 @@ export function HomeView() {
         {(last || calendarLoading) && (
           <CardFooter>
             {last ? (
-              <Link href={`/race?season=${last.season}&round=${last.round}`} className="flex items-center gap-1 text-xs hover:underline">
+              <Link href={`/race?season=${last.season}&round=${last.round}`} className="flex items-center gap-1 text-xs hover:text-live hover:underline">
                 Full results <ArrowRightIcon aria-hidden className="size-3" />
               </Link>
             ) : (
@@ -247,7 +247,7 @@ export function HomeView() {
           <CardDescription>{season} championship</CardDescription>
           <CardTitle>Drivers</CardTitle>
           <CardAction>
-            <Link href={`/standings?season=${season ?? ""}`} className="text-xs hover:underline">Full standings</Link>
+            <Link href={`/standings?season=${season ?? ""}`} className="text-xs hover:text-live hover:underline">Full standings</Link>
           </CardAction>
         </CardHeader>
         <CardContent>
@@ -272,7 +272,7 @@ export function HomeView() {
           <CardDescription>{season} championship</CardDescription>
           <CardTitle>Constructors</CardTitle>
           <CardAction>
-            <Link href={`/standings?season=${season ?? ""}&view=constructors`} className="text-xs hover:underline">Full standings</Link>
+            <Link href={`/standings?season=${season ?? ""}&view=constructors`} className="text-xs hover:text-live hover:underline">Full standings</Link>
           </CardAction>
         </CardHeader>
         <CardContent>
