@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { COLS, type Direction, move, readingOrder, resize, swap } from "@/lib/layout";
+import { useArrival } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 export interface PanelDef {
@@ -81,6 +82,8 @@ export function PanelGrid({ id, panels }: { id: string; panels: PanelDef[] }) {
   const [saved, setSaved] = useState(() => load(id, panels));
   const phone = useIsPhone();
   const { width, containerRef, mounted } = useContainerWidth();
+  // The desktop grid renders its panels only once it has measured the container.
+  const arrival = useArrival<HTMLDivElement>(phone || mounted);
   // The arrangement a reset threw away, offered back for a few seconds.
   const [undo, setUndo] = useState<Saved | null>(null);
   useEffect(() => {
@@ -192,6 +195,7 @@ export function PanelGrid({ id, panels }: { id: string; panels: PanelDef[] }) {
       </div>
 
       <div ref={containerRef}>
+        <div ref={arrival}>
         {phone ? (
           <div className="space-y-3">{order.map((i) => panel(panels.find((p) => p.id === i)!))}</div>
         ) : (
@@ -207,6 +211,7 @@ export function PanelGrid({ id, panels }: { id: string; panels: PanelDef[] }) {
             </ReactGridLayout>
           )
         )}
+        </div>
       </div>
     </div>
   );
@@ -233,7 +238,7 @@ function Panel({
   return (
     // react-grid-layout passes its positioning props (style, className, ref, handlers) through to this element.
     <section aria-labelledby={titleId} {...grid}>
-      <Card className={cn("gap-0 py-0 motion-safe:animate-slide-in", fill && "h-full")}>
+      <Card data-rise className={cn("gap-0 py-0", fill && "h-full")}>
         <header className="panel-drag flex items-start gap-2 border-b px-4 py-2.5 md:cursor-grab md:active:cursor-grabbing">
           <div className="min-w-0 flex-1">
             <CardTitle id={titleId} role="heading" aria-level={2}>

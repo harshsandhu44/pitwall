@@ -28,6 +28,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useApi } from "@/lib/api";
 import { driverName, formatDateRange, formatSessionTime } from "@/lib/format";
 import { useCalendar, useNow, useSeasons } from "@/lib/hooks";
+import { Arrive, useArrival } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 // Mirrors the hero's size so nothing below it jumps when the calendar arrives.
@@ -38,14 +39,17 @@ function HeroSkeleton() {
 /** Shown in the hero while a session streams: the session and the top three, linking to the live page. */
 function LiveBand({ live }: { live: Extract<LiveStatus, { state: "LIVE" | "DELAYED" }> }) {
   const drivers = new Map(live.timing.drivers.map((d) => [d.number, d]));
+  const ref = useArrival<HTMLAnchorElement>();
   return (
-    <Link href="/live" className="group panel-cut block space-y-4 bg-primary p-5 text-primary-foreground sm:p-6">
+    <Link ref={ref} href="/live" className="group panel-cut block space-y-4 bg-primary p-5 text-primary-foreground sm:p-6">
       <p className="flex items-center gap-2 text-xs font-semibold tracking-wider uppercase">
         <span aria-hidden className="size-2 rounded-full bg-current motion-safe:animate-live-pulse" />
         {live.state === "LIVE" ? "Live now" : `Live, delayed ${live.delaySeconds} s`}
       </p>
-      <h2 className="font-display text-3xl leading-[1.1] font-black tracking-tight uppercase sm:text-5xl">
-        {live.session.meetingName} · {live.session.name}
+      <h2 className="overflow-hidden pb-1 font-display-italic text-3xl leading-[1.1] font-black tracking-tight uppercase sm:text-5xl">
+        <span data-title className="block">
+          {live.session.meetingName} · {live.session.name}
+        </span>
       </h2>
       <ol className="flex flex-wrap gap-x-6 gap-y-1 font-mono text-sm" aria-label="Top three">
         {live.timing.rows.slice(0, 3).map((r) => (
@@ -67,17 +71,19 @@ function Hero({ next }: { next: NextSession }) {
   const now = useNow();
   // Polled only while the calendar says a session is in its slot, to switch the hero to the live band.
   const live = useApi<LiveStatus>(next.state === "in_window" ? "/api/live/session" : null, () => 30_000).data?.data;
+  const ref = useArrival<HTMLDivElement>();
   if (live?.state === "LIVE" || live?.state === "DELAYED") return <LiveBand live={live} />;
   return (
-    <div className="panel-cut border bg-card">
-      <div className="grid gap-6 border-l-4 border-live p-5 sm:grid-cols-[1fr_auto] sm:p-6">
+    <div ref={ref} className="panel-cut border bg-card">
+      <div className="relative grid gap-6 p-5 pl-6 sm:grid-cols-[1fr_auto] sm:p-6 sm:pl-7">
+        <span aria-hidden data-stripe-y className="absolute inset-y-0 left-0 w-1 origin-top bg-live" />
         <div className="min-w-0 space-y-4">
           <div className="space-y-1">
             <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
               Round {race.round} · {race.circuit.locality}, {race.circuit.country} · {formatDateRange(race.sessions)}
             </p>
-            <h2 className="font-display text-3xl leading-[1.1] font-black tracking-tight text-balance uppercase sm:text-5xl">
-              <Link href={`/race?season=${race.season}&round=${race.round}`} className="hover:underline">
+            <h2 className="overflow-hidden pb-1 font-display-italic text-3xl leading-[1.1] font-black tracking-tight text-balance uppercase sm:text-5xl">
+              <Link data-title href={`/race?season=${race.season}&round=${race.round}`} className="block hover:underline">
                 {race.name}
               </Link>
             </h2>
@@ -96,7 +102,7 @@ function Hero({ next }: { next: NextSession }) {
         {race.sessions.map((s) => {
           const state = now === null ? "unknown" : scheduleState(s, now);
           return (
-            <li key={s.kind} className={cn("space-y-0.5 border-r border-b px-4 py-3 last:border-r-0 sm:border-b-0", state === "in_window" && "bg-live/12")}>
+            <li key={s.kind} data-rise className={cn("space-y-0.5 border-r border-b px-4 py-3 last:border-r-0 sm:border-b-0", state === "in_window" && "bg-live/12")}>
               <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">{SESSION_LABEL[s.kind]}</p>
               <p className="font-mono text-sm tabular-nums">{now === null ? "…" : formatSessionTime(s)}</p>
               <p className="text-xs text-muted-foreground">{state === "finished" ? "Done" : state === "in_window" ? "Scheduled now" : "\u00a0"}</p>
@@ -141,8 +147,8 @@ export function HomeView() {
           }}
         </QueryState>
       )}
-      <div className="grid gap-4 md:grid-cols-2">
-      <Card>
+      <Arrive className="grid gap-4 md:grid-cols-2">
+      <Card data-rise>
         <CardHeader>
           <CardDescription>Weather</CardDescription>
           <CardTitle>{nextRace ? nextRace.circuit.locality : "—"}</CardTitle>
@@ -163,7 +169,7 @@ export function HomeView() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card data-rise>
         <CardHeader>
           <CardDescription>Most recent race</CardDescription>
           <CardTitle>{last?.name ?? "—"}</CardTitle>
@@ -230,9 +236,9 @@ export function HomeView() {
         )}
       </Card>
 
-      </div>
-      <div className="grid gap-4 md:grid-cols-2">
-      <Card>
+      </Arrive>
+      <Arrive className="grid gap-4 md:grid-cols-2">
+      <Card data-rise>
         <CardHeader>
           <CardDescription>{season} championship</CardDescription>
           <CardTitle>Drivers</CardTitle>
@@ -257,7 +263,7 @@ export function HomeView() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card data-rise>
         <CardHeader>
           <CardDescription>{season} championship</CardDescription>
           <CardTitle>Constructors</CardTitle>
@@ -280,7 +286,7 @@ export function HomeView() {
           )}
         </CardContent>
       </Card>
-      </div>
+      </Arrive>
     </div>
   );
 }

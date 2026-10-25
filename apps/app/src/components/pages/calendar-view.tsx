@@ -8,6 +8,7 @@ import { CircuitOutline } from "@/components/racing/circuit-outline";
 import { Badge } from "@/components/ui/badge";
 import { formatDateRange, formatSessionTime } from "@/lib/format";
 import { useCalendar, useNow, useSeason } from "@/lib/hooks";
+import { Arrive } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 export function CalendarView() {
@@ -27,14 +28,14 @@ export function CalendarView() {
         const nextRound =
           now === null ? null : races.find((r) => r.sessions.some((s) => ["upcoming", "in_window"].includes(scheduleState(s, now))))?.round;
         return (
-          <div className="space-y-3">
+          <Arrive className="space-y-3">
             <ol className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {races.map((race) => {
                 const raceSession = race.sessions.find((s) => s.kind === "RACE")!;
                 const done = now !== null && scheduleState(raceSession, now) === "finished";
                 const isNext = race.round === nextRound;
                 return (
-                  <li key={race.round} ref={isNext ? scrollToNext : undefined}>
+                  <li key={race.round} ref={isNext ? scrollToNext : undefined} data-rise>
                     <Link
                       href={`/race?season=${race.season}&round=${race.round}`}
                       className={cn(
@@ -67,7 +68,7 @@ export function CalendarView() {
             </ol>
             {!races.length && <p className="text-sm text-muted-foreground">No races published for {season}.</p>}
             <SourceNote res={res} />
-          </div>
+          </Arrive>
         );
       }}
     </QueryState>

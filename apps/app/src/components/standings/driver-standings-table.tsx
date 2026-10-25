@@ -12,6 +12,7 @@ import { lastTwo, PositionChange } from "./position-change";
 import { RecentResults } from "./recent-results";
 import { type Sort, SortHeader, sortBy } from "./sort-header";
 import { TeamMark } from "@/components/racing/team-mark";
+import { Arrive, CountUp } from "@/lib/motion";
 
 type Key = "position" | "driver" | "number" | "team" | "points" | "wins";
 
@@ -61,7 +62,7 @@ export function DriverStandingsTable({
   const compact = limit !== undefined;
 
   return (
-    <div className="space-y-3">
+    <Arrive className="space-y-3">
       {!compact && (
         <div className="relative max-w-xs">
           <SearchIcon aria-hidden className="absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -105,7 +106,7 @@ export function DriverStandingsTable({
           {rows.map((e) => {
             const change = changes.get(e.driver.id);
             return (
-              <TableRow key={e.driver.id}>
+              <TableRow key={e.driver.id} data-rise>
                 <TableCell className="font-mono tabular-nums">
                   <span className="inline-flex w-full items-center justify-between gap-1">
                     {e.positionText}
@@ -134,7 +135,7 @@ export function DriverStandingsTable({
                   </>
                 )}
                 <TableCell className="text-right font-mono font-medium tabular-nums">
-                  {formatPoints(e.points)}
+                  <CountUp value={e.points} format={formatPoints} />
                   {/* Phones drop the Gap column; how far behind still matters. */}
                   {!compact && e.points !== leader && (
                     <span className="block text-xs font-normal text-muted-foreground sm:hidden">−{formatPoints(leader - e.points)}</span>
@@ -159,6 +160,6 @@ export function DriverStandingsTable({
         </TableBody>
       </Table>
       {!compact && !rows.length && <EmptyState>No drivers match “{query}”.</EmptyState>}
-    </div>
+    </Arrive>
   );
 }
