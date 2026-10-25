@@ -40,13 +40,13 @@ Tests mock every upstream and never touch the network. Fixtures are trimmed copi
 | Route | What it shows |
 |---|---|
 | `/` | The next weekend (countdown, circuit, session strip), or a live band with the top three while a session streams; weather for the next race, most recent result, top of both championships |
-| `/live` | Live dashboard during a session (OpenF1): session status, track map, timing, driver focus, race control, track weather; otherwise the next session and the latest replay |
+| `/live` | Live dashboard during a session (OpenF1): session status, track map, timing, driver focus and comparison, penalties, tyres, championship as it stands, race control, track weather; otherwise the next session and the latest replay |
 | `/calendar` | Season calendar with local session times |
 | `/standings` | Driver and constructor standings, points progression, results matrix |
 | `/race?season=&round=&tab=` | The weekend page. Results: schedule and race, sprint and qualifying classifications. Weather (newest season only): radar, cloud and wind map, forecast timeline and per-session summary. Sessions (2023 on): replay links for the weekend's recorded sessions |
 | `/driver?id=`, `/team?id=` | Career by season |
 | `/weather?round=` | Redirects to that round's Weather tab (old links) |
-| `/replay?season=&session=` | Recorded OpenF1 session on the same dashboard as live, plus driver comparison and playback |
+| `/replay?season=&session=` | Recorded OpenF1 session on the same dashboard as live, with playback, event markers and keyboard shortcuts |
 
 Every page also takes `?season=`. Query parameters, not path segments, keep the app a plain static export.
 
@@ -64,9 +64,14 @@ Every page also takes `?season=`. Query parameters, not path segments, keep the 
 
 `/live` and `/replay` are grids of panels (`components/dashboard/panel-grid.tsx`, on react-grid-layout).
 
-- Drag a panel by its title and resize it from the bottom-right corner. Each panel's ⋯ menu moves it (it trades places with the neighbour in that direction), resizes it in quarter-width steps, or hides it; that menu is the keyboard and touch path.
+- Drag a panel by its title and resize it from its right or bottom edge or the corner. Each panel's ⋯ menu moves it (it trades places with the neighbour in that direction), resizes it in quarter-width steps, maximises it (Esc restores) or hides it; that menu is the keyboard and touch path.
 - Phones (under 768 px) stack the panels in the saved order; the menu still reorders and hides.
-- Layouts and hidden panels are saved per browser in `localStorage` (`pitwall.layout.live.v1`, `pitwall.layout.replay.v1`). "Panels" brings hidden ones back and "Reset layout" restores the default.
+- Layouts and hidden panels are saved per browser in `localStorage` (`pitwall.layout.live.v1`, `pitwall.layout.replay.v1`). "Panels" brings hidden ones back and offers layout presets (`components/dashboard/presets.ts`); "Reset layout" restores the default and a reset or preset can be undone. "Fullscreen" puts the grid and its playback bar in browser fullscreen.
+- The timing tower's columns are toggled from the Timing panel's menu, saved once for both pages (`pitwall.tower.columns.v1`). Besides gaps, laps, tyre and pits it offers places gained since the start, last-lap sectors (purple: session best; green: personal best) and pending penalties.
+- **Penalties** lists stewards' decisions, investigations, deleted laps and black-and-white flags, parsed from race-control text (`packages/shared/src/stewards.ts`); time penalties add up until a "penalty served" message.
+- **Tyres** draws each driver's stints so far, sized by laps.
+- **Championship** adds points for the current running order (races and sprints, plus the fastest-lap point before 2025) to the points before the session (`/api/championship/before`), for drivers and teams. Other sessions show the standings before them.
+- **Driver comparison** shows the gap at the line after each lap, sector deltas over the last five laps, lap times, and a telemetry overlay of one lap each (speed, throttle, brake, gear and the running delta, from `/api/replay/:key/telemetry`).
 
 ## Data sources and terms
 
@@ -160,6 +165,8 @@ Checked against Jolpica for 2026: standings, progression, points and wins are id
 - `/api/replay/:key/window?from=<ms>` returns one fixed, aligned 60 s window of car positions, plus gaps for races. Each window includes 1 s of overlap on each side, so interpolation never needs a neighbouring window. Windows are cached in the Cache API only (~110 KB each). A cold window costs 2 OpenF1 requests and about 5 ms of CPU.
 - The browser loads the current window plus the next two, and drops windows it hasn't used for a minute. The clock holds while a window is loading.
 - Cars are interpolated only between samples less than 1 s apart. Otherwise the last sample is shown as stale.
+- The timeline marks safety cars, red flags, penalties and every fifth lap; each mark is a button that seeks there. Keys: Space plays or pauses, ← → seek 10 s (Shift: 1 min), `[` `]` change speed.
+- `/api/replay/:key/telemetry?driver=&lap=` returns one lap's OpenF1 car data (about 4 samples a second), times from the lap start. Distance along the lap is estimated by integrating speed. Finished laps are cached for 30 days in the Cache API only; it also works for finished laps of a live session.
 - Sessions are listed 35 minutes after they end. OpenF1 opens a session's data 30 minutes after it ends, and the extra margin keeps half-processed data from being cached as final.
 
 ## Live timing
@@ -168,7 +175,7 @@ Checked against Jolpica for 2026: standings, progression, points and wins are id
 
 - **When:** OpenF1 treats a session as live from 30 minutes before it starts until 30 minutes after it ends. Outside those windows, `/api/live/session` reports `UNAVAILABLE` (`no_session`) with the next session and the latest replay.
 - **One shared connection.** The `LiveFeed` Durable Object (`apps/api/src/live.ts`) holds the only connection to OpenF1's MQTT broker. The first live request inside a window opens it: the DO subscribes, loads the session so far from REST, then applies messages as they arrive. Messages that arrive during the load are held and applied afterwards. It disconnects once nobody has asked for two minutes, and reconnects after a drop with backoff (5 s doubling to 60 s).
-- **Same timing as replays.** The DO keeps the raw rows (laps, stints, pits, positions, race control, latest intervals, entry list) and builds the tower with the replay's own `toReplay` and `timingAt`.
+- **Same timing as replays.** The DO keeps the raw rows (laps, stints, pits, positions, race control, latest intervals, entry list) and builds the tower with the replay's own `toReplay` and `timingAt`. Each snapshot also carries every stewards' message, the stints and the completed laps, for the Penalties, Tyres and Driver comparison panels. OpenF1's live stint `lap_end` trails the lap in progress, so a driver's latest stint counts as still running.
 - **Track map.** The DO also subscribes to car locations (`v1/location`, about 4 a second per car) and keeps only the last 10 s. Each poll carries that window; the page draws the cars 5 s behind the newest sample with the replay's interpolation, so they move smoothly between polls. The outline is traced from the fastest clean lap of the meeting's latest finished session (OpenF1 uses the same coordinates across a weekend), so the weekend's first session shows cars without an outline.
 - **Track weather.** The DO also subscribes to `v1/weather` (about one observation a minute) and each poll carries the newest one.
 - **Track status.** Each snapshot carries the flag and safety-car state (`trackStatus` in `packages/shared`), judged from every race-control message so far. The snapshot only carries the latest 20 messages, and a run of track-limits notes could otherwise push a safety-car deployment out of view.
