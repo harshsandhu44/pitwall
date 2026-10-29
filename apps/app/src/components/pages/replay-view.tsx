@@ -16,7 +16,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { CalendarDaysIcon } from "lucide-react";
+import { BoxIcon, CalendarDaysIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { EmptyState, ErrorState, QueryState, SourceNote } from "@/components/data/query-state";
 import { PanelGrid } from "@/components/dashboard/panel-grid";
@@ -137,6 +137,14 @@ export function ReplayView() {
                   items={inMeeting.map((s) => ({ value: String(s.key), label: s.name }))}
                   onChange={(v) => setSession(Number(v))}
                 />
+                <Link
+                  href={`/replay/3d?season=${season}&session=${selected.key}`}
+                  className={buttonVariants({ variant: "outline", size: "sm" })}
+                  aria-label="Watch in 3D"
+                >
+                  <BoxIcon aria-hidden />
+                  <span className="hidden sm:inline">3D</span>
+                </Link>
                 {weekend && (
                   <Link
                     href={`/race?season=${weekend.season}&round=${weekend.round}`}
@@ -174,7 +182,8 @@ function ReplayLoader({ sessionKey }: { sessionKey: number }) {
   );
 }
 
-function Player({ replay, res }: { replay: SessionReplay; res: ApiResponse<SessionReplay> }) {
+/** Playback of a recorded session: the clock, and the position windows around it, fetched and buffered ahead. */
+export function useReplayPlayback(replay: SessionReplay) {
   const qc = useQueryClient();
   const key = replay.session.key;
   const path = useCallback((from: number) => `/api/replay/${key}/window?from=${from}`, [key]);
@@ -205,7 +214,12 @@ function Player({ replay, res }: { replay: SessionReplay; res: ApiResponse<Sessi
       if (from <= replay.range.end) void qc.prefetchQuery(windowQuery(from));
     }
   }, [cur, qc, replay.range.end, windowQuery]);
+  return { clock, t, time, getWindow, current };
+}
 
+function Player({ replay, res }: { replay: SessionReplay; res: ApiResponse<SessionReplay> }) {
+  const key = replay.session.key;
+  const { clock, t, time, getWindow, current } = useReplayPlayback(replay);
   const [selected, setSelected] = useState<number | null>(null);
   const [follow, setFollow] = useState(false);
   const [interpolate, setInterpolate] = useState(true);

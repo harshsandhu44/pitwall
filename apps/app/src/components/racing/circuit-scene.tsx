@@ -27,7 +27,7 @@ function samplePath(d: string, lengthKm: number | null): Pt[] {
 }
 
 // The probe's context is released at once: browsers cap live WebGL contexts per page.
-const webgl = () => {
+export const webgl = () => {
   try {
     const gl = document.createElement("canvas").getContext("webgl2");
     gl?.getExtension("WEBGL_lose_context")?.loseContext();

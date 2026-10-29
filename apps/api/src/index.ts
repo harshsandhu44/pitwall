@@ -215,7 +215,7 @@ const replaySessions = async (env: Env, ctx: ExecutionContext, season: number): 
 };
 
 const replay = (env: Env, ctx: ExecutionContext, key: number) =>
-  cached(env, ctx, { key: `replay/${key}`, source: "openf1", ttl: 30 * DAY }, () => openf1.replay(key, env.USER_AGENT));
+  cached(env, ctx, { key: `replay/${key}/v2`, source: "openf1", ttl: 30 * DAY }, () => openf1.replay(key, env.USER_AGENT));
 
 // ---- Live (OpenF1 sponsor feed, through the LiveFeed Durable Object) ----
 

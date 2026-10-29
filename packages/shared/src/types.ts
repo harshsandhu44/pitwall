@@ -329,7 +329,8 @@ export interface SessionReplay {
     rainfall: boolean | null;
   }[];
   /** Outline traced from one driver's recorded positions on their fastest lap; null without a usable lap. */
-  track: { driver: number; lap: number; x: number[]; y: number[] } | null;
+  /** `z`: height, same units; absent from payloads cached before it was added. */
+  track: { driver: number; lap: number; x: number[]; y: number[]; z?: number[] } | null;
 }
 
 /** Recorded car positions for one fixed window. Sample times are ms offsets from `from` (may be <0 or ≥ window: 1 s overlap each side). */

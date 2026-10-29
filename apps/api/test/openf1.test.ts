@@ -77,6 +77,7 @@ describe("session replay", () => {
     expect(r.laps[44]![1]).toMatchObject({ duration: 152.812, pitOut: true });
     expect(r.track).toMatchObject({ driver: 44, lap: 63 });
     expect(r.track!.x).toHaveLength(60); // the (0,0,0) row is dropped
+    expect(r.track!.z).toHaveLength(60);
     expect(r.range.start).toBe(Date.parse("2024-05-26T13:00:00Z"));
     expect(r.range.end).toBeGreaterThan(Date.parse("2024-05-26T15:00:00Z")); // the race ran past its slot
     expect(r.positions.map((p) => p.t)).toEqual([...r.positions.map((p) => p.t)].sort((a, b) => a - b));
