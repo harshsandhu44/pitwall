@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { kerbs, lapLength, type Pt, skyFor, toMetres } from "@/lib/circuit-geo";
+import { kerbs, lapLength, nearestOnLap, type Pt, skyFor, toMetres } from "@/lib/circuit-geo";
 
 // A stadium in SVG units: two 200-unit straights joined by tight 20-unit-radius hairpins, sampled every unit or so.
 function stadium(): Pt[] {
@@ -36,4 +36,13 @@ describe("circuit geometry", () => {
     expect(skyFor(null, "Europe/Rome")).toBe("day");
     expect(skyFor("2026-09-06T13:00:00Z", null)).toBe("day");
   });
+});
+
+it("finds the nearest point on the lap, staying near the last one unless nothing is near it", () => {
+  const lap = stadium(); // 100 points along the bottom straight, then the hairpin; the top straight starts at 136
+  expect(nearestOnLap(lap, [41, 1])).toBe(20);
+  // From index 60, the top straight beside it is out of the local search: the nearest it can find is on the bottom one…
+  expect(lap[nearestOnLap(lap, [120, 39], 60)]).toEqual([120, 0]);
+  // …unless the local best is too far, which scans the whole lap.
+  expect(lap[nearestOnLap(lap, [120, 39], 60, 10)]).toEqual([120, 40]);
 });

@@ -46,7 +46,7 @@ const COLUMNS = [
   { id: "gained", label: "Places gained", race: true },
   { id: "penalty", label: "Penalty" },
 ] as const;
-type Column = (typeof COLUMNS)[number]["id"];
+export type Column = (typeof COLUMNS)[number]["id"];
 
 // One saved set for Live and Replay, shared by the tower and its menu.
 const KEY = "pitwall.tower.columns.v1";
@@ -111,6 +111,7 @@ export function TimingTower({
   intervals,
   caption = "Timing at the replay position, from recorded OpenF1 data",
   penalties,
+  only,
 }: {
   rows: TimingRow[];
   drivers: Map<number, ReplayDriver>;
@@ -121,8 +122,11 @@ export function TimingTower({
   caption?: string;
   /** Pending penalty labels ("+5s", "DT") by car. */
   penalties?: Map<number, string>;
+  /** These columns, instead of the viewer's saved set (a narrow panel). */
+  only?: Column[];
 }) {
-  const { shown } = useColumns();
+  const saved = useColumns().shown;
+  const shown = only ? new Set(only) : saved;
   const on = (c: (typeof COLUMNS)[number]) => shown.has(c.id) && (intervals || !("race" in c));
   const col = Object.fromEntries(COLUMNS.map((c) => [c.id, on(c)])) as Record<Column, boolean>;
   const body = useRef<HTMLTableSectionElement>(null);

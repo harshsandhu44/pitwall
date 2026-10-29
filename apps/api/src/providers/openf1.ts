@@ -365,7 +365,7 @@ async function traceOutline(key: number, laps: SessionReplay["laps"], ua: string
     .filter(hasFix)
     .sort((a, b) => a.date.localeCompare(b.date));
   // Too few samples can't describe a circuit; show no outline rather than a misleading one.
-  return pts.length >= 50 ? { driver: lap.driver, lap: lap.lap, x: pts.map((p) => p.x), y: pts.map((p) => p.y) } : null;
+  return pts.length >= 50 ? { driver: lap.driver, lap: lap.lap, x: pts.map((p) => p.x), y: pts.map((p) => p.y), z: pts.map((p) => p.z ?? 0) } : null;
 }
 
 export async function positionWindow(key: number, from: number, withIntervals: boolean, ua: string) {

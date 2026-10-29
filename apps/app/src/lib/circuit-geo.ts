@@ -72,3 +72,22 @@ export function skyFor(start: string | null, timeZone: string | null): Sky {
   const hour = Number(parts.find((p) => p.type === "hour")?.value) + Number(parts.find((p) => p.type === "minute")?.value) / 60;
   return hour < 16 ? "day" : hour < 18 ? "golden" : hour < 19 ? "sunset" : "night";
 }
+
+/**
+ * Index of the point of a closed line nearest `p`. With `prev` (where it was last frame) it looks only a little
+ * behind and ahead of it, which keeps a car on its own road where the lap crosses itself; it scans the whole
+ * lap when there's no `prev` or nothing within `near` of it (the pit lane, a seek).
+ */
+export function nearestOnLap(pts: readonly Pt[], [x, y]: Pt, prev = -1, near = Infinity): number {
+  const N = pts.length;
+  let best = -1;
+  let bd = Infinity;
+  const scan = (j: number) => {
+    const i = ((j % N) + N) % N;
+    const d = (pts[i]![0] - x) ** 2 + (pts[i]![1] - y) ** 2;
+    if (d < bd) [bd, best] = [d, i];
+  };
+  if (prev >= 0) for (let j = prev - 60; j <= prev + 90; j++) scan(j);
+  if (best < 0 || bd > near * near) for (let j = 0; j < N; j++) scan(j);
+  return best;
+}

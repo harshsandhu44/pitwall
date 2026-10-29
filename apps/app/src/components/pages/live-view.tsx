@@ -2,7 +2,7 @@
 
 import type { LiveStatus, LiveTimingSnapshot } from "@pitwall/shared";
 import { nextSession, penaltyLabel, pendingPenalties, SESSION_LABEL, stewardsAt, trackStatus } from "@pitwall/shared";
-import { CalendarDaysIcon, HistoryIcon, RadioTowerIcon } from "lucide-react";
+import { BoxIcon, CalendarDaysIcon, HistoryIcon, RadioTowerIcon } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ErrorState, QueryState, SourceNote } from "@/components/data/query-state";
@@ -28,7 +28,7 @@ import { useApi } from "@/lib/api";
 import { formatSessionTime } from "@/lib/format";
 import { useCalendar, useNow, useSeasons } from "@/lib/hooks";
 
-const streaming = (s: LiveStatus | undefined) => s?.state === "LIVE" || s?.state === "DELAYED";
+export const streaming = (s: LiveStatus | undefined) => s?.state === "LIVE" || s?.state === "DELAYED";
 const liveTitle = (s: LiveStatus) => (s.state === "LIVE" || s.state === "DELAYED" ? `${s.session.meetingName} · ${s.session.name}` : "Live");
 
 /** Live timing from OpenF1 while a session is on; otherwise what's next and the latest replay. */
@@ -46,6 +46,11 @@ export function LiveView() {
         title={status.data?.data ? liveTitle(status.data.data) : "Live"}
         description={on ? "Live timing for the session on track right now" : "Live timing appears here while a session is on track."}
       >
+        {on && (
+          <Link href="/live/3d" className={buttonVariants({ variant: "outline", size: "sm" })}>
+            <BoxIcon aria-hidden /> 3D
+          </Link>
+        )}
         {weekend && (
           <Link href={`/race?season=${weekend.season}&round=${weekend.round}`} className={buttonVariants({ variant: "outline", size: "sm" })}>
             <CalendarDaysIcon aria-hidden /> Weekend
@@ -252,10 +257,10 @@ function LiveTiming({ live }: { live: Extract<LiveStatus, { state: "LIVE" | "DEL
 }
 
 /** Cars are drawn this far behind the newest location sample, so they move smoothly between 3 s polls. */
-const MAP_DELAY_MS = 5_000;
+export const MAP_DELAY_MS = 5_000;
 
-function LiveTrack({ timing, selected, onSelect }: { timing: LiveTimingSnapshot; selected: number | null; onSelect: (n: number) => void }) {
-  const [follow, setFollow] = useState(false);
+/** The live positions as a playback clock MAP_DELAY_MS behind the newest sample, for the track map. */
+export function useLivePositions(timing: LiveTimingSnapshot) {
   const positions = useRef(timing.positions);
   const anchor = useRef({ t: timing.positions.to - MAP_DELAY_MS, at: 0 });
   useEffect(() => {
@@ -265,6 +270,12 @@ function LiveTrack({ timing, selected, onSelect }: { timing: LiveTimingSnapshot;
   }, [timing.positions]);
   const time = useCallback(() => anchor.current.t + performance.now() - anchor.current.at, []);
   const getWindow = useCallback(() => positions.current, []);
+  return { time, getWindow };
+}
+
+function LiveTrack({ timing, selected, onSelect }: { timing: LiveTimingSnapshot; selected: number | null; onSelect: (n: number) => void }) {
+  const [follow, setFollow] = useState(false);
+  const { time, getWindow } = useLivePositions(timing);
   return (
     <div className="flex h-full min-h-72 flex-col gap-2">
       <div className="min-h-0 flex-1">
