@@ -1,4 +1,4 @@
-// The 3D circuit on the home hero and the weekend page: the F1DB outline as a road, the way
+// The 3D circuit on the home hero and the weekend page: the circuit outline as a road, the way
 // drive.harshsandhu.com builds its tracks (a ribbon either side of the centreline, red and white kerbs
 // on the corners, its four lights), on a transparent canvas so it floats on the card. The only module that imports three; the
 // component loads it on demand so no other page pays for it. Track (x, y) is three (x, 0, y).

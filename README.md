@@ -57,7 +57,7 @@ Every page also takes `?season=`. Query parameters, not path segments, keep the 
 - **Shape:** square everywhere; panels have one cut corner (`panel-cut`) and a red stripe on the header. Flag, tyre and team colours are data colours, not accents.
 - **Motion:** GSAP, for arrival only (`src/lib/motion.tsx`): titles rise, the red stripe wipes in, rows and panels stagger, points count up, countdown digits roll. Reduced motion renders it all static.
 - **Loading:** the first load of a session plays five start lights, then lights out; each page change runs a red broadcast wipe under the header (CSS, `globals.css`). Both are off under reduced motion.
-- **Circuits in 3D:** the home hero and the weekend page draw the F1DB layout as a road in Three.js (`src/lib/circuit-scene.ts`, after drive.harshsandhu.com) on a transparent canvas, lit for the race's local start time. It loads on demand; without WebGL the flat outline stays.
+- **Circuits in 3D:** the home hero and the weekend page draw the circuit layout as a road in Three.js (`src/lib/circuit-scene.ts`, after drive.harshsandhu.com) on a transparent canvas, lit for the race's local start time. It loads on demand; without WebGL the flat outline stays.
 - **Navigation:** a top bar, and a bottom tab bar on phones. Live gets a dot while the calendar says a session is in its slot (no extra requests).
 
 ## Dashboard panels
@@ -76,7 +76,8 @@ Every page also takes `?season=`. Query parameters, not path segments, keep the 
 ## Data sources and terms
 
 - **Jolpica F1** (`api.jolpi.ca`): calendar, results, standings and profiles for seasons before 2023, fetched on demand. Rate limited (~4 req/s burst, ~500 req/hour); the API paces and caches requests to stay inside it.
-- **F1DB** (CC BY 4.0): decorative circuit layouts in `apps/app/public/circuits` and the circuit registry in `apps/api/src/circuits.json` (regenerate with `apps/api/scripts/gen-circuits.mjs`).
+- **F1DB** (CC BY 4.0): circuit layouts in `apps/app/public/circuits` for historic layouts and the circuit registry in `apps/api/src/circuits.json` (regenerate with `apps/api/scripts/gen-circuits.mjs`).
+- **bacinger/f1-circuits** (MIT): real-world GeoJSON for the latest layout of current venues, projected north-up into the same SVGs by `gen-circuits.mjs`.
 - **Open-Meteo** (CC BY 4.0, free tier is non-commercial only): hourly forecast plus model "current" conditions per circuit, refreshed every 15 min. Also a 7×7 cloud/wind grid at 0.25°, refreshed hourly, with 3-hourly forecast steps for 7 days. "Current" is a model analysis, not a track measurement, and is labelled that way.
 - **RainViewer** (personal/educational use only): observed radar frames for the last ~2 hours at 10-minute steps. Free tier since 2026-01-01: Universal Blue colours, max zoom 7, 100 requests/IP/minute, no nowcast or satellite. Tiles load straight from RainViewer in the browser, and only the current and next frame are requested.
 - **OpenFreeMap** (© OpenMapTiles, data © OpenStreetMap): base map tiles, no key needed.

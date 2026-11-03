@@ -32,7 +32,7 @@ const TRAIL_STEP_MS = 100;
 
 /**
  * Recorded car positions on the outline traced from OpenF1's own location data (same coordinate
- * space, so no alignment guesswork). Not a geographic map and not the decorative F1DB layout.
+ * space, so no alignment guesswork). Not a geographic map and not the decorative circuit layout.
  */
 export function TrackCanvas({
   track,

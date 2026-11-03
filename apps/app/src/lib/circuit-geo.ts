@@ -1,4 +1,4 @@
-// Geometry for the 3D circuit (circuit-scene.ts): the F1DB outline as a centreline in metres, where
+// Geometry for the 3D circuit (circuit-scene.ts): the circuit outline as a centreline in metres, where
 // the kerbs go, and which light the race runs under. Pure, so it's tested without a browser.
 
 export type Pt = [number, number];
@@ -16,7 +16,7 @@ export const lapLength = (pts: readonly Pt[]) =>
 
 /**
  * The outline (SVG units, y down) scaled so a lap is the real lap length, centred on the origin.
- * F1DB layouts are schematic but to shape, so one scale fits; without a length, 5 km.
+ * Layouts (F1DB, or bacinger GeoJSON projected north-up) are to shape, so one scale fits; without a length, 5 km.
  */
 export function toMetres(pts: readonly Pt[], lengthKm: number | null): Pt[] {
   const k = ((lengthKm ?? 5) * 1000) / (lapLength(pts) || 1);

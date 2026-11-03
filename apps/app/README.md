@@ -21,6 +21,6 @@ pnpm test                    # Vitest + Testing Library (jsdom); API calls are m
 | `src/components/ui` | shadcn/ui primitives, unmodified |
 | `src/lib/api.ts`, `src/lib/hooks.ts` | Typed envelope fetch and query hooks |
 | `src/lib/replay-clock.ts` | requestAnimationFrame replay clock (recorded time × speed, holds while buffering) |
-| `public/circuits` | F1DB layouts (CC BY 4.0, decorative only) |
+| `public/circuits` | Circuit layouts: F1DB (CC BY 4.0) and bacinger/f1-circuits (MIT) for current venues; decorative only |
 
-Geographic maps (weather) and track drawings (replay outlines traced from OpenF1 positions) are separate coordinate systems and never mixed. F1DB SVGs are decoration only.
+Geographic maps (weather) and track drawings (replay outlines traced from OpenF1 positions) are separate coordinate systems and never mixed. Circuit layout SVGs are decoration only.

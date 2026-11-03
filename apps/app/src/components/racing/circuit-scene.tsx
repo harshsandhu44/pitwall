@@ -6,7 +6,7 @@ import { CircuitOutline } from "@/components/racing/circuit-outline";
 import { type Pt, STEP_M, skyFor, toMetres } from "@/lib/circuit-geo";
 import { cn } from "@/lib/utils";
 
-/** Points along the F1DB path, sampled by the browser's own SVG geometry. */
+/** Points along the layout path, sampled by the browser's own SVG geometry. */
 function samplePath(d: string, lengthKm: number | null): Pt[] {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("style", "position:absolute;width:0;height:0;visibility:hidden");
