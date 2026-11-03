@@ -40,7 +40,7 @@ export function replayMarkers(r: SessionReplay): Marker[] {
   return out.sort((a, b) => a.t - b.t);
 }
 
-const typing = (el: EventTarget | null) => el instanceof HTMLElement && (el.isContentEditable || /^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName)) && !(el instanceof HTMLInputElement && el.type === "range");
+export const typing = (el: EventTarget | null) => el instanceof HTMLElement && (el.isContentEditable || /^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName)) && !(el instanceof HTMLInputElement && el.type === "range");
 
 export function PlaybackControls({
   state,
