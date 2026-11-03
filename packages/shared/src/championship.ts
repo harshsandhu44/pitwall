@@ -1,5 +1,5 @@
 import type { TimingRow } from "./replay";
-import type { ReplayDriver } from "./types";
+import type { GrandPrix, ReplayDriver, Standings } from "./types";
 
 export const RACE_POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
 export const SPRINT_POINTS = [8, 7, 6, 5, 4, 3, 2, 1];
@@ -52,4 +52,39 @@ export function projectStandings(base: ChampionshipBase, rows: TimingRow[], driv
     drivers: rank(new Map(base.drivers.map((d) => [d.number, d.points])), added),
     teams: rank(new Map(base.teams.map((t) => [t.team, t.points])), teamAdded),
   };
+}
+
+export interface DecidedTitle<T> {
+  champion: T;
+  /** Grands Prix still to run; 0 once the season is over. */
+  racesLeft: number;
+}
+
+/**
+ * The champion once the title can't be lost: the leader's lead beats every point still on offer. Points still on
+ * offer are counted from what the standings include, not the clock, so lagging standings only delay the call.
+ * ponytail: current points tables only (sprints 2022+); a lead exactly equal to what's left waits, as countback
+ * isn't modelled.
+ */
+export function decidedTitle<T extends { points: number }>(
+  standings: Standings<T>,
+  calendar: GrandPrix[],
+  type: "drivers" | "constructors",
+): DecidedTitle<T> | null {
+  const [first, second] = [...standings.entries].sort((a, b) => b.points - a.points);
+  if (!first || standings.round === 0) return null;
+  // A team can take first and second; a driver only first.
+  const best = (table: number[]) => table[0]! + (type === "constructors" ? table[1]! : 0);
+  const fastestLap = standings.season <= FASTEST_LAP_UNTIL ? 1 : 0;
+  let left = 0;
+  let racesLeft = 0;
+  for (const race of calendar) {
+    const pendingRace = race.round > standings.round || (race.round === standings.round && standings.throughSprint);
+    if (race.round > standings.round && race.sessions.some((s) => s.kind === "SPRINT")) left += best(SPRINT_POINTS);
+    if (pendingRace) {
+      left += best(RACE_POINTS) + fastestLap;
+      racesLeft++;
+    }
+  }
+  return first.points - (second?.points ?? 0) > left ? { champion: first, racesLeft } : null;
 }

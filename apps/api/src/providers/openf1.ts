@@ -52,6 +52,7 @@ const ODriver = z.object({
   last_name: z.string().nullish(),
   team_name: z.string().nullish(),
   team_colour: z.string().nullish(),
+  headshot_url: z.string().nullish(),
 });
 const Lap = z.object({
   driver_number: z.number(),
@@ -529,6 +530,8 @@ export function toStandings(
     .sort((a, b) => a.start.localeCompare(b.start))
     .at(-1);
   if (!last) return { season, round: 0, entries: [] };
+  // A sprint's standings carry the round's number before its race is run.
+  const head = { season, round: last.round, ...(session.get(last.key)?.name === "Sprint" && { throughSprint: true as const }) };
 
   const racesSoFar = new Set(
     s.sessions.filter((x) => x.name === "Race" && x.start <= last.start).map((x) => x.key),
@@ -549,8 +552,7 @@ export function toStandings(
 
   if (type === "constructors") {
     return {
-      season,
-      round: last.round,
+      ...head,
       entries: c.teams
         .filter((r) => r.session === last.key)
         .sort(byPosition)
@@ -562,15 +564,16 @@ export function toStandings(
   }
   const seen = races.drivers.filter((d) => racesSoFar.has(d.session_key));
   return {
-    season,
-    round: last.round,
+    ...head,
     entries: c.drivers
       .filter((r) => r.session === last.key)
       .sort(byPosition)
       .map((r) => {
         const mine = seen.filter((d) => d.driver_number === r.number);
         const constructors = [...new Map(mine.map((d) => constructorFor(season, d.team_name)).map((t) => [t.name, t])).values()];
-        return { ...standing(r), wins: wins.get(r.number) ?? 0, driver: driverFor(season, r.number, mine.at(-1)), constructors };
+        // formula1.com cutout; the 4col transform is a 432px transparent PNG (OpenF1 links the 93px 1col one).
+        const headshot = mine.at(-1)?.headshot_url?.replace("/1col/", "/4col/");
+        return { ...standing(r), wins: wins.get(r.number) ?? 0, driver: driverFor(season, r.number, mine.at(-1)), constructors, ...(headshot && { headshot }) };
       }),
   };
 }
