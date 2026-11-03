@@ -13,6 +13,7 @@ import type {
 } from "@pitwall/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import worker from "../src/index";
+import { toStandings } from "../src/providers/openf1";
 import { resetUpstreamState } from "../src/upstream";
 import f from "./fixtures/openf1-2025-two-rounds.json";
 import { openf1Mock } from "./openf1-mock";
@@ -83,6 +84,21 @@ describe("OpenF1 seasons", () => {
   it("serves standings after an earlier round and after a sprint", async () => {
     const r1 = (await get<Standings<DriverStanding>>("/api/standings/drivers?season=2025&round=1")).body.data!;
     expect(r1.entries[0]).toMatchObject({ driver: { id: "norris" }, points: 25, wins: 1 });
+  });
+
+  it("flags standings that include a sprint but not yet its race, and links the 4col headshot", () => {
+    const session = (key: number, name: string, start: string) => ({ key, meetingKey: 1, name, start, end: start }) as never;
+    const s = { meetings: [{ key: 1, name: "X Grand Prix", round: 1 }], sessions: [session(10, "Sprint", "2026-01-01"), session(11, "Race", "2026-01-02")] };
+    const row = (session: number, points: number) => ({ session, number: 4, position: 1, points });
+    const races = {
+      drivers: [{ session_key: 11, driver_number: 4, team_name: "McLaren", headshot_url: "https://media.formula1.com/x.png.transform/1col/image.png" }] as never,
+      results: [],
+    };
+    const afterSprint = toStandings("drivers", 2026, null, s, { drivers: [row(10, 8)], teams: [], winners: [] }, races);
+    expect(afterSprint).toMatchObject({ round: 1, throughSprint: true });
+    const afterRace = toStandings("drivers", 2026, null, s, { drivers: [row(10, 8), row(11, 33)], teams: [], winners: [] }, races);
+    expect(afterRace).not.toHaveProperty("throughSprint");
+    expect(afterRace.entries[0]).toMatchObject({ points: 33, headshot: "https://media.formula1.com/x.png.transform/4col/image.png" });
   });
 
   it("derives constructor standings with their race wins", async () => {

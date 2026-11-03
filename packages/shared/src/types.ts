@@ -91,6 +91,8 @@ export interface DriverStanding {
   wins: number;
   driver: Driver;
   constructors: Constructor[];
+  /** Transparent PNG portrait (formula1.com, via OpenF1); OpenF1 seasons only. */
+  headshot?: string;
 }
 
 export interface ConstructorStanding {
@@ -105,6 +107,8 @@ export interface Standings<T> {
   season: number;
   /** Round the standings are valid after. */
   round: number;
+  /** Set when they include that round's sprint but not yet its race (OpenF1 updates after each session). */
+  throughSprint?: true;
   entries: T[];
 }
 

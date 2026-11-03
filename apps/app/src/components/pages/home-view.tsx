@@ -16,6 +16,7 @@ import {
 import { ArrowRightIcon, RadioTowerIcon } from "lucide-react";
 import Link from "next/link";
 import { QueryState, SourceNote } from "@/components/data/query-state";
+import { ChampionBand } from "@/components/racing/champion-band";
 import { CircuitScene } from "@/components/racing/circuit-scene";
 import { ProvisionalNote } from "@/components/racing/provisional-note";
 import { RaceCountdown } from "@/components/racing/race-countdown";
@@ -133,10 +134,13 @@ export function HomeView() {
   const recent = useApi<RaceWeekendResults>(last ? `/api/races/${last.round}?season=${last.season}` : null);
   // Also true while the season is still unknown (the calendar query is idle until then).
   const calendarLoading = calendar.isPending || now === null;
+  // Champions stay up through the off-season: until the new season has a finished race, they're last season's.
+  const titleSeason = season === null || calendarLoading ? null : last ? season : season - 1;
 
   return (
     <div className="space-y-4">
       <h1 className="sr-only">Pitwall home</h1>
+      {titleSeason !== null && <ChampionBand season={titleSeason} />}
       {calendarLoading ? (
         <HeroSkeleton />
       ) : (

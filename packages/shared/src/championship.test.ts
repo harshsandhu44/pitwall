@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { projectStandings } from "./championship";
+import { decidedTitle, projectStandings } from "./championship";
 import type { TimingRow } from "./replay";
-import type { ReplayDriver } from "./types";
+import type { GrandPrix, ReplayDriver, Standings } from "./types";
 
 const row = (driver: number, position: number, bestLap: number | null = null) => ({ driver, position, bestLap }) as TimingRow;
 const driver = (number: number, team: string) => ({ number, team }) as ReplayDriver;
@@ -52,5 +52,42 @@ describe("projectStandings", () => {
     expect(projectStandings(base, [row(1, 1, 80), row(4, 2, 79.5)], drivers, false, 2024).drivers.find((d) => d.key === 4)!.added).toBe(19);
     expect(projectStandings(base, [row(1, 1, 80), row(4, 2, 79.5)], drivers, false, 2025).drivers.find((d) => d.key === 4)!.added).toBe(18);
     expect(projectStandings(base, [row(1, 1, 80), row(4, 2, 79.5)], drivers, true, 2024).drivers.find((d) => d.key === 4)!.added).toBe(7);
+  });
+});
+
+describe("decidedTitle", () => {
+  const weekend = (round: number, sprint = false) =>
+    ({ round, sessions: [...(sprint ? [{ kind: "SPRINT" }] : []), { kind: "RACE" }] }) as GrandPrix;
+  // Rounds 1-3; round 3 is a sprint weekend.
+  const cal = [weekend(1), weekend(2), weekend(3, true)];
+  const table = (round: number, points: number[], extra: Partial<Standings<{ points: number }>> = {}) => ({
+    season: 2026,
+    round,
+    entries: points.map((p) => ({ points: p })),
+    ...extra,
+  });
+
+  it("calls it only when the lead beats every point left", () => {
+    // After round 2: round 3 has 8 + 25 = 33 for a driver.
+    expect(decidedTitle(table(2, [100, 66]), cal, "drivers")).toEqual({ champion: { points: 100 }, racesLeft: 1 });
+    expect(decidedTitle(table(2, [100, 67]), cal, "drivers")).toBeNull(); // exactly 33: countback, wait
+    expect(decidedTitle(table(3, [101, 100]), cal, "drivers")).toEqual({ champion: { points: 101 }, racesLeft: 0 });
+  });
+
+  it("counts the race of a round whose standings only include the sprint", () => {
+    expect(decidedTitle(table(3, [100, 80], { throughSprint: true }), cal, "drivers")).toBeNull();
+    expect(decidedTitle(table(3, [100, 74], { throughSprint: true }), cal, "drivers")).toEqual({ champion: { points: 100 }, racesLeft: 1 });
+  });
+
+  it("lets a team take first and second, and adds the fastest lap up to 2024", () => {
+    // Constructors: 15 + 43 = 58 left after round 2.
+    expect(decidedTitle(table(2, [200, 142]), cal, "constructors")).toBeNull();
+    expect(decidedTitle(table(2, [200, 141]), cal, "constructors")).not.toBeNull();
+    expect(decidedTitle(table(2, [100, 66], { season: 2024 }), cal, "drivers")).toBeNull(); // 34 left
+  });
+
+  it("waits for a first round and a second entry beats nobody", () => {
+    expect(decidedTitle(table(0, []), cal, "drivers")).toBeNull();
+    expect(decidedTitle(table(3, [10]), cal, "drivers")).toEqual({ champion: { points: 10 }, racesLeft: 0 });
   });
 });
