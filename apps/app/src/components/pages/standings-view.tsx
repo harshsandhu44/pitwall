@@ -74,7 +74,13 @@ export function StandingsView() {
           <QueryState query={driverProg}>
             {(p, res) => (
               <>
-                <PointsProgressionChart progression={p} type="drivers" />
+                <PointsProgressionChart
+                  progression={p}
+                  type="drivers"
+                  teams={Object.fromEntries(
+                    (drivers.data?.data?.entries ?? []).flatMap((e) => (e.constructors.length ? [[e.driver.id, e.constructors.at(-1)!.id]] : [])),
+                  )}
+                />
                 <SourceNote res={res} />
               </>
             )}

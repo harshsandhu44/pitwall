@@ -163,12 +163,13 @@ function GapChart({ pair: [da, db], la, lb, config }: { pair: Pair; la: ReplayLa
           <YAxis tickLine={false} axisLine={false} width={48} domain={[-2, 2]} allowDataOverflow tickFormatter={(v: number) => `${v > 0 ? "+" : ""}${v}`} />
           <ChartTooltip content={<ChartTooltipContent labelFormatter={(_, p) => `Lap ${p?.[0]?.payload?.lap}`} formatter={(v) => `Lap time ${fmtDelta(Number(v))} s`} />} />
           <Bar dataKey="a" stackId="d" fill="var(--color-a)" isAnimationActive={false} />
-          <Bar dataKey="b" stackId="d" fill="var(--color-b)" isAnimationActive={false} />
+          {/* The second driver's bars are outlined, as their lines are dashed, so team-mates' bars read apart. */}
+          <Bar dataKey="b" stackId="d" fill="var(--color-b)" fillOpacity={0.2} stroke="var(--color-b)" strokeWidth={1} isAnimationActive={false} />
         </BarChart>
       </ChartContainer>
       <p className="text-xs text-muted-foreground">
         Top: {da.acronym}&apos;s gap to {db.acronym} at the line after each lap (higher on the chart: {da.acronym} ahead). Bars: lap-time difference,
-        coloured for whoever was quicker that lap; pit laps run off the scale.
+        coloured for whoever was quicker that lap ({db.acronym}&apos;s outlined); pit laps run off the scale.
       </p>
     </div>
   );

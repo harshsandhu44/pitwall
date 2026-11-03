@@ -6,13 +6,40 @@ import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 import { EmptyState } from "@/components/data/query-state";
 import { type ChartConfig, ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { useTeamColours } from "@/lib/hooks";
 
-const COLORS = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
-// The theme's chart palette is tonal, so lines also differ by dash pattern.
-const DASHES = ["", "6 3", "2 3", "8 3 2 3", "1 2"];
+// Team-mates share a colour, so the better-placed one is solid and the next dashed (a third, after a mid-season swap, dotted).
+const DASHES = ["", "6 3", "2 3"];
+// OpenF1 has no team colours before 2023: each team then gets its own grey, foreground first.
+const GREYS = [100, 78, 60, 46, 36].map((p) => `color-mix(in oklab, var(--foreground) ${p}%, var(--background))`);
 const MAX_SERIES = 5;
 
-export function PointsProgressionChart({ progression, type }: { progression: PointsProgression; type: "drivers" | "constructors" }) {
+/**
+ * Line colour and dash for each series, in order (best-placed first). `team` gives a series' team id;
+ * team-mates share a colour and step through the dashes. Teams without a colour get a grey shade each.
+ */
+export function lineStyles(series: { id: string; team: string }[], colours: Record<string, string>) {
+  const seen = new Map<string, number>();
+  const greys = new Map<string, string>();
+  return series.map(({ team }) => {
+    const n = seen.get(team) ?? 0;
+    seen.set(team, n + 1);
+    if (!colours[team] && !greys.has(team)) greys.set(team, GREYS[greys.size % GREYS.length]!);
+    return { color: colours[team] ?? greys.get(team)!, dash: DASHES[Math.min(n, DASHES.length - 1)]! };
+  });
+}
+
+export function PointsProgressionChart({
+  progression,
+  type,
+  teams = {},
+}: {
+  progression: PointsProgression;
+  type: "drivers" | "constructors";
+  /** Driver id to their latest constructor id; a driver missing here is treated as their own team. */
+  teams?: Record<string, string>;
+}) {
+  const colours = useTeamColours(progression.season).data?.data ?? {};
   const series = useMemo(
     () =>
       (type === "drivers"
@@ -26,7 +53,11 @@ export function PointsProgressionChart({ progression, type }: { progression: Poi
   if (progression.rounds.length < 2) return <EmptyState>Points progression needs at least two completed rounds.</EmptyState>;
 
   const shown = series.filter((s) => selected.includes(s.id));
-  const config: ChartConfig = Object.fromEntries(shown.map((s, i) => [s.id, { label: s.label, color: COLORS[i % COLORS.length] }]));
+  const styles = lineStyles(
+    shown.map((s) => ({ id: s.id, team: type === "drivers" ? (teams[s.id] ?? s.id) : s.id })),
+    colours,
+  );
+  const config: ChartConfig = Object.fromEntries(shown.map((s, i) => [s.id, { label: s.label, color: styles[i]!.color, dash: styles[i]!.dash }]));
   const data = progression.rounds.map((r, i) => ({
     round: `R${r.round}`,
     name: r.name,
@@ -63,7 +94,7 @@ export function PointsProgressionChart({ progression, type }: { progression: Poi
               dataKey={s.id}
               type="monotone"
               stroke={`var(--color-${s.id})`}
-              strokeDasharray={DASHES[i % DASHES.length]}
+              strokeDasharray={styles[i]!.dash}
               strokeWidth={2}
               dot={false}
               connectNulls={false}
