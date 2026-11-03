@@ -80,6 +80,7 @@ function Replay3D({ replay }: { replay: SessionReplay }) {
       tower={<TimingTower rows={rows} drivers={drivers} selected={shown} onSelect={setSelected} intervals={race} only={columns(race)} />}
       focus={<DriverFocus rows={rows} drivers={drivers} selected={shown} intervals={race} />}
       feed={<RaceControlFeed messages={replay.raceControl} t={t} limit={20} />}
+      paused={!clock.state.playing}
       playback={
         <PlaybackControls
           state={clock.state}
