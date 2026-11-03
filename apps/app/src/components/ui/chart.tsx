@@ -16,6 +16,8 @@ export type ChartConfig = Record<
   {
     label?: React.ReactNode
     icon?: React.ComponentType
+    /** Set for a line series ("" for solid): the tooltip then shows a line sample in this dash, not a square. */
+    dash?: string
   } & (
     | { color?: string; theme?: never }
     | { color?: never; theme: Record<keyof typeof THEMES, string> }
@@ -114,6 +116,18 @@ ${colorConfig
 }
 
 const ChartTooltip = RechartsPrimitive.Tooltip
+
+// A short line sample in a series' dash, so solid and dashed team-mates read apart. 15px fits "6 3" as dash-gap-dash.
+// Wrapped in a span so the rows' `[&>svg]` sizing doesn't squash it.
+function LineSwatch({ color, dash }: { color?: string; dash?: string }) {
+  return (
+    <span aria-hidden className="flex w-[15px] shrink-0 items-center">
+      <svg width="15" height="2" className="overflow-visible">
+        <line x1="0" y1="1" x2="15" y2="1" stroke={color} strokeWidth="2" strokeDasharray={dash || undefined} />
+      </svg>
+    </span>
+  )
+}
 
 function ChartTooltipContent({
   active,
@@ -217,6 +231,8 @@ function ChartTooltipContent({
                   <>
                     {itemConfig?.icon ? (
                       <itemConfig.icon />
+                    ) : itemConfig?.dash !== undefined ? (
+                      !hideIndicator && <LineSwatch color={indicatorColor} dash={itemConfig.dash} />
                     ) : (
                       !hideIndicator && (
                         <div
@@ -310,6 +326,8 @@ function ChartLegendContent({
             >
               {itemConfig?.icon && !hideIcon ? (
                 <itemConfig.icon />
+              ) : item.type === "line" ? (
+                <LineSwatch color={item.color} dash={(item.payload as { strokeDasharray?: string } | undefined)?.strokeDasharray} />
               ) : (
                 <div
                   className="h-2 w-2 shrink-0 rounded-[2px]"
