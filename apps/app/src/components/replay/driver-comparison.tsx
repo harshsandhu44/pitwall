@@ -88,10 +88,11 @@ export function DriverComparison({
           {([
             [da, la],
             [db, lb],
-          ] as const).map(([drv, list]) => {
+          ] as const).map(([drv, list], i) => {
             const r = rows.find((x) => x.driver === drv.number);
             return (
-              <tr key={drv.number}>
+              // Keyed by slot, not driver: both pickers can hold the same driver, and duplicate keys leave a stale row.
+              <tr key={i}>
                 <td className="font-medium">{drv.acronym}</td>
                 <td>{r?.position ?? "—"}</td>
                 <td>{r?.position === 1 ? "Leader" : fmtGap(r?.gap ?? null)}</td>
