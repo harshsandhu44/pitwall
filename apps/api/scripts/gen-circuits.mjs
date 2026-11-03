@@ -7,6 +7,7 @@
 //   - Jolpica /circuits: the circuit ids the API uses
 //   - f1db (CC BY 4.0): coordinates for matching, layout per race, layout lengths, SVG layouts
 //   - Open-Meteo timezone=auto: IANA timezone for each circuit coordinate
+//   - bacinger/f1-circuits (MIT): GeoJSON for the latest layout of current venues, replacing f1db's SVG
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -56,7 +57,7 @@ for (const j of jCircuits) {
   }
   const d = km({ lat: Number(j.Location.lat), lon: Number(j.Location.long) }, { lat: c.latitude, lon: c.longitude });
   if (d > MATCH_KM) console.warn(`check: ${j.circuitId} -> ${c.id} coordinates differ by ${d.toFixed(1)}km`);
-  circuits[j.circuitId] = { f1dbId: c.id, lat: c.latitude, lon: c.longitude, timezone: null };
+  circuits[j.circuitId] = { f1dbId: c.id, lat: c.latitude, lon: c.longitude, jolpica: { lat: Number(j.Location.lat), lon: Number(j.Location.long) }, timezone: null };
 }
 const byF1db = Object.fromEntries(Object.entries(circuits).map(([id, c]) => [c.f1dbId, id]));
 const dupes = Object.values(circuits).length - Object.keys(byF1db).length;
@@ -104,8 +105,60 @@ for (let i = 0; i < list.length; i += 8) {
     }),
   );
 }
+// bacinger/f1-circuits (MIT): real-world GeoJSON for current venues. It replaces a venue's latest f1db layout when the
+// lengths agree; older layouts and venues it lacks keep f1db. Written as the same single-stroke SVG, north up.
+const BACINGER = "https://raw.githubusercontent.com/bacinger/f1-circuits/master";
+const SIZE = 500;
+const PAD = 25;
+const latest = {}; // Jolpica circuit id -> [year*100+round, layout id] of its most recent f1db race
+for (const [key, [jid, layoutId]] of Object.entries(races)) {
+  const [y, r] = key.split("/").map(Number);
+  if (!latest[jid] || y * 100 + r > latest[jid][0]) latest[jid] = [y * 100 + r, layoutId];
+}
+const geo = await (await fetch(`${BACINGER}/f1-circuits.geojson`)).json();
+const replaced = [];
+for (const f of geo.features) {
+  const { id, length } = f.properties;
+  let pts = f.geometry.coordinates;
+  const lon0 = pts.reduce((s, p) => s + p[0], 0) / pts.length;
+  const lat0 = pts.reduce((s, p) => s + p[1], 0) / pts.length;
+  // A venue near by either source's coordinates (f1db's are kilometres off for Jeddah and Las Vegas) whose latest
+  // layout is the same length; Las Vegas has two venues nearby, Caesars Palace and the Strip.
+  const near = (j) => Math.min(km({ lat: lat0, lon: lon0 }, circuits[j]), km({ lat: lat0, lon: lon0 }, circuits[j].jolpica));
+  const sameLength = (j) => Math.abs(length - layoutLength[latest[j]?.[1]] * 1000) <= length * 0.02;
+  const nearby = ids.filter((j) => near(j) <= MATCH_KM);
+  const jid = nearby.find(sameLength);
+  if (!jid) {
+    console.warn(`bacinger ${id}: kept f1db (${length}m; nearby: ${nearby.map((j) => `${latest[j]?.[1]} ${layoutLength[latest[j]?.[1]]}km`).join(", ") || "none"})`);
+    continue;
+  }
+  const layoutId = latest[jid][1];
+  // Local equirectangular projection, y down: fine at circuit scale.
+  const k = Math.cos((lat0 * Math.PI) / 180);
+  const at = pts.at(-1);
+  if (at[0] === pts[0][0] && at[1] === pts[0][1]) pts = pts.slice(0, -1);
+  const xy = pts.map(([lon, lat]) => [(lon - lon0) * k, lat0 - lat]);
+  const xs = xy.map((p) => p[0]);
+  const ys = xy.map((p) => p[1]);
+  const [minX, maxX, minY, maxY] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  const s = (SIZE - 2 * PAD) / Math.max(maxX - minX, maxY - minY);
+  const ox = (SIZE - (maxX - minX) * s) / 2;
+  const oy = (SIZE - (maxY - minY) * s) / 2;
+  const out = xy.map(([x, y]) => [(x - minX) * s + ox, (y - minY) * s + oy]);
+  if (!out.every(([x, y]) => x >= PAD - 1e-6 && x <= SIZE - PAD + 1e-6 && y >= PAD - 1e-6 && y <= SIZE - PAD + 1e-6))
+    throw new Error(`bacinger ${id}: projection outside the ${SIZE}px canvas`);
+  const path = out.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(2)} ${y.toFixed(2)}`).join("") + "Z";
+  writeFileSync(
+    join(OUT_SVG, `${layoutId}.svg`),
+    `<svg width="${SIZE}" height="${SIZE}" xmlns="http://www.w3.org/2000/svg">\n    <path style="fill: none; stroke: #fff; stroke-width: 20; stroke-linejoin: round;" d="${path}"/>\n</svg>\n`,
+  );
+  replaced.push(layoutId);
+}
+const mit = await (await fetch(`${BACINGER}/LICENSE.md`)).text();
 writeFileSync(
   join(OUT_SVG, "ATTRIBUTION.md"),
-  "Circuit layouts from F1DB (https://github.com/f1db/f1db), licensed CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/).\n",
+  "Circuit layouts from F1DB (https://github.com/f1db/f1db), licensed CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/).\n\n" +
+    `These layouts are from bacinger/f1-circuits (https://github.com/bacinger/f1-circuits) instead, under the MIT licence below: ${replaced.sort().join(", ")}.\n\n` +
+    mit,
 );
-console.log(`${ids.length} circuits, ${Object.keys(races).length} races, ${list.length} layouts`);
+console.log(`${ids.length} circuits, ${Object.keys(races).length} races, ${list.length} layouts (${replaced.length} from bacinger)`);

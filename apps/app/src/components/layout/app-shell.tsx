@@ -117,7 +117,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Bottom padding on phones clears the tab bar. */}
       <footer className="mx-auto w-full max-w-[1600px] px-3 pt-2 pb-24 text-xs leading-relaxed text-muted-foreground sm:px-5 md:pb-6">
         Unofficial. Not associated with Formula 1 companies. Data: Jolpica F1, OpenF1, Open-Meteo (CC BY 4.0), RainViewer. Maps: OpenFreeMap, © OpenStreetMap.
-        Circuit layouts: F1DB (CC BY 4.0).
+        Circuit layouts: F1DB (CC BY 4.0), bacinger/f1-circuits (MIT).
       </footer>
       <nav
         aria-label="Main (tabs)"

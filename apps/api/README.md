@@ -19,7 +19,7 @@ Local overrides for `wrangler.jsonc` vars go in `.dev.vars` (see `.dev.vars.exam
 | `src/cache.ts` | `cached()`: Cache API → D1 copy (stale ones served while revalidating) → loader, with in-isolate dedupe |
 | `src/providers/*.ts` | One file per provider: upstream schemas (only fields used) and normalizers to `@pitwall/shared` types |
 | `src/live.ts`, `src/mqtt.ts` | `LiveFeed` Durable Object: the one shared OpenF1 MQTT connection, and a minimal MQTT 3.1.1 client |
-| `src/circuits.json` | Generated circuit registry (timezones, F1DB layouts) |
+| `src/circuits.json` | Generated circuit registry (timezones, F1DB layout per race) |
 | `src/openf1-map.json`, `src/openf1-map.ts` | Generated OpenF1 → Jolpica identity map (drivers, teams, circuits) |
 
 ## Endpoints

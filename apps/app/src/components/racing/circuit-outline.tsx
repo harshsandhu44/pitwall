@@ -2,7 +2,7 @@ import type { Circuit } from "@pitwall/shared";
 import { cn } from "@/lib/utils";
 
 /**
- * Decorative F1DB layout (CC BY 4.0) drawn as a CSS mask so it follows theme colors.
+ * Decorative layout (F1DB CC BY 4.0, or bacinger/f1-circuits MIT; see public/circuits/ATTRIBUTION.md) drawn as a CSS mask so it follows theme colors.
  * Schematic only — never used to place cars.
  */
 export function CircuitOutline({ circuit, className }: { circuit: Circuit; className?: string }) {
