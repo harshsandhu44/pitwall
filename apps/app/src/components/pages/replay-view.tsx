@@ -28,6 +28,7 @@ import { Championship } from "@/components/replay/championship";
 import { Penalties } from "@/components/replay/penalties";
 import { PlaybackControls, replayMarkers } from "@/components/replay/playback-controls";
 import { RaceControlFeed } from "@/components/replay/race-control-feed";
+import { TeamRadio } from "@/components/replay/team-radio";
 import { SessionStatus } from "@/components/replay/session-status";
 import { TimingTower, TowerColumnsMenu } from "@/components/replay/timing-tower";
 import { battlesOf, TrackCanvas } from "@/components/replay/track-canvas";
@@ -341,6 +342,14 @@ function Player({ replay, res }: { replay: SessionReplay; res: ApiResponse<Sessi
             title: "Race control",
             layout: { x: 0, y: 44, w: 7, h: 6, minW: 3, minH: 3 },
             content: <RaceControlFeed messages={replay.raceControl} t={t} limit={20} />,
+          },
+          {
+            id: "radio",
+            title: "Team radio",
+            description: "Clips as F1 published them: a selection only, and none for some sessions.",
+            layout: { x: 0, y: 50, w: 7, h: 6, minW: 3, minH: 3 },
+            // Replays cached before radio was added have none.
+            content: <TeamRadio clips={replay.radio ?? []} drivers={drivers} t={t} />,
           },
           {
             id: "weather",

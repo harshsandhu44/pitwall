@@ -16,6 +16,7 @@ import { DriverFocus } from "@/components/replay/driver-focus";
 import { Penalties } from "@/components/replay/penalties";
 import { RaceControlFeed } from "@/components/replay/race-control-feed";
 import { SessionStatus } from "@/components/replay/session-status";
+import { TeamRadio } from "@/components/replay/team-radio";
 import { TimingTower, TowerColumnsMenu } from "@/components/replay/timing-tower";
 import { battlesOf, TrackCanvas } from "@/components/replay/track-canvas";
 import { TrackWeather } from "@/components/replay/track-weather";
@@ -235,6 +236,13 @@ function LiveTiming({ live }: { live: Extract<LiveStatus, { state: "LIVE" | "DEL
           description: "Stints so far in running order, with laps on the current set and the compounds used.",
           layout: { x: 0, y: 37, w: 7, h: 10, minW: 4, minH: 5 },
           content: <TyreStrip rows={t.rows} drivers={drivers} stints={stints} selected={selected} onSelect={setSelected} />,
+        },
+        {
+          id: "radio",
+          title: "Team radio",
+          description: "Clips as F1 publishes them: a selection only, and none for many sessions.",
+          layout: { x: 0, y: 47, w: 7, h: 6, minW: 3, minH: 3 },
+          content: <TeamRadio clips={old.radio ?? []} drivers={drivers} t={Infinity} />,
         },
         {
           id: "championship",

@@ -21,6 +21,7 @@ const KEY: { [T in LiveTopic]: (r: LiveRows[T][number]) => string } = {
   "v1/intervals": (r) => `${r.driver_number}`, // only the latest is shown
   "v1/location": (r) => `${r.driver_number}/${r.date}`,
   "v1/weather": (r) => r.date,
+  "v1/team_radio": (r) => `${r.driver_number}/${r.date}`,
 };
 
 const observed = (r: object) => {
@@ -84,6 +85,7 @@ export class Feed {
       raceControl: this.all("v1/race_control"),
       weather: this.all("v1/weather"),
       positions: this.all("v1/position"),
+      radio: this.all("v1/team_radio"),
     });
     const intervals: PositionWindow["intervals"] = {};
     for (const r of this.all("v1/intervals")) {
@@ -102,6 +104,7 @@ export class Feed {
       stewards: replay.raceControl.filter(isStewards),
       stints: replay.stints,
       laps: Object.fromEntries(Object.entries(replay.laps).map(([n, laps]) => [n, laps.filter((l) => l.duration !== null)])),
+      radio: replay.radio.slice(-20),
     };
   }
 }

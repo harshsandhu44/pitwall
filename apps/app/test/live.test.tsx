@@ -65,6 +65,7 @@ describe("live page", () => {
         stewards: [],
         stints: {},
         laps: {},
+        radio: [{ t: Date.parse("2026-10-11T12:28:00Z"), driver: 1, url: "https://livetiming.formula1.com/static/2026/r.mp3" }],
       },
     };
     mockApi({ "/api/live/session": () => envelope(live, { source: "openf1" }) });
@@ -86,8 +87,10 @@ describe("live page", () => {
       "Driver comparison",
       "Penalties",
       "Tyres",
+      "Team radio",
       "Championship",
     ]);
+    expect(screen.getByRole("button", { name: /^Play VER team radio/ })).toBeInTheDocument();
     expect(screen.getByText("Yellow S7")).toBeInTheDocument();
     expect(screen.getByText("Select a driver in Timing or on the track map.")).toBeInTheDocument();
     expect(screen.getByText("29°C")).toBeInTheDocument();

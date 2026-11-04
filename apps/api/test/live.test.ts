@@ -25,6 +25,7 @@ const openf1 = openf1Mock({
   position: f.position,
   intervals: f.window_intervals,
   weather: f.weather,
+  team_radio: [{ session_key: 9523, driver_number: 1, date: "2024-05-26T13:30:00.000Z", recording_url: "https://livetiming.formula1.com/static/2024/2024-05-26_Monaco_Grand_Prix/2024-05-26_Race/TeamRadio/MAXVER01_1_20240526_153000.mp3" }],
 });
 
 /**
@@ -111,6 +112,7 @@ describe("live", () => {
       publishPacket("v1/location", { session_key: 9523, driver_number: 44, date: "2024-05-26T14:00:30.000Z", x: 5, y: 5, z: 650 }), // > 10 s old: dropped
       publishPacket("v1/location", { session_key: 9523, driver_number: 16, date: "2024-05-26T14:00:44.500Z", x: -710, y: -990, z: 650 }),
       publishPacket("v1/weather", { session_key: 9523, date: "2024-05-26T14:00:42.000Z", air_temperature: 24.5, track_temperature: 51, humidity: 60, wind_speed: 1.5, wind_direction: 90, rainfall: 1 }),
+      publishPacket("v1/team_radio", { session_key: 9523, driver_number: 16, date: "2024-05-26T14:00:40.000Z", recording_url: "https://livetiming.formula1.com/static/2024/2024-05-26_Monaco_Grand_Prix/2024-05-26_Race/TeamRadio/CHALEC01_16_20240526_160040.mp3" }),
     ];
     const live = (await get<LiveStatus>("/api/live/session")).body.data!;
     expect(live).toMatchObject({ state: "LIVE", session: { key: 9523, meetingName: "Monaco Grand Prix", name: "Race" } });
@@ -131,6 +133,11 @@ describe("live", () => {
     // Only the newest weather observation: the MQTT one, newer than everything loaded from REST.
     expect(live.timing.weather).toEqual([
       { t: Date.parse("2024-05-26T14:00:42Z"), air: 24.5, track: 51, humidity: 60, windSpeed: 1.5, windDirection: 90, rainfall: true },
+    ]);
+    // Radio from REST, then the clip streamed over MQTT, oldest first.
+    expect(live.timing.radio.map((c) => [c.driver, c.t])).toEqual([
+      [1, Date.parse("2024-05-26T13:30:00Z")],
+      [16, Date.parse("2024-05-26T14:00:40Z")],
     ]);
     expect(calls.some((u) => u.pathname === "/v1/weather" && u.searchParams.get("session_key") === "9523")).toBe(true);
     expect(calls.some((u) => u.pathname === "/v1/laps" && u.searchParams.get("session_key") === "9523")).toBe(true);
