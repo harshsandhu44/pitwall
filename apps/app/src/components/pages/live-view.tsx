@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ErrorState, QueryState, SourceNote } from "@/components/data/query-state";
 import { PanelGrid } from "@/components/dashboard/panel-grid";
 import { PRESETS } from "@/components/dashboard/presets";
+import { AlertsToggle } from "@/components/layout/alerts-toggle";
 import { PageHeader } from "@/components/pages/page-header";
 import { RaceCountdown } from "@/components/racing/race-countdown";
 import { Championship } from "@/components/replay/championship";
@@ -28,6 +29,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useApi } from "@/lib/api";
 import { formatSessionTime } from "@/lib/format";
 import { useCalendar, useNow, useSeasons } from "@/lib/hooks";
+import { useLiveAlerts } from "@/lib/live-alerts";
 
 export const streaming = (s: LiveStatus | undefined) => s?.state === "LIVE" || s?.state === "DELAYED";
 const liveTitle = (s: LiveStatus) => (s.state === "LIVE" || s.state === "DELAYED" ? `${s.session.meetingName} · ${s.session.name}` : "Live");
@@ -47,6 +49,7 @@ export function LiveView() {
         title={status.data?.data ? liveTitle(status.data.data) : "Live"}
         description={on ? "Live timing for the session on track right now" : "Live timing appears here while a session is on track."}
       >
+        {on && <AlertsToggle />}
         {on && (
           <Link href="/live/3d" className={buttonVariants({ variant: "outline", size: "sm" })}>
             <BoxIcon aria-hidden /> 3D
@@ -146,6 +149,7 @@ function LiveTiming({ live }: { live: Extract<LiveStatus, { state: "LIVE" | "DEL
   const penalties = new Map([...pendingPenalties(stewards)].map(([n, p]) => [n, penaltyLabel(p)!]));
   const [pair, setPair] = useState<[number, number] | null>(null);
   const shownPair: [number, number] = pair ?? [t.rows[0]?.driver ?? t.drivers[0]!.number, t.rows[1]?.driver ?? t.drivers[1]?.number ?? t.drivers[0]!.number];
+  useLiveAlerts(t);
   return (
     <PanelGrid
       id="live"
