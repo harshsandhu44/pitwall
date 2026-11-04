@@ -1,7 +1,7 @@
 "use client";
 
 import type { ApiResponse } from "@pitwall/shared";
-import { useQueryClient } from "@tanstack/react-query";
+import { notifyManager, useQueryClient } from "@tanstack/react-query";
 import { CircleCheckIcon, CircleDashedIcon, ClockAlertIcon, CloudOffIcon } from "lucide-react";
 import { useSyncExternalStore } from "react";
 import { Popover } from "@base-ui/react/popover";
@@ -21,7 +21,9 @@ export function FreshnessIndicator() {
   const client = useQueryClient();
   const cache = client.getQueryCache();
   const health = useSyncExternalStore(
-    (cb) => cache.subscribe(cb),
+    // The cache also notifies while another component renders (a query is added as it renders); batchCalls
+    // defers the update past that render, as useQuery does for its own subscription.
+    (cb) => cache.subscribe(notifyManager.batchCalls(cb)),
     () => {
       let h: Health = "idle";
       for (const q of cache.getAll()) {
