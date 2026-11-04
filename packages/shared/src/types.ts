@@ -332,6 +332,8 @@ export interface SessionReplay {
     windDirection: number | null;
     rainfall: boolean | null;
   }[];
+  /** Team-radio clips (audio only, on F1's live-timing host), sorted by time. F1 publishes only a selection, and none for many sessions. */
+  radio: { t: number; driver: number; url: string }[];
   /** Outline traced from one driver's recorded positions on their fastest lap; null without a usable lap. */
   /** `z`: height, same units; absent from payloads cached before it was added. */
   track: { driver: number; lap: number; x: number[]; y: number[]; z?: number[] } | null;

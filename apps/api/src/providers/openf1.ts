@@ -91,6 +91,7 @@ const Weather = z.object({
   rainfall: n,
 });
 const Position = z.object({ date: z.string(), driver_number: z.number(), position: z.number() });
+const TeamRadio = z.object({ date: z.string(), driver_number: z.number(), recording_url: z.string() });
 const Location = z.object({ date: z.string(), driver_number: z.number(), x: z.number(), y: z.number(), z: n });
 const Gap = z.union([z.number(), z.string()]).nullish();
 // Qualifying sessions report per-stage arrays ([Q1, Q2, Q3]); races report single values.
@@ -126,6 +127,7 @@ async function list<S extends z.ZodType>(endpoint: string, query: string, row: S
 
 const iso = (ms: number) => new Date(ms).toISOString();
 const between = (from: number, to: number) => `date%3E=${iso(from)}&date%3C${iso(to)}`;
+const RADIO_HOST = "https://livetiming.formula1.com/";
 const byTime = <T extends { t: number }>(a: T, b: T) => a.t - b.t;
 const groupBy = <T, K extends number>(rows: T[], key: (r: T) => K) => {
   const out = {} as Record<K, T[]>;
@@ -183,6 +185,7 @@ export interface ReplayRaw {
   raceControl: Raw<typeof RaceControl>;
   weather: Raw<typeof Weather>;
   positions: Raw<typeof Position>;
+  radio: Raw<typeof TeamRadio>;
 }
 
 function toLaps(raw: Raw<typeof Lap>): SessionReplay["laps"] {
@@ -234,6 +237,11 @@ export function toReplay(r: ReplayRaw): Omit<SessionReplay, "track"> {
         windDirection: w.wind_direction ?? null,
         rainfall: w.rainfall == null ? null : w.rainfall > 0,
       }))
+      .sort(byTime),
+    // The browser plays these URLs, so only F1's own live-timing host is let through.
+    radio: r.radio
+      .filter((c) => c.recording_url.startsWith(RADIO_HOST))
+      .map((c) => ({ t: Date.parse(c.date), driver: c.driver_number, url: c.recording_url }))
       .sort(byTime),
   };
 }
@@ -355,6 +363,7 @@ export async function replay(key: number, ua: string): Promise<SessionReplay> {
     raceControl: await list("race_control", q, RaceControl, ua),
     weather: await list("weather", q, Weather, ua),
     positions: await list("position", q, Position, ua),
+    radio: await list("team_radio", q, TeamRadio, ua),
   });
   return { ...base, track: await traceOutline(key, base.laps, ua) };
 }
@@ -644,6 +653,9 @@ export const LIVE_TOPICS = {
   "v1/intervals": Interval,
   "v1/location": Location,
   "v1/weather": Weather,
+  // ponytail: OpenF1 doesn't document this topic; if it never streams, clips still load on each feed
+  // (re)start. Upgrade path: a periodic REST refresh of team_radio in the LiveFeed DO.
+  "v1/team_radio": TeamRadio,
 } as const;
 export type LiveTopic = keyof typeof LIVE_TOPICS;
 export type LiveRows = { [T in LiveTopic]: z.infer<(typeof LIVE_TOPICS)[T]>[] };
@@ -671,6 +683,7 @@ export async function liveStart(key: number, now: number, ua: string) {
     "v1/intervals": await list("intervals", `${q}&date%3E=${iso(now - 60_000)}`, Interval, ua),
     "v1/location": await list("location", `${q}&date%3E=${iso(now - LIVE_LOCATION_MS)}`, Location, ua),
     "v1/weather": await list("weather", `${q}&date%3E=${iso(now - 10 * 60_000)}`, Weather, ua),
+    "v1/team_radio": await list("team_radio", q, TeamRadio, ua),
   };
   let track: SessionReplay["track"] = null;
   try {

@@ -70,6 +70,7 @@ Every page also takes `?season=`. Query parameters, not path segments, keep the 
 - The timing tower's columns are toggled from the Timing panel's menu, saved once for both pages (`pitwall.tower.columns.v1`). Besides gaps, laps, tyre and pits it offers places gained since the start, last-lap sectors (purple: session best; green: personal best) and pending penalties.
 - **Penalties** lists stewards' decisions, investigations, deleted laps and black-and-white flags, parsed from race-control text (`packages/shared/src/stewards.ts`); time penalties add up until a "penalty served" message.
 - **Tyres** draws each driver's stints so far, sized by laps.
+- **Team radio** lists the clips F1 publishes (`/v1/team_radio`, audio only; a selection, and none for many 2026 sessions) up to the playback position, one playing at a time. Nothing plays by itself.
 - **Championship** adds points for the current running order (races and sprints, plus the fastest-lap point before 2025) to the points before the session (`/api/championship/before`), for drivers and teams. Other sessions show the standings before them.
 - **Driver comparison** shows the gap at the line after each lap, sector deltas over the last five laps, lap times, and a telemetry overlay of one lap each (speed, throttle, brake, gear and the running delta, from `/api/replay/:key/telemetry`).
 

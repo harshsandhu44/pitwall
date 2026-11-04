@@ -49,6 +49,8 @@ export interface LiveTimingSnapshot {
   stints: SessionReplay["stints"];
   /** Completed laps only, per driver. */
   laps: SessionReplay["laps"];
+  /** Team-radio clips, newest last; the latest 20 only. */
+  radio: SessionReplay["radio"];
 }
 
 /** Older than this, live data is shown as DELAYED. */

@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ReplayView } from "@/components/pages/replay-view";
 import { type Marker, PlaybackControls } from "@/components/replay/playback-controls";
+import { TeamRadio } from "@/components/replay/team-radio";
 import { TimingTower, TowerColumnsMenu } from "@/components/replay/timing-tower";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { battlesOf } from "@/components/replay/track-canvas";
@@ -159,5 +160,28 @@ describe("battles on the track map", () => {
       { ahead: 16, behind: 4, interval: 0.4 },
       { ahead: 44, behind: 81, interval: 0.9 },
     ]);
+  });
+});
+
+describe("team radio", () => {
+  const ver = { number: 1, acronym: "VER", name: "Max Verstappen", team: "Red Bull Racing", colour: "#3671C6", driverId: "max_verstappen" } as ReplayDriver;
+  const drivers = new Map([[1, ver]]);
+  const clips = [
+    { t: range.start + 60_000, driver: 1, url: "https://livetiming.formula1.com/static/a.mp3" },
+    { t: range.start + 120_000, driver: 44, url: "https://livetiming.formula1.com/static/b.mp3" },
+  ];
+
+  it("lists only clips published by the replay position, newest first", () => {
+    render(<TeamRadio clips={clips} drivers={drivers} t={range.start + 90_000} />);
+    expect(screen.getAllByRole("button").map((b) => b.getAttribute("aria-label"))).toEqual([expect.stringMatching(/^Play VER team radio/)]);
+    render(<TeamRadio clips={clips} drivers={drivers} t={Infinity} />);
+    expect(screen.getByRole("button", { name: /^Play 44 team radio/ })).toBeInTheDocument(); // no driver record: the number
+  });
+
+  it("says when a session has no radio, or none yet", () => {
+    const { rerender } = render(<TeamRadio clips={[]} drivers={drivers} t={Infinity} />);
+    expect(screen.getByText("No team radio published for this session.")).toBeInTheDocument();
+    rerender(<TeamRadio clips={clips} drivers={drivers} t={range.start} />);
+    expect(screen.getByText("No team radio yet at this point.")).toBeInTheDocument();
   });
 });

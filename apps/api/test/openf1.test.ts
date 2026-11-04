@@ -14,12 +14,19 @@ const outline = [
   { date: new Date(lapStart + 500).toISOString(), session_key: 9523, driver_number: 44, x: 0, y: 0, z: 0 },
 ];
 
+// One clip from F1's host, and one from elsewhere that must never reach the browser.
+const radio = [
+  { date: "2024-05-26T14:10:00.000+00:00", session_key: 9523, driver_number: 16, recording_url: "https://livetiming.formula1.com/static/2024/2024-05-26_Monaco_Grand_Prix/2024-05-26_Race/TeamRadio/CHALEC01_16_20240526_161000.mp3" },
+  { date: "2024-05-26T14:05:00.000+00:00", session_key: 9523, driver_number: 1, recording_url: "https://example.com/evil.mp3" },
+];
+
 function openf1(url: URL): unknown {
   const p = url.searchParams;
   const ep = url.pathname.replace("/v1/", "");
   if (ep === "sessions") return p.has("session_key") ? f.sessions.filter((s) => String(s.session_key) === p.get("session_key")) : f.sessions;
   if (ep === "meetings") return f.meetings;
   if (ep === "session_result") return [];
+  if (ep === "team_radio") return radio;
   if (ep === "location") return p.has("driver_number") ? outline : [...f.window_location, { ...f.window_location[0]!, x: 0, y: 0, z: 0 }];
   if (ep === "intervals") return [...f.window_intervals, { date: "2024-05-26T14:00:30.000+00:00", session_key: 9523, driver_number: 77, gap_to_leader: "+1 LAP", interval: 3.049 }];
   return (f as Record<string, unknown>)[ep];
@@ -81,6 +88,7 @@ describe("session replay", () => {
     expect(r.range.start).toBe(Date.parse("2024-05-26T13:00:00Z"));
     expect(r.range.end).toBeGreaterThan(Date.parse("2024-05-26T15:00:00Z")); // the race ran past its slot
     expect(r.positions.map((p) => p.t)).toEqual([...r.positions.map((p) => p.t)].sort((a, b) => a - b));
+    expect(r.radio).toEqual([{ t: Date.parse("2024-05-26T14:10:00Z"), driver: 16, url: radio[0]!.recording_url }]);
     const track = calls.find((u) => u.pathname === "/v1/location")!;
     expect(track.search).toContain("driver_number=44");
     expect(track.search).toContain("date%3E=2024-05-26T15:06:33.731Z");
