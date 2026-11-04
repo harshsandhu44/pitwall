@@ -91,6 +91,7 @@ describe("live page", () => {
       "Championship",
     ]);
     expect(screen.getByRole("button", { name: /^Play VER team radio/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Alerts: Off" })).toBeInTheDocument();
     expect(screen.getByText("Yellow S7")).toBeInTheDocument();
     expect(screen.getByText("Select a driver in Timing or on the track map.")).toBeInTheDocument();
     expect(screen.getByText("29°C")).toBeInTheDocument();

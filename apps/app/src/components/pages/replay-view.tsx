@@ -21,6 +21,7 @@ import { useCallback, useEffect, useState } from "react";
 import { EmptyState, ErrorState, QueryState, SourceNote } from "@/components/data/query-state";
 import { PanelGrid } from "@/components/dashboard/panel-grid";
 import { PRESETS } from "@/components/dashboard/presets";
+import { AlertsToggle } from "@/components/layout/alerts-toggle";
 import { PageHeader } from "@/components/pages/page-header";
 import { DriverComparison } from "@/components/replay/driver-comparison";
 import { DriverFocus } from "@/components/replay/driver-focus";
@@ -41,6 +42,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { apiGet } from "@/lib/api";
 import { useCalendar, useReplay, useReplaySessions, useSeason, weekendOf } from "@/lib/hooks";
 import { fmtClock } from "@/lib/format";
+import { useReplayAlerts } from "@/lib/live-alerts";
 import { useReplayClock } from "@/lib/replay-clock";
 
 const FIRST_SEASON = 2023;
@@ -156,6 +158,7 @@ export function ReplayView() {
                     <span className="hidden sm:inline">Weekend</span>
                   </Link>
                 )}
+                <AlertsToggle />
               </div>
             </PageHeader>
             <ReplayLoader key={selected.key} sessionKey={selected.key} />
@@ -221,6 +224,7 @@ export function useReplayPlayback(replay: SessionReplay) {
 function Player({ replay, res }: { replay: SessionReplay; res: ApiResponse<SessionReplay> }) {
   const key = replay.session.key;
   const { clock, t, time, getWindow, current } = useReplayPlayback(replay);
+  useReplayAlerts(replay, t, clock.state.playing);
   const [selected, setSelected] = useState<number | null>(null);
   const [follow, setFollow] = useState(false);
   const [interpolate, setInterpolate] = useState(true);

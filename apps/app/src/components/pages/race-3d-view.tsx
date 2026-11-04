@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { EmptyState, QueryState } from "@/components/data/query-state";
+import { AlertsToggle } from "@/components/layout/alerts-toggle";
 import { PageHeader } from "@/components/pages/page-header";
 import { MAP_DELAY_MS, streaming, useLivePositions } from "@/components/pages/live-view";
 import { useReplayPlayback } from "@/components/pages/replay-view";
@@ -17,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApi } from "@/lib/api";
 import { useReplay } from "@/lib/hooks";
+import { useLiveAlerts, useReplayAlerts } from "@/lib/live-alerts";
 
 // The tower in a narrow side panel: the columns that fit beside the driver.
 const columns = (race: boolean): Column[] => (race ? ["int", "tyre", "gained"] : ["best", "tyre"]);
@@ -63,11 +65,17 @@ function Replay3D({ replay }: { replay: SessionReplay }) {
   // Someone is always in focus: the leader until you pick a car.
   const shown = selected ?? rows[0]?.driver ?? null;
   const s = replay.session;
+  useReplayAlerts(replay, t, clock.state.playing);
   return (
     <RaceStage3D
       title={s.meetingName}
       description={`${s.name} · ${s.circuit} · ${new Date(s.start).toLocaleDateString(undefined, { dateStyle: "medium" })} · recorded OpenF1 data`}
-      badge={<Badge variant="outline">Replay</Badge>}
+      badge={
+        <>
+          <Badge variant="outline">Replay</Badge>
+          <AlertsToggle className="bg-card" />
+        </>
+      }
       dashboard={`/replay?season=${new Date(s.start).getUTCFullYear()}&session=${s.key}`}
       track={replay.track}
       drivers={replay.drivers}
@@ -127,14 +135,18 @@ function Live3D({ live, timing: t }: { live: Extract<LiveStatus, { state: "LIVE"
   const drivers = new Map(t.drivers.map((d) => [d.number, d]));
   const race = t.session.type === "Race";
   const shown = selected ?? t.rows[0]?.driver ?? null;
+  useLiveAlerts(t);
   return (
     <RaceStage3D
       title={`${t.session.meetingName} · ${t.session.name}`}
       description={`Live from OpenF1. Cars are about ${MAP_DELAY_MS / 1000} s behind the timing.`}
       badge={
-        <Badge variant={live.state === "LIVE" ? "default" : "outline"} role="status">
-          {live.state === "LIVE" ? "Live" : `Delayed · ${live.delaySeconds} s`}
-        </Badge>
+        <>
+          <Badge variant={live.state === "LIVE" ? "default" : "outline"} role="status">
+            {live.state === "LIVE" ? "Live" : `Delayed · ${live.delaySeconds} s`}
+          </Badge>
+          <AlertsToggle className="bg-card" />
+        </>
       }
       dashboard="/live"
       track={t.track}
