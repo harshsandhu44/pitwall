@@ -7,3 +7,4 @@ export * from "./live";
 export * from "./stewards";
 export * from "./championship";
 export * from "./compare";
+export * from "./stats";
