@@ -1,6 +1,7 @@
 "use client";
 
 import type { ConstructorStanding, DriverStanding, PointsProgression, SeasonResults, Standings } from "@pitwall/shared";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { QueryState, SourceNote } from "@/components/data/query-state";
 import { ConstructorStandingsTable } from "@/components/standings/constructor-standings-table";
@@ -37,12 +38,22 @@ export function StandingsView() {
 
   return (
     <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
-      <TabsList className="mb-3">
-        <TabsTrigger value="drivers">Drivers</TabsTrigger>
-        <TabsTrigger value="constructors">Constructors</TabsTrigger>
-        <TabsTrigger value="progression">Progression</TabsTrigger>
-        <TabsTrigger value="results">Results matrix</TabsTrigger>
-      </TabsList>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <TabsList>
+          <TabsTrigger value="drivers">Drivers</TabsTrigger>
+          <TabsTrigger value="constructors">Constructors</TabsTrigger>
+          <TabsTrigger value="progression">Progression</TabsTrigger>
+          <TabsTrigger value="results">Results matrix</TabsTrigger>
+        </TabsList>
+        {/* The phone tab bar has no room for these pages. */}
+        <p className="flex gap-3 text-xs font-medium">
+          {(["drivers", "teams"] as const).map((k) => (
+            <Link key={k} href={s ? `/${k}?${s}` : `/${k}`} className="underline-offset-4 hover:text-live hover:underline">
+              All {k}
+            </Link>
+          ))}
+        </p>
+      </div>
 
       <TabsContent value="drivers">
         <QueryState query={drivers}>

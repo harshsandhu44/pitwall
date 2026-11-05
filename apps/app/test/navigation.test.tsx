@@ -14,14 +14,18 @@ const api = () =>
   });
 
 describe("navigation", () => {
-  it("shows the same five pages in the top bar and the phone tab bar, marking the current one", () => {
+  it("shows every page in the top bar and five in the phone tab bar, marking the current one", () => {
     api();
     nav.pathname = "/calendar";
     renderWithQuery(<AppShell>content</AppShell>);
 
-    for (const name of ["Main", "Main (tabs)"]) {
+    const pages = {
+      Main: ["Live", "Home", "Calendar", "Standings", "Drivers", "Teams", "Replay"],
+      "Main (tabs)": ["Live", "Home", "Calendar", "Standings", "Replay"],
+    };
+    for (const [name, links] of Object.entries(pages)) {
       const bar = screen.getByRole("navigation", { name });
-      expect(within(bar).getAllByRole("link").map((l) => l.textContent)).toEqual(["Live", "Home", "Calendar", "Standings", "Replay"]);
+      expect(within(bar).getAllByRole("link").map((l) => l.textContent)).toEqual(links);
       expect(within(bar).getByRole("link", { name: "Calendar" })).toHaveAttribute("aria-current", "page");
     }
     expect(screen.getByRole("link", { name: "Skip to content" })).toHaveAttribute("href", "#main");
