@@ -1,7 +1,7 @@
 "use client";
 
 import { nextSession } from "@pitwall/shared";
-import { CalendarDaysIcon, HistoryIcon, HouseIcon, RadioTowerIcon, TrophyIcon } from "lucide-react";
+import { CalendarDaysIcon, HistoryIcon, HouseIcon, RadioTowerIcon, TrophyIcon, UserRoundIcon, UsersIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { type ReactNode, Suspense, useState } from "react";
@@ -19,6 +19,8 @@ export const NAV = [
   { href: "/", label: "Home", icon: HouseIcon },
   { href: "/calendar", label: "Calendar", icon: CalendarDaysIcon },
   { href: "/standings", label: "Standings", icon: TrophyIcon },
+  { href: "/drivers", label: "Drivers", icon: UserRoundIcon, barOnly: true },
+  { href: "/teams", label: "Teams", icon: UsersIcon, barOnly: true },
   { href: "/replay", label: "Replay", icon: HistoryIcon },
 ] as const;
 
@@ -33,7 +35,8 @@ function NavLinks({ variant }: { variant: "bar" | "tabs" }) {
   const pathname = usePathname();
   const season = useSearchParams().get("season");
   const inWindow = useSessionInWindow();
-  return NAV.map((item) => {
+  // The phone tab bar keeps five; Drivers and Teams are linked from Standings there.
+  return NAV.filter((item) => variant === "bar" || !("barOnly" in item)).map((item) => {
     const dot = item.href === "/live" && inWindow;
     return (
       <Link
