@@ -44,7 +44,8 @@ Tests mock every upstream and never touch the network. Fixtures are trimmed copi
 | `/calendar` | Season calendar with local session times |
 | `/standings` | Driver and constructor standings, points progression, results matrix |
 | `/race?season=&round=&tab=` | The weekend page. Results: schedule and race, sprint and qualifying classifications. Weather (newest season only): radar, cloud and wind map, forecast timeline and per-session summary. Sessions (2023 on): replay links for the weekend's recorded sessions |
-| `/driver?id=`, `/team?id=` | Career by season |
+| `/drivers`, `/teams` | The season's grid: driver tiles, or one block per team with everyone who started for it (substitutes smaller), with Grand Prix wins, podiums and starts |
+| `/driver?id=`, `/team?id=` | Titles and best championship finish, the season's Grand Prix stats (grid P1 stands in for pole), totals since 2023, career by season and the season's races |
 | `/weather?round=` | Redirects to that round's Weather tab (old links) |
 | `/replay?season=&session=` | Recorded OpenF1 session on the same dashboard as live, with playback, event markers and keyboard shortcuts |
 
