@@ -1,14 +1,30 @@
 "use client";
 
-import type { CareerSeason, ConstructorProfile, DriverProfile, SeasonResults } from "@pitwall/shared";
+import {
+  type ApiResponse,
+  average,
+  type CareerSeason,
+  type ClassificationEntry,
+  type ConstructorProfile,
+  type DriverProfile,
+  type DriverStanding,
+  type SeasonResults,
+  seasonStats,
+  type Standings,
+  type Stats,
+  sumStats,
+  titles,
+} from "@pitwall/shared";
+import { useQueries, type UseQueryResult } from "@tanstack/react-query";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ErrorState, QueryState, SourceNote } from "@/components/data/query-state";
 import { PageHeader } from "@/components/pages/page-header";
+import { Headshot } from "@/components/pages/roster-view";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useApi } from "@/lib/api";
+import { apiGet, useApi } from "@/lib/api";
 import { driverName, formatPoints } from "@/lib/format";
 import { useSeason } from "@/lib/hooks";
 
@@ -64,8 +80,70 @@ function CareerTable({ career, seasonsTotal, kind, id }: { career: CareerSeason[
   );
 }
 
-function SeasonRaces({ season, kind, id }: { season: number; kind: "drivers" | "teams"; id: string }) {
-  const results = useApi<SeasonResults>(`/api/results?season=${season}`);
+/** OpenF1 seasons: cheap to add up, unlike Jolpica's rate-limited history. */
+const TOTALS_FROM = 2023;
+
+const avg = (sum: number, n: number) => {
+  const a = average(sum, n);
+  return a === null ? "—" : a.toFixed(1);
+};
+
+function StatRow({ label, stats }: { label: string; stats: Stats }) {
+  // OpenF1 season results carry no grid or fastest laps: those cells are left out, not shown as 0.
+  const all: [string, string | number | null][] = [
+    ["Starts", stats.starts],
+    ["Wins", stats.wins],
+    ["Podiums", stats.podiums],
+    ["Grid P1", stats.gridP1],
+    ["Fastest laps", stats.fastestLaps],
+    ["Points finishes", stats.pointsFinishes],
+    ["DNFs", stats.dnfs],
+    ["Best finish", stats.bestFinish === null ? "—" : `P${stats.bestFinish}`],
+    ["Avg grid", stats.gridP1 === null ? null : avg(stats.gridSum, stats.gridCount)],
+    ["Avg finish", avg(stats.finishSum, stats.finishCount)],
+  ];
+  const cells = all.filter((c): c is [string, string | number] => c[1] !== null);
+  return (
+    <section aria-label={label} className="space-y-1.5">
+      <h2 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">{label}</h2>
+      <dl className="grid grid-cols-3 gap-x-4 gap-y-2 sm:grid-cols-5 lg:auto-cols-fr lg:grid-flow-col">
+        {cells.map(([k, v]) => (
+          <div key={k}>
+            <dt className="text-[11px] text-muted-foreground">{k}</dt>
+            <dd className="font-mono text-lg tabular-nums">{v}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
+/** Every OpenF1-era season added up; nothing until all of them load, so the totals are never partial. */
+function SinceTotals({ seasons, filter }: { seasons: number[]; filter: (e: ClassificationEntry) => boolean }) {
+  const queries = useQueries({
+    queries: seasons.map((season) => {
+      // Same key as useApi, so the standings page and this profile share the cache.
+      const path = `/api/results?season=${season}`;
+      return { queryKey: [path], queryFn: ({ signal }: { signal: AbortSignal }) => apiGet<SeasonResults>(path, signal) };
+    }),
+  });
+  if (queries.some((q) => q.isError)) return <p className="text-xs text-muted-foreground">Totals since {TOTALS_FROM} are unavailable right now.</p>;
+  if (queries.some((q) => !q.data?.data)) return <Skeleton className="h-14 w-full" />;
+  const stats = sumStats(queries.map((q) => seasonStats(q.data!.data!, filter)));
+  return <StatRow label={`Since ${TOTALS_FROM} (${seasons.length} seasons)`} stats={stats} />;
+}
+
+function SeasonRaces({
+  season,
+  kind,
+  id,
+  results,
+}: {
+  season: number;
+  kind: "drivers" | "teams";
+  id: string;
+  results: UseQueryResult<ApiResponse<SeasonResults>>;
+}) {
   return (
     <QueryState query={results}>
       {(r) => {
@@ -130,44 +208,94 @@ export function ProfileView({ kind }: { kind: "drivers" | "teams" }) {
         </>
       }
     >
-      {(p, res) => {
-        const title = "driver" in p ? driverName(p.driver) : p.constructor.name;
-        const bits =
-          "driver" in p
-            ? [p.driver.code, p.driver.number !== null && `#${p.driver.number}`, p.driver.nationality, p.driver.dateOfBirth && `born ${p.driver.dateOfBirth}`]
-            : [p.constructor.nationality];
-        const shownSeason = season && p.seasons.includes(season) ? season : p.seasons[0];
-        return (
-          <>
-            <PageHeader title={title} description={bits.filter(Boolean).join(" · ")} />
-            <div className="grid gap-4 lg:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Championship history</CardTitle>
-                  <CardDescription>
-                    {p.seasons.length} season{p.seasons.length === 1 ? "" : "s"}, {p.seasons.at(-1)}–{p.seasons[0]}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <CareerTable career={p.career} seasonsTotal={p.seasonsTotal} kind={kind} id={id} />
-                  <SourceNote res={res} />
-                </CardContent>
-              </Card>
-              {shownSeason && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>{shownSeason} races</CardTitle>
-                    {shownSeason !== season && season && <CardDescription>No entries in {season}; showing their latest season.</CardDescription>}
-                  </CardHeader>
-                  <CardContent>
-                    <SeasonRaces season={shownSeason} kind={kind} id={id} />
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          </>
-        );
-      }}
+      {(p, res) => <Profile p={p} res={res} kind={kind} id={id} season={season} />}
     </QueryState>
+  );
+}
+
+function Profile({
+  p,
+  res,
+  kind,
+  id,
+  season,
+}: {
+  p: DriverProfile | ConstructorProfile;
+  res: ApiResponse<DriverProfile | ConstructorProfile>;
+  kind: "drivers" | "teams";
+  id: string;
+  season: number | null;
+}) {
+  const shownSeason = season && p.seasons.includes(season) ? season : p.seasons[0];
+  const results = useApi<SeasonResults>(shownSeason ? `/api/results?season=${shownSeason}` : null);
+  const isDriver = "driver" in p;
+  // The headshot comes with OpenF1 standings, which the standings page has usually cached already.
+  const standings = useApi<Standings<DriverStanding>>(
+    isDriver && shownSeason && shownSeason >= TOTALS_FROM ? `/api/standings/drivers?season=${shownSeason}` : null,
+  );
+  const headshot = standings.data?.data?.entries.find((e) => e.driver.id === id)?.headshot;
+  const filter = (e: ClassificationEntry) => (isDriver ? e.driver.id === id : e.constructor.id === id);
+  const recent = p.seasons.filter((y) => y >= TOTALS_FROM);
+  const t = titles(p.career, p.seasonsTotal);
+
+  const title = isDriver ? driverName(p.driver) : p.constructor.name;
+  const bits = isDriver
+    ? [p.driver.code, p.driver.number !== null && `#${p.driver.number}`, p.driver.nationality, p.driver.dateOfBirth && `born ${p.driver.dateOfBirth}`]
+    : [p.constructor.nationality];
+  return (
+    <>
+      <PageHeader title={title} description={bits.filter(Boolean).join(" · ")}>
+        <div className="flex items-end gap-5">
+          <dl className="flex gap-5">
+            <div>
+              <dt className="text-[11px] text-muted-foreground">{isDriver ? "World titles" : "Constructors' titles"}</dt>
+              <dd className="font-mono text-2xl tabular-nums">
+                {t.count}
+                {t.since !== null && <span className="ml-1 text-xs text-muted-foreground">since {t.since}</span>}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-[11px] text-muted-foreground">Best championship</dt>
+              <dd className="font-mono text-2xl tabular-nums">{t.best === null ? "—" : `P${t.best}`}</dd>
+            </div>
+          </dl>
+          {isDriver && headshot && <Headshot src={headshot} number={p.driver.number} className="-mb-4 size-24" />}
+        </div>
+      </PageHeader>
+      <div className="mb-5 space-y-4">
+        {shownSeason && (
+          <QueryState query={results} loading={<Skeleton className="h-14 w-full" />}>
+            {(r) => <StatRow label={`${shownSeason} Grands Prix`} stats={seasonStats(r, filter)} />}
+          </QueryState>
+        )}
+        {/* One OpenF1 season is just the row above. */}
+        {recent.length > 1 && <SinceTotals seasons={recent} filter={filter} />}
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Championship history</CardTitle>
+            <CardDescription>
+              {p.seasons.length} season{p.seasons.length === 1 ? "" : "s"}, {p.seasons.at(-1)}–{p.seasons[0]}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <CareerTable career={p.career} seasonsTotal={p.seasonsTotal} kind={kind} id={id} />
+            <SourceNote res={res} />
+          </CardContent>
+        </Card>
+        {shownSeason && (
+          <Card>
+            <CardHeader>
+              <CardTitle>{shownSeason} races</CardTitle>
+              {shownSeason !== season && season && <CardDescription>No entries in {season}; showing their latest season.</CardDescription>}
+            </CardHeader>
+            <CardContent>
+              <SeasonRaces season={shownSeason} kind={kind} id={id} results={results} />
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </>
   );
 }
