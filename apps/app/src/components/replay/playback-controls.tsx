@@ -2,7 +2,7 @@
 
 import { qualifyingContext, type SessionReplay, stewardsAt } from "@pitwall/shared";
 import { FlagIcon, LoaderCircleIcon, PauseIcon, PlayIcon } from "lucide-react";
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuGroup, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
@@ -96,6 +96,24 @@ export function replayMarkers(r: SessionReplay): Marker[] {
 }
 
 // The groups shown, one saved set for every replay. Team radio starts off: some sessions have hundreds of clips.
+const DOT = 10; // px: a dot and its gap
+const TALL = 3; // dots in a stack; beyond that the last becomes "+N"
+
+/**
+ * Markers (sorted by t) grouped into stacks: one closer than a dot to a stack's first marker joins it. `at` maps a time
+ * to 0–1 along the bar, clamped, so clips before the session pin to the start. `width` is the bar in px; 0 stacks nothing.
+ */
+export function stackMarkers<T extends { t: number }>(markers: T[], at: (t: number) => number, width: number) {
+  const stacks: { x: number; items: T[] }[] = [];
+  for (const m of markers) {
+    const x = Math.min(1, Math.max(0, at(m.t)));
+    const last = stacks.at(-1);
+    if (last && width && (x - last.x) * width < DOT) last.items.push(m);
+    else stacks.push({ x, items: [m] });
+  }
+  return stacks;
+}
+
 const KEY = "pitwall.markers.v1";
 const DEFAULT = JSON.stringify(GROUPS.map((g) => g.id).filter((g) => g !== "radio"));
 const listeners = new Set<() => void>();
@@ -148,6 +166,14 @@ export function PlaybackControls({
   const groups = useMarkerGroups();
   const present = GROUPS.filter((g) => markers.some((m) => m.group === g.id));
   const shown = markers.filter((m) => groups.shown.has(m.group));
+  const [width, setWidth] = useState(0);
+  // The range thumb is inset about 8 px at each end; the ticks follow it.
+  const measure = (el: HTMLOListElement | null) => {
+    if (!el) return;
+    const resize = new ResizeObserver(() => setWidth(el.clientWidth - 16));
+    resize.observe(el);
+    return () => resize.disconnect();
+  };
   // Space plays or pauses, the arrows seek 10 s (Shift: 1 min), [ and ] change speed. Not while typing.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -166,6 +192,12 @@ export function PlaybackControls({
     return () => window.removeEventListener("keydown", onKey);
   }, [state, range, onPlay, onPause, onSeek, onSpeed]);
   const frac = (t: number) => (t - range.start) / (range.end - range.start);
+  const stacks = stackMarkers(shown, frac, width);
+  const rows = Math.max(1, ...stacks.map((s) => Math.min(TALL, s.items.length)));
+  const jump = (m: Marker) => {
+    onSeek(m.t);
+    onMarker?.(m);
+  };
   return (
     <div className="space-y-2 text-xs">
       <div className="flex flex-wrap items-center gap-3">
@@ -231,34 +263,64 @@ export function PlaybackControls({
         className="w-full accent-foreground"
       />
       {shown.length > 0 && (
-        <ol aria-label="Session events" className="relative -mt-1 h-3">
-          {shown.map((m, i) => (
-            // The range thumb is inset about 8 px at each end; the ticks follow it.
-            <li key={`${m.kind}-${m.t}-${i}`} className="absolute top-0.5" style={{ left: `calc(0.5rem + (100% - 1rem) * ${frac(m.t)})` }}>
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <button
-                      type="button"
-                      aria-label={`Jump to ${m.label}`}
-                      onClick={() => {
-                        onSeek(m.t);
-                        onMarker?.(m);
-                      }}
-                      className={cn("block size-2 -translate-x-1/2 rounded-full hover:scale-150 focus-visible:outline-2 focus-visible:outline-ring", MARK[m.kind])}
+        <ol ref={measure} aria-label="Session events" className="relative -mt-1" style={{ height: rows * DOT + 2 }}>
+          {stacks.flatMap((s, si) => {
+            const left = `calc(0.5rem + (100% - 1rem) * ${s.x})`;
+            const over = s.items.length > TALL;
+            const dots = over ? s.items.slice(0, TALL - 1) : s.items;
+            const rest = s.items.slice(TALL - 1);
+            return [
+              ...dots.map((m, row) => (
+                <li key={`${m.kind}-${m.t}-${si}-${row}`} className="absolute" style={{ left, top: row * DOT + 2 }}>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <button
+                          type="button"
+                          aria-label={`Jump to ${m.label}`}
+                          onClick={() => jump(m)}
+                          className={cn("block size-2 -translate-x-1/2 rounded-full hover:scale-150 focus-visible:outline-2 focus-visible:outline-ring", MARK[m.kind])}
+                        />
+                      }
                     />
-                  }
-                />
-                <TooltipContent className="flex-col items-start gap-0.5">
-                  <span className="font-medium">{m.label}</span>
-                  <span className="font-mono tabular-nums opacity-70">
-                    {fmtClock(m.t)} · +{fmtElapsed(m.t - range.start)}
-                  </span>
-                  {m.url && <span className="opacity-70">Click to play</span>}
-                </TooltipContent>
-              </Tooltip>
-            </li>
-          ))}
+                    <TooltipContent className="flex-col items-start gap-0.5">
+                      <span className="font-medium">{m.label}</span>
+                      <span className="font-mono tabular-nums opacity-70">
+                        {fmtClock(m.t)} · {m.t < range.start ? "before the start" : `+${fmtElapsed(m.t - range.start)}`}
+                      </span>
+                      {m.url && <span className="opacity-70">Click to play</span>}
+                    </TooltipContent>
+                  </Tooltip>
+                </li>
+              )),
+              over && (
+                <li key={`more-${si}`} className="absolute" style={{ left, top: (TALL - 1) * DOT + 1 }}>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <button
+                          type="button"
+                          aria-label={`${rest.length} more events. Jump to ${rest[0]!.label}`}
+                          onClick={() => jump(rest[0]!)}
+                          className="block -translate-x-1/2 rounded-full bg-muted px-1 font-mono text-[9px] leading-[10px] text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+                        >
+                          +{rest.length}
+                        </button>
+                      }
+                    />
+                    <TooltipContent className="flex-col items-start gap-0.5">
+                      {rest.map((m, i) => (
+                        <span key={i}>
+                          {m.label} <span className="font-mono tabular-nums opacity-70">{fmtClock(m.t)}</span>
+                        </span>
+                      ))}
+                      <span className="opacity-70">Click to jump to the first</span>
+                    </TooltipContent>
+                  </Tooltip>
+                </li>
+              ),
+            ];
+          })}
         </ol>
       )}
       <p className="hidden text-[11px] text-muted-foreground md:block">

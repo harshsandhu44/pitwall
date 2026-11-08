@@ -170,7 +170,7 @@ Checked against Jolpica for 2026: standings, progression, points and wins are id
 - `/api/replay/:key/window?from=<ms>` returns one fixed, aligned 60 s window of car positions, plus gaps for races. Each window includes 1 s of overlap on each side, so interpolation never needs a neighbouring window. Windows are cached in the Cache API only (~110 KB each). A cold window costs 2 OpenF1 requests and about 5 ms of CPU.
 - The browser loads the current window plus the next two, and drops windows it hasn't used for a minute. The clock holds while a window is loading.
 - Cars are interpolated only between samples less than 1 s apart. Otherwise the last sample is shown as stale.
-- The timeline marks safety cars, red flags, penalties and every fifth lap; each mark is a button that seeks there. Keys: Space plays or pauses, ← → seek 10 s (Shift: 1 min), `[` `]` change speed.
+- The timeline marks the session's events (see `/replay` above); each mark is a button that seeks there. Marks closer than a dot stack, at most 3 deep with a "+N" for the rest, and radio published before or after the session pins to the ends. Keys: Space plays or pauses, ← → seek 10 s (Shift: 1 min), `[` `]` change speed.
 - `/api/replay/:key/telemetry?driver=&lap=` returns one lap's OpenF1 car data (about 4 samples a second), times from the lap start. Distance along the lap is estimated by integrating speed. Finished laps are cached for 30 days in the Cache API only; it also works for finished laps of a live session.
 - Sessions are listed 35 minutes after they end. OpenF1 opens a session's data 30 minutes after it ends, and the extra margin keeps half-processed data from being cached as final.
 
