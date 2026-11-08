@@ -1,5 +1,5 @@
 import type { ReplayDriver, SessionReplay, TimingRow } from "@pitwall/shared";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ReplayView } from "@/components/pages/replay-view";
@@ -13,11 +13,11 @@ import { envelope, mockApi, nav, renderWithQuery } from "./utils";
 
 const range = { start: Date.parse("2024-05-26T13:00:00Z"), end: Date.parse("2024-05-26T15:00:00Z") };
 
-function Player({ ready = () => true, markers }: { ready?: (t: number) => boolean; markers?: Marker[] }) {
+function Player({ ready = () => true, markers, onMarker }: { ready?: (t: number) => boolean; markers?: Marker[]; onMarker?: (m: Marker) => void }) {
   const c = useReplayClock(range, ready);
   return (
     <>
-      <PlaybackControls state={c.state} range={range} onPlay={c.play} onPause={c.pause} onSeek={c.seek} onSpeed={c.setSpeed} markers={markers} />
+      <PlaybackControls state={c.state} range={range} onPlay={c.play} onPause={c.pause} onSeek={c.seek} onSpeed={c.setSpeed} markers={markers} onMarker={onMarker} />
       <output>{`${c.state.t - range.start}|${c.state.speed}`}</output>
     </>
   );
@@ -61,9 +61,35 @@ describe("replay playback", () => {
   });
 
   it("jumps to an event marker", async () => {
-    render(<Player markers={[{ t: range.start + 1_800_000, kind: "sc", label: "Safety car, lap 23" }]} />);
+    render(<Player markers={[{ t: range.start + 1_800_000, kind: "sc", group: "sc", label: "Safety car, lap 23" }]} />);
+    await userEvent.hover(screen.getByRole("button", { name: "Jump to Safety car, lap 23" }));
+    expect(await screen.findByText("Safety car, lap 23")).toBeInTheDocument(); // the tooltip
+    expect(screen.getByText(/· \+0:30:00$/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Jump to Safety car, lap 23" }));
     expect(screen.getByRole("status")).toHaveTextContent(/^1800000\|/);
+  });
+
+  it("shows the event groups picked in the Events menu, remembered, with team radio off at first", async () => {
+    const store = new Map<string, string>(); // this jsdom setup has no Web Storage
+    vi.stubGlobal("localStorage", { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => store.set(k, v) });
+    const onMarker = vi.fn();
+    const markers: Marker[] = [
+      { t: range.start + 60_000, kind: "yellow", group: "yellow", label: "Yellow flag, sector 4" },
+      { t: range.start + 120_000, kind: "radio", group: "radio", label: "VER team radio", url: "https://livetiming.formula1.com/static/a.mp3" },
+    ];
+    render(<Player markers={markers} onMarker={onMarker} />);
+    expect(screen.queryByRole("button", { name: "Jump to VER team radio" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Events" }));
+    await userEvent.click(screen.getByRole("menuitemcheckbox", { name: "Team radio" }));
+    await userEvent.click(screen.getByRole("menuitemcheckbox", { name: "Yellow flags" }));
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument()); // an open menu hides the page from the a11y tree
+    expect(screen.queryByRole("button", { name: "Jump to Yellow flag, sector 4" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Jump to VER team radio" }));
+    expect(screen.getByRole("status")).toHaveTextContent(/^120000\|/);
+    expect(onMarker).toHaveBeenCalledWith(markers[1]);
+    expect(JSON.parse(store.get("pitwall.markers.v1")!)).toEqual(["flags", "sc", "penalty", "radio", "laps"]);
+    vi.unstubAllGlobals();
   });
 
   it("advances by wall time × speed and holds while positions are loading", async () => {
@@ -178,11 +204,68 @@ describe("team radio", () => {
     expect(screen.getByRole("button", { name: /^Play 44 team radio/ })).toBeInTheDocument(); // no driver record: the number
   });
 
+  it("plays a clip with a seek bar, pauses it, and plays a clip cued from the timeline", async () => {
+    const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockImplementation(function (this: HTMLMediaElement) {
+      this.dispatchEvent(new Event("play"));
+      return Promise.resolve();
+    });
+    const pause = vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(function (this: HTMLMediaElement) {
+      this.dispatchEvent(new Event("pause"));
+    });
+    const { rerender } = render(<TeamRadio clips={clips} drivers={drivers} t={Infinity} />);
+    await userEvent.click(screen.getByRole("button", { name: /^Play VER team radio/ }));
+    expect(screen.getByRole("button", { name: /^Pause VER team radio/ })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("slider", { name: "Seek in VER team radio" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /^Pause VER team radio/ }));
+    expect(pause).toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: /^Play VER team radio/ })).toBeInTheDocument();
+    expect(screen.getByRole("slider", { name: "Seek in VER team radio" })).toBeInTheDocument(); // still the loaded clip
+
+    rerender(<TeamRadio clips={clips} drivers={drivers} t={Infinity} cue={{ url: clips[1]!.url, at: 1 }} />);
+    expect(screen.getByRole("button", { name: /^Pause 44 team radio/ })).toBeInTheDocument();
+    expect(play).toHaveBeenCalledTimes(2);
+  });
+
   it("says when a session has no radio, or none yet", () => {
     const { rerender } = render(<TeamRadio clips={[]} drivers={drivers} t={Infinity} />);
     expect(screen.getByText("No team radio published for this session.")).toBeInTheDocument();
     rerender(<TeamRadio clips={clips} drivers={drivers} t={range.start} />);
     expect(screen.getByText("No team radio yet at this point.")).toBeInTheDocument();
+  });
+});
+
+describe("race markers", () => {
+  it("marks the start, restart, flags, safety car coming and going, yellows close together as one, and radio", () => {
+    const rc = (t: number, category: string, message: string, flag: string | null = null, lap: number | null = null) => ({ t, lap, category, flag, driver: null, message });
+    const r = {
+      session: { name: "Race", type: "Race" },
+      drivers: [{ number: 1, acronym: "VER" }],
+      raceControl: [
+        rc(0, "Flag", "GREEN LIGHT - PIT EXIT OPEN", "GREEN"),
+        rc(1, "SessionStatus", "SESSION STARTED"),
+        rc(100_000, "Flag", "YELLOW IN TRACK SECTOR 5", "YELLOW", 3),
+        rc(110_000, "Flag", "DOUBLE YELLOW IN TRACK SECTOR 7", "DOUBLE YELLOW", 3),
+        rc(200_000, "SafetyCar", "SAFETY CAR DEPLOYED", null, 4),
+        rc(300_000, "SafetyCar", "SAFETY CAR IN THIS LAP", null, 6),
+        rc(400_000, "Flag", "RED FLAG", "RED", 8),
+        rc(500_000, "Flag", "TRACK CLEAR", "CLEAR"),
+        rc(600_000, "SessionStatus", "SESSION STARTED"),
+        rc(900_000, "Flag", "CHEQUERED FLAG", "CHEQUERED", 50),
+      ],
+      radio: [{ t: 250_000, driver: 1, url: "https://livetiming.formula1.com/static/a.mp3" }],
+      laps: {},
+    } as unknown as SessionReplay;
+    expect(replayMarkers(r).map((m) => [m.kind, m.group, m.label])).toEqual([
+      ["green", "flags", "Start"],
+      ["yellow", "yellow", "Double yellow, sectors 5, 7"],
+      ["sc", "sc", "Safety car, lap 4"],
+      ["radio", "radio", "VER team radio"],
+      ["sc-end", "sc", "Safety car in this lap, lap 6"],
+      ["red", "flags", "Red flag, lap 8"],
+      ["green", "flags", "Track clear"],
+      ["green", "flags", "Restart"],
+      ["chequered", "flags", "Chequered flag, lap 50"],
+    ]);
   });
 });
 
