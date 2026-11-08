@@ -7,8 +7,8 @@ import { DriverComparison } from "@/components/replay/driver-comparison";
 import { renderWithQuery } from "./utils";
 
 const drivers: ReplayDriver[] = [
-  { number: 4, acronym: "NOR", name: "Lando Norris", team: "McLaren", colour: "#FF8000", driverId: null },
-  { number: 81, acronym: "PIA", name: "Oscar Piastri", team: "McLaren", colour: "#FF8000", driverId: null },
+  { number: 4, acronym: "NOR", name: "Lando Norris", team: "McLaren", colour: "#FF8000", driverId: null, teamId: "mclaren" },
+  { number: 81, acronym: "PIA", name: "Oscar Piastri", team: "McLaren", colour: "#FF8000", driverId: null, teamId: "mclaren" },
 ];
 
 function Harness() {

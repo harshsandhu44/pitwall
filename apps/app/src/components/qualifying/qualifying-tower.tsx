@@ -3,6 +3,7 @@
 import type { LapState, QualiState, ReplayDriver, TimingRow } from "@pitwall/shared";
 import { Fragment, useState } from "react";
 import { EmptyState } from "@/components/data/query-state";
+import { TeamEmblem } from "@/components/racing/team-mark";
 import { SECTOR_MARK, Tyre, useRowGlide } from "@/components/replay/timing-tower";
 import type { CarMark } from "@/components/replay/track-canvas";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -139,7 +140,7 @@ export function QualifyingTower({
                   </TableCell>
                   <TableCell>
                     <button type="button" aria-pressed={sel} onClick={() => onSelect(sel ? null : r.driver)} className="inline-flex items-center gap-1.5 hover:text-live hover:underline">
-                      <span aria-hidden className={cn("h-3 w-1 rounded-full bg-muted-foreground/40", outIn !== null && "opacity-50")} style={d?.colour ? { backgroundColor: d.colour } : undefined} />
+                      <TeamEmblem id={d?.teamId} colour={d?.colour ?? null} className={cn("mr-0", outIn !== null && "opacity-50")} />
                       <span className="font-mono font-medium">{d?.acronym ?? r.driver}</span>
                       <span className="sr-only">{d?.name}</span>
                     </button>

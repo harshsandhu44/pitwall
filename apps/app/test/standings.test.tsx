@@ -1,8 +1,9 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { SeasonSelector } from "@/components/layout/season-selector";
 import { StandingsView } from "@/components/pages/standings-view";
+import { TeamEmblem } from "@/components/racing/team-mark";
 import { constructorStandings, driverStandings } from "./fixtures";
 import { envelope, mockApi, nav, renderWithQuery } from "./utils";
 
@@ -41,14 +42,21 @@ describe("standings", () => {
     expect(table).toHaveTextContent("Leclerc");
   });
 
-  it("marks teams with OpenF1 colours and leaves teams without one neutral", async () => {
+  it("marks teams with their emblem", async () => {
     nav.params = new URLSearchParams("season=2025");
     mockApi(routes(2025));
     renderWithQuery(<StandingsView />);
     const table = await screen.findByRole("table");
     const mark = (team: string) => within(table).getAllByRole("link", { name: team })[0]!.previousElementSibling as HTMLElement;
-    await waitFor(() => expect(mark("Mercedes").style.backgroundColor).toBe("rgb(39, 244, 210)"));
-    expect(mark("Ferrari").style.backgroundColor).toBe("");
+    expect(mark("Mercedes")).toHaveAttribute("src", "/teams/mercedes.svg");
+    expect(mark("Ferrari")).toHaveAttribute("src", "/teams/ferrari.svg");
+  });
+
+  it("falls back to a colour bar for teams without an emblem", () => {
+    const { container } = render(<><TeamEmblem id="alfa" colour="#52E252" /><TeamEmblem id={null} colour={null} /></>);
+    const [coloured, neutral] = container.querySelectorAll<HTMLElement>("span > span");
+    expect(coloured!.style.backgroundColor).toBe("rgb(82, 226, 82)");
+    expect(neutral!.style.backgroundColor).toBe("");
   });
 
   it("sorts by points ascending when the header is toggled", async () => {

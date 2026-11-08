@@ -1,4 +1,5 @@
 import type { ReplayDriver, TimingRow, TrackStatus } from "@pitwall/shared";
+import { TeamEmblem } from "@/components/racing/team-mark";
 import { fmtMinutes } from "@/lib/format";
 import { useNow } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
@@ -40,7 +41,7 @@ export function SessionStatus({
         <div>
           <dt className="text-[11px] text-muted-foreground uppercase">{segment ? "Fastest" : "Leader"}</dt>
           <dd className="flex items-center gap-1.5 font-mono text-lg font-semibold">
-            <span aria-hidden className="h-4 w-1 bg-muted-foreground/40" style={d?.colour ? { backgroundColor: d.colour } : undefined} />
+            <TeamEmblem id={d?.teamId} colour={d?.colour ?? null} className="mr-0" />
             {d?.acronym ?? "—"}
           </dd>
         </div>

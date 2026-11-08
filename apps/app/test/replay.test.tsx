@@ -137,8 +137,8 @@ describe("replay playback", () => {
 
 describe("timing tower", () => {
   const drivers = new Map<number, ReplayDriver>([
-    [16, { number: 16, acronym: "LEC", name: "Charles Leclerc", team: "Ferrari", colour: "#E80020", driverId: "leclerc" }],
-    [81, { number: 81, acronym: "PIA", name: "Oscar Piastri", team: "McLaren", colour: "#FF8000", driverId: "piastri" }],
+    [16, { number: 16, acronym: "LEC", name: "Charles Leclerc", team: "Ferrari", colour: "#E80020", driverId: "leclerc", teamId: "ferrari" }],
+    [81, { number: 81, acronym: "PIA", name: "Oscar Piastri", team: "McLaren", colour: "#FF8000", driverId: "piastri", teamId: "mclaren" }],
   ]);
   const rows: TimingRow[] = [
     { driver: 16, position: 1, gap: 0, interval: 0, lap: 35, lastLap: 79.319, bestLap: 78.5, compound: "HARD", tyreAge: 34, pits: 1, startPosition: null, sectors: [null, null, null], sectorMark: [null, null, null] },
@@ -214,7 +214,7 @@ describe("battles on the track map", () => {
 });
 
 describe("team radio", () => {
-  const ver = { number: 1, acronym: "VER", name: "Max Verstappen", team: "Red Bull Racing", colour: "#3671C6", driverId: "max_verstappen" } as ReplayDriver;
+  const ver = { number: 1, acronym: "VER", name: "Max Verstappen", team: "Red Bull Racing", colour: "#3671C6", driverId: "max_verstappen", teamId: "red_bull" } as ReplayDriver;
   const drivers = new Map([[1, ver]]);
   const clips = [
     { t: range.start + 60_000, driver: 1, url: "https://livetiming.formula1.com/static/a.mp3" },

@@ -1,5 +1,6 @@
 import type { ReplayDriver, TimingRow } from "@pitwall/shared";
 import { EmptyState } from "@/components/data/query-state";
+import { TeamEmblem } from "@/components/racing/team-mark";
 import { Tyre } from "@/components/replay/timing-tower";
 import { fmtGap, fmtLap } from "@/lib/format";
 
@@ -41,7 +42,7 @@ export function DriverFocus({
     <div className="space-y-4">
       <div className="flex items-center gap-3">
         <span className="font-display text-4xl leading-none font-black tabular-nums">P{r.position ?? "—"}</span>
-        <span aria-hidden className="h-10 w-1.5 bg-muted-foreground/40" style={d?.colour ? { backgroundColor: d.colour } : undefined} />
+        <TeamEmblem id={d?.teamId} colour={d?.colour ?? null} className="mr-0" />
         <div className="min-w-0">
           <p className="truncate font-semibold">{d?.name ?? `Car ${r.driver}`}</p>
           <p className="truncate text-xs text-muted-foreground">

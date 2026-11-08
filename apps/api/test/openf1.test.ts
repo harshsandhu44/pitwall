@@ -3,6 +3,7 @@ import { env } from "cloudflare:workers";
 import type { ApiResponse, PositionWindow, ReplaySession, SessionReplay } from "@pitwall/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import worker from "../src/index";
+import { toDrivers } from "../src/providers/openf1";
 import { nextSlot, resetUpstreamState } from "../src/upstream";
 import f from "./fixtures/openf1-monaco-2024.json";
 
@@ -72,13 +73,17 @@ describe("replay sessions", () => {
 });
 
 describe("session replay", () => {
+  it("leaves teamId null for a team the map doesn't know", () => {
+    expect(toDrivers([{ session_key: 1, driver_number: 99, team_name: "Nobody Racing" }], 2024)[0]!.teamId).toBeNull();
+  });
+
   it("normalizes drivers, laps, stints and traces the track from the fastest clean lap", async () => {
     const { body } = await get<SessionReplay>("/api/replay/9523");
     const r = body.data!;
-    expect(r.drivers.map((d) => [d.acronym, d.driverId, d.colour])).toEqual([
-      ["VER", "max_verstappen", "#3671C6"],
-      ["LEC", "leclerc", "#E80020"],
-      ["HAM", "hamilton", "#27F4D2"],
+    expect(r.drivers.map((d) => [d.acronym, d.driverId, d.teamId, d.colour])).toEqual([
+      ["VER", "max_verstappen", "red_bull", "#3671C6"],
+      ["LEC", "leclerc", "ferrari", "#E80020"],
+      ["HAM", "hamilton", "mercedes", "#27F4D2"],
     ]);
     expect(r.laps[44]!.map((l) => l.lap).slice(0, 4)).toEqual([1, 2, 3, 62]);
     expect(r.laps[44]![1]).toMatchObject({ duration: 152.812, pitOut: true });

@@ -1,5 +1,6 @@
 import type { ReplayDriver, StewardsItem, StewardsKind } from "@pitwall/shared";
 import { EmptyState } from "@/components/data/query-state";
+import { TeamEmblem } from "@/components/racing/team-mark";
 import { Badge } from "@/components/ui/badge";
 import { fmtClock } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -46,7 +47,7 @@ export function Penalties({
                   onClick={() => onSelect(selected === n ? null : n)}
                   className="inline-flex items-center gap-1 font-mono font-medium text-foreground hover:text-live hover:underline aria-pressed:text-live"
                 >
-                  <span aria-hidden className="h-2.5 w-1 rounded-full bg-muted-foreground/40" style={d?.colour ? { backgroundColor: d.colour } : undefined} />
+                  <TeamEmblem id={d?.teamId} colour={d?.colour ?? null} className="mr-0" />
                   {d?.acronym ?? n}
                 </button>
               );

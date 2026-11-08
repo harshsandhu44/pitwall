@@ -3,6 +3,7 @@
 import type { ReplayDriver, TimingRow } from "@pitwall/shared";
 import { useLayoutEffect, useRef, useSyncExternalStore } from "react";
 import { DropdownMenuCheckboxItem, DropdownMenuGroup, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
+import { TeamEmblem } from "@/components/racing/team-mark";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { fmtGap, fmtLap } from "@/lib/format";
@@ -190,7 +191,7 @@ export function TimingTower({
                   onClick={() => onSelect(sel ? null : r.driver)}
                   className="inline-flex items-center gap-1.5 hover:text-live hover:underline"
                 >
-                  <span aria-hidden className="h-3 w-1 rounded-full bg-muted-foreground/40" style={d?.colour ? { backgroundColor: d.colour } : undefined} />
+                  <TeamEmblem id={d?.teamId} colour={d?.colour ?? null} className="mr-0" />
                   <span className="font-mono font-medium">{d?.acronym ?? r.driver}</span>
                   <span className="sr-only">{d?.name}</span>
                 </button>
