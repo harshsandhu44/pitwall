@@ -1,10 +1,11 @@
 "use client";
 
 import type { ReplayDriver, SessionReplay } from "@pitwall/shared";
-import { PauseIcon, PlayIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { ChevronUpIcon, PauseIcon, PlayIcon, RadioIcon } from "lucide-react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { EmptyState } from "@/components/data/query-state";
 import { fmtClock } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 const mss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
@@ -109,5 +110,56 @@ export function TeamRadio({
         </ol>
       )}
     </>
+  );
+}
+
+const OPEN_KEY = "pitwall.radio-open.v1";
+const openListeners = new Set<() => void>();
+let openSaved: boolean | null = null;
+function readOpen() {
+  if (openSaved !== null) return openSaved;
+  try {
+    openSaved = localStorage.getItem(OPEN_KEY) === "1";
+  } catch {
+    // storage blocked: collapsed
+  }
+  return (openSaved ??= false);
+}
+function setOpen(on: boolean) {
+  openSaved = on;
+  try {
+    localStorage.setItem(OPEN_KEY, on ? "1" : "0");
+  } catch {
+    // per-viewer convenience only
+  }
+  for (const l of openListeners) l();
+}
+
+/**
+ * Team radio folded under a header, for the 3D stage: collapsed until opened (remembered in this browser); a cued clip opens it.
+ * The list is hidden, not unmounted, so a clip keeps playing while it's collapsed.
+ */
+export function TeamRadioDrawer(props: Parameters<typeof TeamRadio>[0]) {
+  const open = useSyncExternalStore((cb) => (openListeners.add(cb), () => openListeners.delete(cb)), readOpen, () => false);
+  const id = useId();
+  const cued = useRef(props.cue?.at);
+  useEffect(() => {
+    if (!props.cue || props.cue.at === cued.current) return;
+    cued.current = props.cue.at;
+    setOpen(true);
+  });
+  const count = props.clips.filter((c) => c.t <= props.t).length;
+  return (
+    <section className="text-xs not-last:mb-2 not-last:border-b not-last:pb-2">
+      <button type="button" aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)} className="flex w-full items-center gap-2 font-medium hover:text-live">
+        <RadioIcon aria-hidden className="size-3.5" />
+        Team radio
+        <span className="font-normal text-muted-foreground">{count === 1 ? "1 clip" : `${count} clips`}</span>
+        <ChevronUpIcon aria-hidden className={cn("ml-auto size-3.5 transition-transform motion-reduce:transition-none", open && "rotate-180")} />
+      </button>
+      <div id={id} hidden={!open} className="mt-2 max-h-40 overflow-y-auto">
+        <TeamRadio {...props} />
+      </div>
+    </section>
   );
 }
