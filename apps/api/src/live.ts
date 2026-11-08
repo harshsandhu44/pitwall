@@ -1,5 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-import { isStewards, type LiveTimingSnapshot, type PositionWindow, type SessionReplay, timingAt, trackStatus } from "@pitwall/shared";
+import { isStewards, type LiveTimingSnapshot, type PositionWindow, qualifyingContext, type SessionReplay, timingAt, trackStatus } from "@pitwall/shared";
 import * as mqtt from "./mqtt";
 import { LIVE_LOCATION_MS, LIVE_TOPICS, type LiveRows, type LiveTopic, liveStart, type SessionRow, toDrivers, toReplay, toWindow } from "./providers/openf1";
 import { openf1Token, useOpenF1Login } from "./upstream";
@@ -104,6 +104,8 @@ export class Feed {
       stewards: replay.raceControl.filter(isStewards),
       stints: replay.stints,
       laps: Object.fromEntries(Object.entries(replay.laps).map(([n, laps]) => [n, laps.filter((l) => l.duration !== null)])),
+      openLaps: Object.fromEntries(Object.entries(replay.laps).flatMap(([n, laps]) => (laps.at(-1)?.duration === null ? [[n, laps.at(-1)!]] : []))),
+      qualifying: replay.session.type === "Qualifying" ? qualifyingContext(replay.raceControl, replay.session.name) : undefined,
       radio: replay.radio.slice(-20),
     };
   }
