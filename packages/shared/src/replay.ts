@@ -150,7 +150,8 @@ export function trackStatus(messages: SessionReplay["raceControl"], t: number): 
     } else if (m.category === "Flag") {
       if (m.flag === "RED") red = true;
       else if (m.flag === "CHEQUERED") chequered = true;
-      else if (m.flag === "GREEN") [red, neutral] = [false, null];
+      // Green after a chequered flag: the next qualifying segment.
+      else if (m.flag === "GREEN") [red, neutral, chequered] = [false, null, false];
       else if (m.flag === "CLEAR" && !sector) [neutral, red] = [null, false];
       if ((m.flag === "YELLOW" || m.flag === "DOUBLE YELLOW") && sector) yellows.set(sector, m.flag);
       if (m.flag === "CLEAR" && sector) yellows.delete(sector);
