@@ -132,4 +132,9 @@ describe("trackStatus", () => {
     const m = [msgs[1]!, msgs[2]!, rc(5, "Flag", "CLEAR", "CLEAR IN TRACK SECTOR 17")];
     expect(trackStatus(m, 9)).toEqual({ kind: "yellow", label: "Double yellow S10", sectors: [10] });
   });
+
+  it("goes green again after a qualifying segment's chequered flag", () => {
+    const m = [rc(1, "Flag", "CHEQUERED", "CHEQUERED FLAG"), rc(2, "Flag", "GREEN", "GREEN LIGHT - PIT EXIT OPEN")];
+    expect([1, 2].map((t) => trackStatus(m, t).label)).toEqual(["Chequered flag", "Green flag"]);
+  });
 });
