@@ -40,14 +40,14 @@ Tests mock every upstream and never touch the network. Fixtures are trimmed copi
 | Route | What it shows |
 |---|---|
 | `/` | The next weekend (countdown, circuit, session strip), or a live band with the top three while a session streams; weather for the next race, most recent result, top of both championships |
-| `/live` | Live dashboard during a session (OpenF1): session status, track map, timing, driver focus and comparison, penalties, tyres, championship as it stands, race control, track weather; otherwise the next session and the latest replay |
+| `/live` | Live dashboard during a session (OpenF1): session status, track map, timing, driver focus and comparison, penalties, tyres, championship as it stands, race control, track weather (qualifying gets its own layout, below); otherwise the next session and the latest replay |
 | `/calendar` | Season calendar with local session times |
 | `/standings` | Driver and constructor standings, points progression, results matrix |
 | `/race?season=&round=&tab=` | The weekend page. Results: schedule and race, sprint and qualifying classifications. Weather (newest season only): radar, cloud and wind map, forecast timeline and per-session summary. Sessions (2023 on): replay links for the weekend's recorded sessions |
 | `/drivers`, `/teams` | The season's grid: driver tiles, or one block per team with everyone who started for it (substitutes smaller), with Grand Prix wins, podiums and starts |
 | `/driver?id=`, `/team?id=` | Titles and best championship finish, the season's Grand Prix stats (grid P1 stands in for pole), totals since 2023, career by season and the season's races |
 | `/weather?round=` | Redirects to that round's Weather tab (old links) |
-| `/replay?season=&session=` | Recorded OpenF1 session on the same dashboard as live, with playback, event markers and keyboard shortcuts |
+| `/replay?season=&session=` | Recorded OpenF1 session on the same dashboard as live, with playback, event markers and keyboard shortcuts; qualifying adds Q1/Q2/Q3 jump buttons |
 
 Every page also takes `?season=`. Query parameters, not path segments, keep the app a plain static export.
 
@@ -67,13 +67,14 @@ Every page also takes `?season=`. Query parameters, not path segments, keep the 
 
 - Drag a panel by its title and resize it from its right or bottom edge or the corner. Each panel's ⋯ menu moves it (it trades places with the neighbour in that direction), resizes it in quarter-width steps, maximises it (Esc restores) or hides it; that menu is the keyboard and touch path.
 - Phones (under 768 px) stack the panels in the saved order; the menu still reorders and hides.
-- Layouts and hidden panels are saved per browser in `localStorage` (`pitwall.layout.live.v1`, `pitwall.layout.replay.v1`). "Panels" brings hidden ones back and offers layout presets (`components/dashboard/presets.ts`); "Reset layout" restores the default and a reset or preset can be undone. "Fullscreen" puts the grid and its playback bar in browser fullscreen.
+- Layouts and hidden panels are saved per browser in `localStorage` (`pitwall.layout.live.v1`, `pitwall.layout.replay.v1`, and `…live-quali.v1`, `…replay-quali.v1` for qualifying). "Panels" brings hidden ones back and offers layout presets (`components/dashboard/presets.ts`); "Reset layout" restores the default and a reset or preset can be undone. "Fullscreen" puts the grid and its playback bar in browser fullscreen.
 - The timing tower's columns are toggled from the Timing panel's menu, saved once for both pages (`pitwall.tower.columns.v1`). Besides gaps, laps, tyre and pits it offers places gained since the start, last-lap sectors (purple: session best; green: personal best) and pending penalties.
 - **Penalties** lists stewards' decisions, investigations, deleted laps and black-and-white flags, parsed from race-control text (`packages/shared/src/stewards.ts`); time penalties add up until a "penalty served" message.
 - **Tyres** draws each driver's stints so far, sized by laps.
 - **Team radio** lists the clips F1 publishes (`/v1/team_radio`, audio only; a selection, and none for many 2026 sessions) up to the playback position, one playing at a time. Nothing plays by itself.
 - **Alerts** (bell menu in the live and replay headers, 2D and 3D: off, chime, or chime + voice; off by default, `pitwall.alerts.v1`): track-status changes (including double yellows and SC/VSC endings), stewards' penalties, investigations and clearances, and new team radio, plus a browser notification while the tab is in the background. The tones are synthesised (`src/lib/sounds.ts`); the spoken calls are fixed clips in `public/sounds/voice/`, generated with ElevenLabs (voice "George"), one per event. Replays alert as playback passes each event; seeks and paused scrubbing stay silent.
 - **Championship** adds points for the current running order (races and sprints, plus the fastest-lap point before 2025) to the points before the session (`/api/championship/before`), for drivers and teams. Other sessions show the standings before them.
+- **Qualifying** (and sprint qualifying) swaps the race panels for its own (`components/qualifying/`, logic in `packages/shared/src/qualifying.ts`). Segments come from race control's SESSION STARTED / ABORTED / FINISHED messages. The tower ranks each segment by best lap from the recorded laps, dropping times race control deleted, with a knockout line ((cars − 10) / 2 go out in Q1 and Q2), the cars already out greyed below, and a switch to look back at an earlier segment. The status bar shows the segment's time left, estimated from its set length minus green-flag running (OpenF1 doesn't publish the official clock). **On a lap now** compares push laps sector by sector with P1 and the cutoff; **Improvements** lists each new best and who it pushed into the drop zone; **Tyre sets** shows new and used sets. On the map (2D and 3D), cars not on a push lap fade, and a push lap from the drop zone gets a red ring. A push lap is one that isn't an out-lap, with every sector so far within 105% of the segment's best.
 - **Driver comparison** shows the gap at the line after each lap, sector deltas over the last five laps, lap times, and a telemetry overlay of one lap each (speed, throttle, brake, gear and the running delta, from `/api/replay/:key/telemetry`).
 
 ## Data sources and terms
