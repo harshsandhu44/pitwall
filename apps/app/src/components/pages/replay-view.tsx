@@ -243,6 +243,7 @@ function Player({ replay, res }: { replay: SessionReplay; res: ApiResponse<Sessi
   const stewards = stewardsAt(replay.raceControl, t);
   const penalties = new Map([...pendingPenalties(stewards)].map(([n, p]) => [n, penaltyLabel(p)!]));
   const markers = replayMarkers(replay);
+  const [cue, setCue] = useState<{ url: string; at: number }>();
   const status = trackStatus(replay.raceControl, t);
   const freshness = <span className="font-mono text-xs text-muted-foreground tabular-nums">At {fmtClock(t)}</span>;
   const trackDescription = replay.track
@@ -276,7 +277,7 @@ function Player({ replay, res }: { replay: SessionReplay; res: ApiResponse<Sessi
   const penaltiesPanel = <Penalties items={stewards} drivers={drivers} selected={selected} onSelect={setSelected} />;
   const raceControl = <RaceControlFeed messages={replay.raceControl} t={t} limit={20} />;
   // Replays cached before radio was added have none.
-  const radio = <TeamRadio clips={replay.radio ?? []} drivers={drivers} t={t} />;
+  const radio = <TeamRadio clips={replay.radio ?? []} drivers={drivers} t={t} cue={cue} />;
   const weather = <TrackWeather weather={replay.weather} t={t} />;
 
   return (
@@ -403,6 +404,7 @@ function Player({ replay, res }: { replay: SessionReplay; res: ApiResponse<Sessi
               onSeek={clock.seek}
               onSpeed={clock.setSpeed}
               markers={markers}
+              onMarker={(m) => m.url && setCue({ url: m.url, at: Date.now() })}
             />
             <div className="flex flex-wrap gap-4 text-xs">
               <label className="inline-flex min-h-8 items-center gap-1.5">
