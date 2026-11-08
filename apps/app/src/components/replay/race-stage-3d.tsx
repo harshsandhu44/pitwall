@@ -1,8 +1,9 @@
 "use client";
 
 import type { PositionWindow, ReplayDriver, SessionReplay, TimingRow } from "@pitwall/shared";
-import { LayoutDashboardIcon, MaximizeIcon, MinimizeIcon } from "lucide-react";
+import { MaximizeIcon, MinimizeIcon, XIcon } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { type ReactNode, type RefObject, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { webgl } from "@/components/racing/circuit-scene";
 import { typing } from "@/components/replay/playback-controls";
@@ -92,9 +93,9 @@ const IDLE_MS = 3_000;
 
 /**
  * TV mode: browser fullscreen on the stage, or "theater" (the stage covers the app chrome) where elements
- * can't go fullscreen (iPhone Safari). F toggles, Esc leaves. `idle` turns true after a few still seconds.
+ * can't go fullscreen (iPhone Safari). F toggles, Esc leaves; Esc outside TV mode calls `exit`. `idle` turns true after a few still seconds.
  */
-function useTvMode(root: RefObject<HTMLDivElement | null>) {
+function useTvMode(root: RefObject<HTMLDivElement | null>, exit: () => void) {
   const [native, setNative] = useState(false);
   const [theater, setTheater] = useState(false);
   const [idle, setIdle] = useState(false);
@@ -114,17 +115,20 @@ function useTvMode(root: RefObject<HTMLDivElement | null>) {
       })
       .catch(() => setTheater(true));
   };
-  const toggleRef = useRef(toggle);
+  const latest = useRef({ toggle, theater, exit });
   useLayoutEffect(() => {
-    toggleRef.current = toggle;
+    latest.current = { toggle, theater, exit };
   });
 
   useEffect(() => {
     const onChange = () => setNative(!!root.current && document.fullscreenElement === root.current);
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || typing(e.target)) return;
-      if (e.key === "f" || e.key === "F") toggleRef.current();
-      else if (e.key === "Escape") setTheater(false);
+      if (e.key === "f" || e.key === "F") return latest.current.toggle();
+      if (e.key !== "Escape" || (e.target as HTMLElement | null)?.closest?.("[role=menu],[role=listbox],[role=dialog]")) return;
+      // The browser takes the Esc that leaves native fullscreen.
+      if (latest.current.theater) setTheater(false);
+      else if (!document.fullscreenElement) latest.current.exit();
     };
     document.addEventListener("fullscreenchange", onChange);
     window.addEventListener("keydown", onKey);
@@ -194,7 +198,8 @@ export function RaceStage3D({
 }) {
   const [view, setView] = useState<View>("overview");
   const root = useRef<HTMLDivElement>(null);
-  const tv = useTvMode(root);
+  const router = useRouter();
+  const tv = useTvMode(root, () => router.push(dashboard));
   // In fullscreen the controls fade when nobody's touching anything; the title and badge stay as the corner bug.
   const off = tv.idle && !paused;
   const fade = cn("transition-opacity duration-300 motion-reduce:transition-none", off && "pointer-events-none opacity-0");
@@ -238,8 +243,8 @@ export function RaceStage3D({
             <ToggleGroupItem value="overview">Overview</ToggleGroupItem>
             <ToggleGroupItem value="follow">Follow</ToggleGroupItem>
           </ToggleGroup>
-          <Link href={dashboard} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "bg-card", tuck)}>
-            <LayoutDashboardIcon aria-hidden /> Dashboard
+          <Link href={dashboard} aria-keyshortcuts="Escape" title="Back to the dashboard (Esc)" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "bg-card", tuck)}>
+            <XIcon aria-hidden /> Exit 3D
           </Link>
           <Button variant="outline" size="sm" onClick={tv.toggle} aria-keyshortcuts="F" className={cn("bg-card", tuck)}>
             {tv.full ? <MinimizeIcon aria-hidden /> : <MaximizeIcon aria-hidden />} {tv.full ? "Exit fullscreen" : "Fullscreen"}

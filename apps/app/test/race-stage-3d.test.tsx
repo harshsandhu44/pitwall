@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { RaceStage3D } from "@/components/replay/race-stage-3d";
+import { nav } from "./nav";
 
 const stage = (paused?: boolean) => (
   <RaceStage3D
@@ -44,6 +45,7 @@ describe("3D stage fullscreen", () => {
 
     fireEvent.keyDown(window, { key: "Escape" });
     expect(root).not.toHaveClass("z-40");
+    expect(nav.push).not.toHaveBeenCalled(); // the first Esc only leaves fullscreen
     vi.useRealTimers();
   });
 
@@ -56,5 +58,12 @@ describe("3D stage fullscreen", () => {
     fireEvent.keyDown(window, { key: "f" });
     expect(screen.getByRole("button", { name: "Fullscreen" })).toBeInTheDocument();
     vi.useRealTimers();
+  });
+
+  it("exits 3D with Esc or the Exit 3D link", () => {
+    render(stage());
+    expect(screen.getByRole("link", { name: "Exit 3D" })).toHaveAttribute("href", "/replay");
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(nav.push).toHaveBeenCalledWith("/replay");
   });
 });
