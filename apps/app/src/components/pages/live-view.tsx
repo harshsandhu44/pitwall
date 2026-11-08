@@ -1,13 +1,15 @@
 "use client";
 
 import type { LiveStatus, LiveTimingSnapshot } from "@pitwall/shared";
-import { nextSession, penaltyLabel, pendingPenalties, SESSION_LABEL, stewardsAt, trackStatus } from "@pitwall/shared";
+import { nextSession, penaltyLabel, pendingPenalties, qualifyingAt, SESSION_LABEL, stewardsAt, trackStatus } from "@pitwall/shared";
 import { BoxIcon, CalendarDaysIcon, HistoryIcon, RadioTowerIcon } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ErrorState, QueryState, SourceNote } from "@/components/data/query-state";
 import { PanelGrid } from "@/components/dashboard/panel-grid";
 import { PRESETS } from "@/components/dashboard/presets";
+import { qualifyingPanels } from "@/components/qualifying/qualifying-panels";
+import { carMarks, qualiTiming } from "@/components/qualifying/qualifying-tower";
 import { AlertsToggle } from "@/components/layout/alerts-toggle";
 import { PageHeader } from "@/components/pages/page-header";
 import { RaceCountdown } from "@/components/racing/race-countdown";
@@ -19,7 +21,7 @@ import { RaceControlFeed } from "@/components/replay/race-control-feed";
 import { SessionStatus } from "@/components/replay/session-status";
 import { TeamRadio } from "@/components/replay/team-radio";
 import { TimingTower, TowerColumnsMenu } from "@/components/replay/timing-tower";
-import { battlesOf, TrackCanvas } from "@/components/replay/track-canvas";
+import { battlesOf, type CarMark, TrackCanvas } from "@/components/replay/track-canvas";
 import { TrackWeather } from "@/components/replay/track-weather";
 import { TyreStrip } from "@/components/replay/tyre-strip";
 import { Badge } from "@/components/ui/badge";
@@ -147,9 +149,60 @@ function LiveTiming({ live }: { live: Extract<LiveStatus, { state: "LIVE" | "DEL
   const stewards = stewardsAt(old.stewards ?? t.raceControl, Infinity);
   const [laps, stints] = [old.laps ?? {}, old.stints ?? {}];
   const penalties = new Map([...pendingPenalties(stewards)].map(([n, p]) => [n, penaltyLabel(p)!]));
+  const observed = Date.parse(t.observedAt);
+  // Qualifying is judged on the completed laps plus each car's lap in progress.
+  const withOpen = Object.fromEntries(t.drivers.map((d) => [d.number, [...(laps[d.number] ?? []), ...(old.openLaps?.[d.number] ? [old.openLaps[d.number]!] : [])]]));
+  const q = old.qualifying ? qualifyingAt({ drivers: t.drivers, laps: withOpen }, old.qualifying, observed) : null;
+  const rows = q ? qualiTiming(q, t.rows) : t.rows;
   const [pair, setPair] = useState<[number, number] | null>(null);
-  const shownPair: [number, number] = pair ?? [t.rows[0]?.driver ?? t.drivers[0]!.number, t.rows[1]?.driver ?? t.drivers[1]?.number ?? t.drivers[0]!.number];
+  const shownPair: [number, number] = pair ?? [rows[0]?.driver ?? t.drivers[0]!.number, rows[1]?.driver ?? t.drivers[1]?.number ?? t.drivers[0]!.number];
   useLiveAlerts(t);
+  const freshness = (
+    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+      <Badge variant={live.state === "LIVE" ? "default" : "outline"} role="status">
+        {live.state === "LIVE" && <span aria-hidden className="size-1.5 rounded-full bg-current motion-safe:animate-live-pulse" />}
+        {live.state === "LIVE" ? "Live" : `Delayed · last update ${live.delaySeconds} s ago`}
+      </Badge>
+      OpenF1 timing, a few seconds behind the track
+    </div>
+  );
+  const trackDescription = t.track
+    ? `Outline traced from ${outlineBy?.acronym ?? t.track.driver}'s lap ${t.track.lap} earlier this weekend. Cars are about ${MAP_DELAY_MS / 1000} s behind the timing. Drag to pan, click a car to select it.`
+    : `No earlier session this weekend to trace an outline from; cars are drawn on OpenF1's x/y coordinates, about ${MAP_DELAY_MS / 1000} s behind the timing.`;
+  const comparison = <DriverComparison sessionKey={t.session.key} drivers={t.drivers} laps={laps} rows={rows} t={Infinity} pair={shownPair} onPair={setPair} />;
+  const penaltiesPanel = <Penalties items={stewards} drivers={drivers} selected={selected} onSelect={setSelected} />;
+  const raceControl = <RaceControlFeed messages={t.raceControl} t={Infinity} limit={20} />;
+  const radio = <TeamRadio clips={old.radio ?? []} drivers={drivers} t={Infinity} />;
+  const weather = <TrackWeather weather={t.weather ?? []} t={Infinity} />;
+  if (q) {
+    return (
+      <PanelGrid
+        id="live-quali"
+        presets={PRESETS}
+        panels={qualifyingPanels({
+          q,
+          rows,
+          drivers,
+          stints,
+          selected,
+          onSelect: setSelected,
+          status,
+          freshness,
+          clockSince: observed,
+          caption: `Live qualifying timing for ${t.session.meetingName} ${t.session.name}, from OpenF1`,
+          track: {
+            description: `${trackDescription} Faded: not on a push lap. Red ring: on a push lap from the drop zone.`,
+            content: <LiveTrack timing={t} selected={selected} onSelect={toggle} marks={carMarks(q)} />,
+          },
+          comparison,
+          penalties: penaltiesPanel,
+          raceControl,
+          radio,
+          weather,
+        })}
+      />
+    );
+  }
   return (
     <PanelGrid
       id="live"
@@ -159,29 +212,12 @@ function LiveTiming({ live }: { live: Extract<LiveStatus, { state: "LIVE" | "DEL
           id: "status",
           title: "Session",
           layout: { x: 0, y: 0, w: 12, h: 3, minW: 4, minH: 3 },
-          content: (
-            <SessionStatus
-              status={status}
-              rows={t.rows}
-              drivers={drivers}
-              freshness={
-                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <Badge variant={live.state === "LIVE" ? "default" : "outline"} role="status">
-                    {live.state === "LIVE" && <span aria-hidden className="size-1.5 rounded-full bg-current motion-safe:animate-live-pulse" />}
-                    {live.state === "LIVE" ? "Live" : `Delayed · last update ${live.delaySeconds} s ago`}
-                  </Badge>
-                  OpenF1 timing, a few seconds behind the track
-                </div>
-              }
-            />
-          ),
+          content: <SessionStatus status={status} rows={t.rows} drivers={drivers} freshness={freshness} />,
         },
         {
           id: "track",
           title: "Track",
-          description: t.track
-            ? `Outline traced from ${outlineBy?.acronym ?? t.track.driver}'s lap ${t.track.lap} earlier this weekend. Cars are about ${MAP_DELAY_MS / 1000} s behind the timing. Drag to pan, click a car to select it.`
-            : `No earlier session this weekend to trace an outline from; cars are drawn on OpenF1's x/y coordinates, about ${MAP_DELAY_MS / 1000} s behind the timing.`,
+          description: trackDescription,
           layout: { x: 0, y: 3, w: 7, h: 12, minW: 4, minH: 6 },
           content: <LiveTrack timing={t} selected={selected} onSelect={toggle} />,
         },
@@ -213,26 +249,26 @@ function LiveTiming({ live }: { live: Extract<LiveStatus, { state: "LIVE" | "DEL
           id: "race-control",
           title: "Race control",
           layout: { x: 4, y: 15, w: 3, h: 6, minW: 3, minH: 3 },
-          content: <RaceControlFeed messages={t.raceControl} t={Infinity} limit={20} />,
+          content: raceControl,
         },
         {
           id: "weather",
           title: "Track weather",
           layout: { x: 7, y: 21, w: 5, h: 4, minW: 3, minH: 3 },
-          content: <TrackWeather weather={t.weather ?? []} t={Infinity} />,
+          content: weather,
         },
         {
           id: "comparison",
           title: "Driver comparison",
           layout: { x: 0, y: 21, w: 7, h: 16, minW: 4, minH: 6 },
-          content: <DriverComparison sessionKey={t.session.key} drivers={t.drivers} laps={laps} rows={t.rows} t={Infinity} pair={shownPair} onPair={setPair} />,
+          content: comparison,
         },
         {
           id: "penalties",
           title: "Penalties",
           description: "Penalties, investigations, deleted laps and warnings so far.",
           layout: { x: 7, y: 25, w: 5, h: 8, minW: 3, minH: 4 },
-          content: <Penalties items={stewards} drivers={drivers} selected={selected} onSelect={setSelected} />,
+          content: penaltiesPanel,
         },
         {
           id: "tyres",
@@ -246,7 +282,7 @@ function LiveTiming({ live }: { live: Extract<LiveStatus, { state: "LIVE" | "DEL
           title: "Team radio",
           description: "Clips as F1 publishes them: a selection only, and none for many sessions.",
           layout: { x: 0, y: 47, w: 7, h: 6, minW: 3, minH: 3 },
-          content: <TeamRadio clips={old.radio ?? []} drivers={drivers} t={Infinity} />,
+          content: radio,
         },
         {
           id: "championship",
@@ -285,7 +321,7 @@ export function useLivePositions(timing: LiveTimingSnapshot) {
   return { time, getWindow };
 }
 
-function LiveTrack({ timing, selected, onSelect }: { timing: LiveTimingSnapshot; selected: number | null; onSelect: (n: number) => void }) {
+function LiveTrack({ timing, selected, onSelect, marks }: { timing: LiveTimingSnapshot; selected: number | null; onSelect: (n: number) => void; marks?: Map<number, CarMark> }) {
   const [follow, setFollow] = useState(false);
   const { time, getWindow } = useLivePositions(timing);
   return (
@@ -300,6 +336,7 @@ function LiveTrack({ timing, selected, onSelect }: { timing: LiveTimingSnapshot;
           follow={follow && selected !== null}
           interpolate
           battles={timing.session.type === "Race" ? battlesOf(timing.rows) : undefined}
+          marks={marks}
           onSelect={onSelect}
         />
       </div>

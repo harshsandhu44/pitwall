@@ -1,9 +1,9 @@
-import type { ReplayDriver, TimingRow } from "@pitwall/shared";
+import type { ReplayDriver, SessionReplay, TimingRow } from "@pitwall/shared";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ReplayView } from "@/components/pages/replay-view";
-import { type Marker, PlaybackControls } from "@/components/replay/playback-controls";
+import { type Marker, PlaybackControls, replayMarkers } from "@/components/replay/playback-controls";
 import { TeamRadio } from "@/components/replay/team-radio";
 import { TimingTower, TowerColumnsMenu } from "@/components/replay/timing-tower";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -183,5 +183,20 @@ describe("team radio", () => {
     expect(screen.getByText("No team radio published for this session.")).toBeInTheDocument();
     rerender(<TeamRadio clips={clips} drivers={drivers} t={range.start} />);
     expect(screen.getByText("No team radio yet at this point.")).toBeInTheDocument();
+  });
+});
+
+describe("qualifying markers", () => {
+  it("marks each segment's start in place of lap markers", () => {
+    const rc = (t: number, message: string) => ({ t, lap: null, category: "SessionStatus", flag: null, driver: null, message });
+    const r = {
+      session: { name: "Sprint Qualifying", type: "Qualifying" },
+      raceControl: [rc(0, "SESSION STARTED"), rc(10, "SESSION FINISHED"), rc(20, "SESSION STARTED")],
+      laps: { 1: [{ lap: 5, start: 5, duration: 90, sectors: [], pitOut: false }] },
+    } as unknown as SessionReplay;
+    expect(replayMarkers(r).map((m) => [m.kind, m.label])).toEqual([
+      ["segment", "SQ1 starts"],
+      ["segment", "SQ2 starts"],
+    ]);
   });
 });

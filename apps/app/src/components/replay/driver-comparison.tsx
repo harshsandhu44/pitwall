@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useApi } from "@/lib/api";
-import { fmtGap, fmtLap } from "@/lib/format";
+import { fmtDelta, fmtGap, fmtLap } from "@/lib/format";
 import { Tyre } from "./timing-tower";
 
 function Picker({ label, value, items, onChange, className = "w-52" }: { label: string; value: string; items: { value: string; label: string }[]; onChange: (v: string) => void; className?: string }) {
@@ -30,7 +30,6 @@ function Picker({ label, value, items, onChange, className = "w-52" }: { label: 
 }
 
 /** "+0.123", "−0.045", "0.000". */
-const fmtDelta = (v: number | null) => (v === null ? "—" : `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(3)}`);
 /** A team colour at about 15% opacity, for tinting a cell. */
 const tint = (colour: string | null | undefined) => (colour && /^#[0-9a-f]{6}$/i.test(colour) ? { backgroundColor: `${colour}26` } : undefined);
 

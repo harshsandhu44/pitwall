@@ -1,6 +1,6 @@
 "use client";
 
-import { type LiveStatus, type LiveTimingSnapshot, type SessionReplay, timingAt } from "@pitwall/shared";
+import { type LiveStatus, type LiveTimingSnapshot, type QualiState, qualifyingAt, qualifyingContext, type ReplayDriver, type SessionReplay, type TimingRow, timingAt } from "@pitwall/shared";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -9,6 +9,8 @@ import { AlertsToggle } from "@/components/layout/alerts-toggle";
 import { PageHeader } from "@/components/pages/page-header";
 import { MAP_DELAY_MS, streaming, useLivePositions } from "@/components/pages/live-view";
 import { useReplayPlayback } from "@/components/pages/replay-view";
+import { ImprovementsFeed } from "@/components/qualifying/qualifying-panels";
+import { carMarks, QualifyingTower, qualiTiming } from "@/components/qualifying/qualifying-tower";
 import { DriverFocus } from "@/components/replay/driver-focus";
 import { PlaybackControls, replayMarkers } from "@/components/replay/playback-controls";
 import { RaceControlFeed } from "@/components/replay/race-control-feed";
@@ -22,6 +24,18 @@ import { useLiveAlerts, useReplayAlerts } from "@/lib/live-alerts";
 
 // The tower in a narrow side panel: the columns that fit beside the driver.
 const columns = (race: boolean): Column[] => (race ? ["int", "tyre", "gained"] : ["best", "tyre"]);
+
+/** Qualifying in 3D: the compact qualifying tower, improvements in place of race control, cars faded off a push lap. */
+function quali3D(q: QualiState, rows: TimingRow[], drivers: Map<number, ReplayDriver>, shown: number | null, onSelect: (n: number | null) => void, caption: string) {
+  return {
+    rows,
+    marks: carMarks(q),
+    tower: <QualifyingTower q={q} timing={rows} drivers={drivers} selected={shown} onSelect={onSelect} compact caption={caption} />,
+    focus: <DriverFocus rows={rows} drivers={drivers} selected={shown} intervals={false} />,
+    feed: <ImprovementsFeed q={q} drivers={drivers} />,
+    feedTitle: "Improvements",
+  };
+}
 
 /** /replay/3d?session=: a recorded session on the 3D circuit. */
 export function Replay3DView() {
@@ -59,7 +73,10 @@ export function Replay3DView() {
 function Replay3D({ replay }: { replay: SessionReplay }) {
   const { clock, t, time, getWindow, current } = useReplayPlayback(replay);
   const [selected, setSelected] = useState<number | null>(null);
-  const rows = timingAt(replay, current.data?.data ?? null, t);
+  const timing = timingAt(replay, current.data?.data ?? null, t);
+  const qctx = replay.session.type === "Qualifying" ? qualifyingContext(replay.raceControl, replay.session.name) : null;
+  const q = qctx && qualifyingAt(replay, qctx, t);
+  const rows = q ? qualiTiming(q, timing) : timing;
   const drivers = new Map(replay.drivers.map((d) => [d.number, d]));
   const race = replay.session.type === "Race";
   // Someone is always in focus: the leader until you pick a car.
@@ -88,6 +105,7 @@ function Replay3D({ replay }: { replay: SessionReplay }) {
       tower={<TimingTower rows={rows} drivers={drivers} selected={shown} onSelect={setSelected} intervals={race} only={columns(race)} />}
       focus={<DriverFocus rows={rows} drivers={drivers} selected={shown} intervals={race} />}
       feed={<RaceControlFeed messages={replay.raceControl} t={t} limit={20} />}
+      {...(q && quali3D(q, rows, drivers, shown, setSelected, "Qualifying timing at the replay position, from recorded OpenF1 laps"))}
       paused={!clock.state.playing}
       playback={
         <PlaybackControls
@@ -134,7 +152,9 @@ function Live3D({ live, timing: t }: { live: Extract<LiveStatus, { state: "LIVE"
   const [selected, setSelected] = useState<number | null>(null);
   const drivers = new Map(t.drivers.map((d) => [d.number, d]));
   const race = t.session.type === "Race";
-  const shown = selected ?? t.rows[0]?.driver ?? null;
+  const laps = Object.fromEntries(t.drivers.map((d) => [d.number, [...(t.laps?.[d.number] ?? []), ...(t.openLaps?.[d.number] ? [t.openLaps[d.number]!] : [])]]));
+  const q = t.qualifying ? qualifyingAt({ drivers: t.drivers, laps }, t.qualifying, Date.parse(t.observedAt)) : null;
+  const shown = selected ?? (q ? qualiTiming(q, t.rows) : t.rows)[0]?.driver ?? null;
   useLiveAlerts(t);
   return (
     <RaceStage3D
@@ -170,6 +190,7 @@ function Live3D({ live, timing: t }: { live: Extract<LiveStatus, { state: "LIVE"
       }
       focus={<DriverFocus rows={t.rows} drivers={drivers} selected={shown} intervals={race} />}
       feed={<RaceControlFeed messages={t.raceControl} t={Infinity} limit={20} />}
+      {...(q && quali3D(q, qualiTiming(q, t.rows), drivers, shown, setSelected, `Live qualifying timing for ${t.session.meetingName} ${t.session.name}, from OpenF1`))}
     />
   );
 }

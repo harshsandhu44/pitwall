@@ -1,5 +1,5 @@
-import type { GrandPrix, LiveStatus } from "@pitwall/shared";
-import { screen } from "@testing-library/react";
+import { type GrandPrix, type LiveStatus, qualifyingContext } from "@pitwall/shared";
+import { screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { LiveView } from "@/components/pages/live-view";
 import { envelope, mockApi, renderWithQuery } from "./utils";
@@ -95,5 +95,71 @@ describe("live page", () => {
     expect(screen.getByText("Yellow S7")).toBeInTheDocument();
     expect(screen.getByText("Select a driver in Timing or on the track map.")).toBeInTheDocument();
     expect(screen.getByText("29°C")).toBeInTheDocument();
+  });
+
+  it("shows the qualifying dashboard: the segment under way, the knockout line and the cars already out", async () => {
+    const T = Date.parse("2026-10-10T13:00:00Z");
+    const MIN = 60_000;
+    vi.useFakeTimers({ toFake: ["Date"], now: T + 31 * MIN });
+    // 12 cars, so one goes out per segment. Q1 ran 0-18 min, Q2 started at 25.
+    const cars = Array.from({ length: 12 }, (_, i) => i + 1);
+    const lap = (n: number, start: number, d: number | null, sectors: (number | null)[], pitOut = false) => ({ lap: n, start, duration: d, sectors, pitOut });
+    const rc = (t: number, message: string) => ({ t, lap: null, category: "SessionStatus", flag: null, driver: null, message });
+    const messages = [rc(T, "SESSION STARTED"), rc(T + 18 * MIN, "SESSION FINISHED"), rc(T + 25 * MIN, "SESSION STARTED")];
+    const live: LiveStatus = {
+      state: "LIVE",
+      session: { key: 11384, meetingName: "Singapore Grand Prix", name: "Qualifying" },
+      observedAt: new Date(T + 31 * MIN).toISOString(),
+      delaySeconds: 2,
+      timing: {
+        session: { key: 11384, meetingName: "Singapore Grand Prix", name: "Qualifying", type: "Qualifying" },
+        observedAt: new Date(T + 31 * MIN).toISOString(),
+        drivers: cars.map((n) => ({ number: n, acronym: `D${String(n).padStart(2, "0")}`, name: `Driver ${n}`, team: null, colour: null, driverId: null })),
+        rows: cars.map((n) => ({ driver: n, position: n, gap: null, interval: null, lap: 2, lastLap: null, bestLap: null, compound: "SOFT", tyreAge: 1, pits: 0, startPosition: null, sectors: [null, null, null], sectorMark: [null, null, null] })),
+        raceControl: messages,
+        status: { kind: "green", label: "Green flag", sectors: [] },
+        track: null,
+        weather: [],
+        positions: { from: T, to: T, cars: {}, intervals: {} },
+        stewards: [],
+        stints: {},
+        // Q1: car n laps in 90 + n/10 s. Q2: car 2 sets the fastest time so far.
+        laps: Object.fromEntries(cars.map((n) => [n, [lap(1, T + MIN, 90 + n / 10, [30, 30, 30 + n / 10]), ...(n === 2 ? [lap(2, T + 27 * MIN, 89.5, [29.8, 29.8, 29.9])] : [])]])),
+        // Car 3 is 20 s into a push lap, S1 set.
+        openLaps: { 3: lap(3, T + 31 * MIN - 20_000, null, [19.9, null, null]) },
+        qualifying: qualifyingContext(messages, "Qualifying"),
+        radio: [],
+      },
+    };
+    mockApi({ "/api/live/session": () => envelope(live, { source: "openf1" }) });
+    renderWithQuery(<LiveView />);
+    const table = await screen.findByRole("table", { name: /Live qualifying timing for Singapore Grand Prix Qualifying, from OpenF1: Q2/ });
+    const rows = within(table).getAllByRole("row").slice(1);
+    expect(rows[0]).toHaveTextContent("D02");
+    expect(rows[0]).toHaveTextContent("1:29.500");
+    expect(table).toHaveTextContent("Knockout");
+    expect(rows.at(-1)).toHaveTextContent(/D12.*Out Q1/);
+    expect(screen.getByRole("group", { name: "Qualifying segment" })).toHaveTextContent("Q1Q2");
+    expect(screen.getByText("Q2 left").nextElementSibling).toHaveTextContent("9:00 est.");
+    expect(screen.getByText("Fastest")).toBeInTheDocument();
+    // The push lap: S1 under P1's, so on for pole.
+    expect(screen.getByText("S1 19.900")).toBeInTheDocument();
+    expect(screen.getByText("On for P1")).toBeInTheDocument();
+    expect(screen.getAllByText(/first time/)[0]).toHaveTextContent("D02 1:29.500 first time, P1"); // newest first|first time/)).toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual([
+      "Session",
+      "Track",
+      "Timing",
+      "On a lap now",
+      "Improvements",
+      "Driver focus",
+      "Tyre sets",
+      "Driver comparison",
+      "Penalties",
+      "Race control",
+      "Team radio",
+      "Track weather",
+    ]);
+    vi.useRealTimers();
   });
 });

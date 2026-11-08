@@ -101,7 +101,31 @@ export function TowerColumnsMenu({ intervals }: { intervals: boolean }) {
   );
 }
 
-const SECTOR_MARK = { session: "font-semibold text-purple", personal: "text-gain" } as const;
+/** Rows (tr[data-driver]) glide to their new place, and a gained or lost place flashes the row's edge green or red. */
+export function useRowGlide(rows: { driver: number; position: number | null }[]) {
+  const body = useRef<HTMLTableSectionElement>(null);
+  const last = useRef(new Map<number, { top: number; position: number | null }>());
+  useLayoutEffect(() => {
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    for (const tr of body.current?.querySelectorAll<HTMLTableRowElement>("tr[data-driver]") ?? []) {
+      const n = Number(tr.dataset.driver);
+      const position = rows.find((r) => r.driver === n)?.position ?? null;
+      const before = last.current.get(n);
+      last.current.set(n, { top: tr.offsetTop, position });
+      if (reduce || !before || !tr.animate) continue;
+      if (before.top !== tr.offsetTop) {
+        tr.animate([{ transform: `translateY(${before.top - tr.offsetTop}px)` }, { transform: "none" }], { duration: 450, easing: "cubic-bezier(0.16, 1, 0.3, 1)" });
+      }
+      if (before.position !== null && position !== null && before.position !== position) {
+        const c = position < before.position ? "var(--gain)" : "var(--loss)";
+        tr.animate([{ boxShadow: `inset 3px 0 0 ${c}` }, { boxShadow: `inset 3px 0 0 transparent` }], { duration: 1500, easing: "ease-out" });
+      }
+    }
+  }, [rows]);
+  return body;
+}
+
+export const SECTOR_MARK = { session: "font-semibold text-purple", personal: "text-gain" } as const;
 
 export function TimingTower({
   rows,
@@ -129,26 +153,7 @@ export function TimingTower({
   const shown = only ? new Set(only) : saved;
   const on = (c: (typeof COLUMNS)[number]) => shown.has(c.id) && (intervals || !("race" in c));
   const col = Object.fromEntries(COLUMNS.map((c) => [c.id, on(c)])) as Record<Column, boolean>;
-  const body = useRef<HTMLTableSectionElement>(null);
-  const last = useRef(new Map<number, { top: number; position: number | null }>());
-  // Rows glide to their new place, and a gained or lost place flashes the row's edge green or red.
-  useLayoutEffect(() => {
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    for (const tr of body.current?.querySelectorAll<HTMLTableRowElement>("tr[data-driver]") ?? []) {
-      const n = Number(tr.dataset.driver);
-      const position = rows.find((r) => r.driver === n)?.position ?? null;
-      const before = last.current.get(n);
-      last.current.set(n, { top: tr.offsetTop, position });
-      if (reduce || !before || !tr.animate) continue;
-      if (before.top !== tr.offsetTop) {
-        tr.animate([{ transform: `translateY(${before.top - tr.offsetTop}px)` }, { transform: "none" }], { duration: 450, easing: "cubic-bezier(0.16, 1, 0.3, 1)" });
-      }
-      if (before.position !== null && position !== null && before.position !== position) {
-        const c = position < before.position ? "var(--gain)" : "var(--loss)";
-        tr.animate([{ boxShadow: `inset 3px 0 0 ${c}` }, { boxShadow: `inset 3px 0 0 transparent` }], { duration: 1500, easing: "ease-out" });
-      }
-    }
-  }, [rows]);
+  const body = useRowGlide(rows);
   const num = "text-right font-mono tabular-nums";
   return (
     <Table className="text-xs">

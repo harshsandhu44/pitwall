@@ -7,12 +7,12 @@ import { carAt, type PositionWindow, type ReplayDriver, type SessionReplay } fro
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { CSS2DObject, CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer.js";
-import type { Battle } from "@/components/replay/track-canvas";
+import type { Battle, CarMark } from "@/components/replay/track-canvas";
 import { kerbs, nearestOnLap, normals, type Pt } from "./circuit-geo";
 
 export type View = "overview" | "follow";
 /** What the page changes while the scene runs; read every frame. */
-export type SceneState = { selected: number | null; battles: Battle[]; order: number[]; view: View };
+export type SceneState = { selected: number | null; battles: Battle[]; order: number[]; view: View; marks?: Map<number, CarMark> };
 
 /** Points along the resampled centreline. */
 const N = 1600;
@@ -204,7 +204,7 @@ export function createRaceScene(
     el.type = "button";
     el.tabIndex = -1; // the timing tower is the keyboard route to the same cars
     el.className =
-      "pointer-events-auto flex items-center gap-1 border bg-card py-px pr-1.5 pl-1 font-mono text-[10.5px] font-medium whitespace-nowrap text-foreground hover:text-live data-selected:border-live";
+      "pointer-events-auto flex items-center gap-1 border bg-card py-px pr-1.5 pl-1 font-mono text-[10.5px] font-medium whitespace-nowrap text-foreground hover:text-live data-danger:border-loss data-selected:border-live";
     el.innerHTML = `<i class="block h-[11px] w-1 rounded-full" style="background:${d.colour ?? "var(--muted-foreground)"}"></i>${d.acronym}<b class="font-bold text-live"></b>`;
     el.addEventListener("click", (e) => (e.stopPropagation(), o.onSelect(d.number)));
     const tag = new CSS2DObject(el);
@@ -342,7 +342,7 @@ export function createRaceScene(
   let lastSelected: number | null = null;
   const loop = (now: number) => {
     const t = o.time();
-    const { selected, battles, view } = o.state;
+    const { selected, battles, view, marks } = o.state;
     const at = new Map<number, THREE.Vector3>();
     for (const c of cars) {
       const f = fixAt(c.n, t);
@@ -351,8 +351,11 @@ export function createRaceScene(
       c.idx = nearestOnLap(flat2, [f.x, f.y], c.idx, NEAR_DM);
       c.g.position.set(wx(f.x), PW[c.idx]!.y, wz(f.y));
       // No sample for over a second: faded, at the last recorded spot.
-      c.disc.opacity = f.kind === "stale" ? 0.35 : 1;
-      c.el.style.opacity = f.kind === "stale" ? "0.5" : "";
+      // Qualifying: faded off a push lap, the tag outlined red on a push lap from the drop zone.
+      const dim = marks?.get(c.n) === "dim" && c.n !== selected;
+      c.disc.opacity = f.kind === "stale" ? 0.35 : dim ? 0.3 : 1;
+      c.el.style.opacity = f.kind === "stale" || dim ? "0.5" : "";
+      c.el.toggleAttribute("data-danger", marks?.get(c.n) === "danger");
       c.el.toggleAttribute("data-selected", c.n === selected);
       c.el.querySelector("b")!.textContent = c.n === selected && rank(c.n) < 99 ? ` P${rank(c.n) + 1}` : "";
       if (f.kind !== "stale") at.set(c.n, c.g.position);

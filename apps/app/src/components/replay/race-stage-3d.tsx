@@ -6,7 +6,7 @@ import Link from "next/link";
 import { type ReactNode, type RefObject, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { webgl } from "@/components/racing/circuit-scene";
 import { typing } from "@/components/replay/playback-controls";
-import { battlesOf, TrackCanvas } from "@/components/replay/track-canvas";
+import { battlesOf, type CarMark, TrackCanvas } from "@/components/replay/track-canvas";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -24,18 +24,20 @@ type SceneProps = {
   race: boolean;
   selected: number | null;
   onSelect: (n: number) => void;
+  /** Qualifying: cars to fade or ring (carMarks). */
+  marks?: Map<number, CarMark>;
 };
 
 /** The 3D circuit, or the 2D map where it can't run (no outline, no WebGL, a failed load). */
-function RaceScene({ track, drivers, time, getWindow, rows, race, selected, onSelect, view }: SceneProps & { view: View }) {
+function RaceScene({ track, drivers, time, getWindow, rows, race, selected, onSelect, marks, view }: SceneProps & { view: View }) {
   const host = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState(false);
   const battles = race ? battlesOf(rows) : [];
   // The scene reads these every frame, so new props never restart it.
-  const state = useRef<SceneState>({ selected, battles, order: [], view });
+  const state = useRef<SceneState>({ selected, battles, order: [], view, marks });
   const select = useRef(onSelect);
   useLayoutEffect(() => {
-    Object.assign(state.current, { selected, battles, order: rows.map((r) => r.driver), view });
+    Object.assign(state.current, { selected, battles, order: rows.map((r) => r.driver), view, marks });
     select.current = onSelect;
   });
 
@@ -60,7 +62,7 @@ function RaceScene({ track, drivers, time, getWindow, rows, race, selected, onSe
   if (!track || failed) {
     return (
       <div className="size-full p-3">
-        <TrackCanvas track={track} drivers={drivers} time={time} getWindow={getWindow} selected={selected} follow={false} interpolate battles={battles} onSelect={onSelect} />
+        <TrackCanvas track={track} drivers={drivers} time={time} getWindow={getWindow} selected={selected} follow={false} interpolate battles={battles} marks={marks} onSelect={onSelect} />
       </div>
     );
   }
@@ -172,6 +174,7 @@ export function RaceStage3D({
   tower,
   focus,
   feed,
+  feedTitle = "Race control",
   playback,
   paused = false,
   ...scene
@@ -184,6 +187,7 @@ export function RaceStage3D({
   tower: ReactNode;
   focus: ReactNode;
   feed: ReactNode;
+  feedTitle?: string;
   playback?: ReactNode;
   /** A paused replay keeps its controls up in fullscreen, as a video player does. */
   paused?: boolean;
@@ -264,7 +268,7 @@ export function RaceStage3D({
           <Panel title="Driver focus" className="shrink-0">
             {focus}
           </Panel>
-          <Panel title="Race control" className="md:flex-1">
+          <Panel title={feedTitle} className="md:flex-1">
             {feed}
           </Panel>
         </div>
