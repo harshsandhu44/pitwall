@@ -181,6 +181,7 @@ export function RaceStage3D({
   feed,
   feedTitle = "Race control",
   playback,
+  radio,
   paused = false,
   ...scene
 }: SceneProps & {
@@ -194,6 +195,8 @@ export function RaceStage3D({
   feed: ReactNode;
   feedTitle?: string;
   playback?: ReactNode;
+  /** Team radio, just above the playback bar. */
+  radio?: ReactNode;
   /** A paused replay keeps its controls up in fullscreen, as a video player does. */
   paused?: boolean;
 }) {
@@ -257,8 +260,9 @@ export function RaceStage3D({
             </Kbd>
           </Button>
         </header>
-        {playback && (
+        {(playback || radio) && (
           <div data-chrome className={cn(fade, "sticky bottom-0 z-10 order-3 border-b bg-background/95 p-3 backdrop-blur md:static md:col-start-2 md:row-start-3 md:self-end md:justify-self-center md:border md:bg-card md:p-3 md:backdrop-blur-none lg:w-[40rem]")}>
+            {radio}
             {playback}
           </div>
         )}

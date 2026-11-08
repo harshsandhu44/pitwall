@@ -15,6 +15,7 @@ import { DriverFocus } from "@/components/replay/driver-focus";
 import { PlaybackControls, replayMarkers } from "@/components/replay/playback-controls";
 import { RaceControlFeed } from "@/components/replay/race-control-feed";
 import { RaceStage3D } from "@/components/replay/race-stage-3d";
+import { TeamRadioDrawer } from "@/components/replay/team-radio";
 import { type Column, TimingTower } from "@/components/replay/timing-tower";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -73,6 +74,7 @@ export function Replay3DView() {
 function Replay3D({ replay }: { replay: SessionReplay }) {
   const { clock, t, time, getWindow, current } = useReplayPlayback(replay);
   const [selected, setSelected] = useState<number | null>(null);
+  const [cue, setCue] = useState<{ url: string; at: number }>();
   const timing = timingAt(replay, current.data?.data ?? null, t);
   const qctx = replay.session.type === "Qualifying" ? qualifyingContext(replay.raceControl, replay.session.name) : null;
   const q = qctx && qualifyingAt(replay, qctx, t);
@@ -107,6 +109,7 @@ function Replay3D({ replay }: { replay: SessionReplay }) {
       feed={<RaceControlFeed messages={replay.raceControl} t={t} limit={20} />}
       {...(q && quali3D(q, rows, drivers, shown, setSelected, "Qualifying timing at the replay position, from recorded OpenF1 laps"))}
       paused={!clock.state.playing}
+      radio={<TeamRadioDrawer clips={replay.radio ?? []} drivers={drivers} t={t} cue={cue} />}
       playback={
         <PlaybackControls
           state={clock.state}
@@ -116,6 +119,7 @@ function Replay3D({ replay }: { replay: SessionReplay }) {
           onSeek={clock.seek}
           onSpeed={clock.setSpeed}
           markers={replayMarkers(replay)}
+          onMarker={(m) => m.url && setCue({ url: m.url, at: Date.now() })}
         />
       }
     />
@@ -190,6 +194,7 @@ function Live3D({ live, timing: t }: { live: Extract<LiveStatus, { state: "LIVE"
       }
       focus={<DriverFocus rows={t.rows} drivers={drivers} selected={shown} intervals={race} />}
       feed={<RaceControlFeed messages={t.raceControl} t={Infinity} limit={20} />}
+      radio={<TeamRadioDrawer clips={t.radio ?? []} drivers={drivers} t={Infinity} />}
       {...(q && quali3D(q, qualiTiming(q, t.rows), drivers, shown, setSelected, `Live qualifying timing for ${t.session.meetingName} ${t.session.name}, from OpenF1`))}
     />
   );

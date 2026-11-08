@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ReplayView } from "@/components/pages/replay-view";
 import { type Marker, PlaybackControls, replayMarkers, stackMarkers } from "@/components/replay/playback-controls";
-import { TeamRadio } from "@/components/replay/team-radio";
+import { TeamRadio, TeamRadioDrawer } from "@/components/replay/team-radio";
 import { TimingTower, TowerColumnsMenu } from "@/components/replay/timing-tower";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { battlesOf } from "@/components/replay/track-canvas";
@@ -235,6 +235,29 @@ describe("team radio", () => {
     rerender(<TeamRadio clips={clips} drivers={drivers} t={Infinity} cue={{ url: clips[1]!.url, at: 1 }} />);
     expect(screen.getByRole("button", { name: /^Pause 44 team radio/ })).toBeInTheDocument();
     expect(play).toHaveBeenCalledTimes(2);
+  });
+
+  it("folds the 3D radio panel, remembers it open, and opens for a cued clip", async () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal("localStorage", { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => store.set(k, v) });
+    vi.spyOn(HTMLMediaElement.prototype, "play").mockImplementation(function (this: HTMLMediaElement) {
+      this.dispatchEvent(new Event("play"));
+      return Promise.resolve();
+    });
+    const { rerender } = render(<TeamRadioDrawer clips={clips} drivers={drivers} t={range.start + 90_000} />);
+    const header = screen.getByRole("button", { name: /Team radio\s*1 clip/ });
+    expect(header).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("button", { name: /^Play VER/ })).not.toBeInTheDocument(); // hidden while folded
+    await userEvent.click(header);
+    expect(screen.getByRole("button", { name: /^Play VER/ })).toBeInTheDocument();
+    expect(store.get("pitwall.radio-open.v1")).toBe("1");
+    await userEvent.click(header);
+    expect(header).toHaveAttribute("aria-expanded", "false");
+
+    rerender(<TeamRadioDrawer clips={clips} drivers={drivers} t={Infinity} cue={{ url: clips[1]!.url, at: 1 }} />);
+    expect(header).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: /^Pause 44 team radio/ })).toBeInTheDocument();
+    vi.unstubAllGlobals();
   });
 
   it("says when a session has no radio, or none yet", () => {
