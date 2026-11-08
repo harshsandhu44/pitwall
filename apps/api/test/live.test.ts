@@ -3,6 +3,7 @@ import { env } from "cloudflare:workers";
 import type { ApiResponse, LiveStatus, LiveTimingSnapshot } from "@pitwall/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import worker from "../src/index";
+import { Feed } from "../src/live";
 import { resetUpstreamState } from "../src/upstream";
 import f from "./fixtures/openf1-monaco-2024.json";
 import { openf1Mock } from "./openf1-mock";
@@ -165,4 +166,39 @@ describe("live", () => {
     expect((await get("/api/live/timing")).status).toBe(503);
   });
 
+});
+
+it("sends qualifying segments from every race-control message, and each car's lap in progress", () => {
+  const quali = f.sessions.find((s) => s.session_key === 9519)!;
+  const feed = new Feed(quali, "Monaco Grand Prix");
+  const msg = (date: string, category: string, message: string) => ({ date, category, message, flag: null, lap_number: null, driver_number: null });
+  feed.addAll({
+    "v1/drivers": [],
+    "v1/laps": [
+      { driver_number: 16, lap_number: 3, date_start: "2024-05-25T14:20:00Z", lap_duration: 71.6, duration_sector_1: 18.9, is_pit_out_lap: false },
+      { driver_number: 16, lap_number: 4, date_start: "2024-05-25T14:26:00Z", lap_duration: null, duration_sector_1: 18.7, is_pit_out_lap: false },
+    ],
+    "v1/stints": [],
+    "v1/pit": [],
+    // Segment boundaries, then more than the 20 messages a snapshot carries.
+    "v1/race_control": [
+      msg("2024-05-25T14:00:00Z", "SessionStatus", "SESSION STARTED"),
+      msg("2024-05-25T14:18:00Z", "SessionStatus", "SESSION FINISHED"),
+      msg("2024-05-25T14:25:00Z", "SessionStatus", "SESSION STARTED"),
+      ...Array.from({ length: 25 }, (_, i) => msg(`2024-05-25T14:26:${String(i).padStart(2, "0")}Z`, "Other", `BLUE FLAG ${i}`)),
+    ],
+    "v1/position": [],
+    "v1/intervals": [],
+    "v1/location": [],
+    "v1/weather": [],
+    "v1/team_radio": [],
+  });
+  const s = feed.snapshot(Date.parse("2024-05-25T14:27:00Z"))!;
+  expect(s.raceControl).toHaveLength(20);
+  expect(s.qualifying!.segments.map((x) => [x.label, x.end === null])).toEqual([
+    ["Q1", false],
+    ["Q2", true],
+  ]);
+  expect(s.laps[16]!.map((l) => l.lap)).toEqual([3]);
+  expect(s.openLaps?.[16]).toMatchObject({ lap: 4, duration: null, sectors: [18.7, null, null] });
 });

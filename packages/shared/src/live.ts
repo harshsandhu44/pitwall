@@ -1,5 +1,6 @@
+import type { QualiContext } from "./qualifying";
 import type { TimingRow, TrackStatus } from "./replay";
-import type { GrandPrix, PositionWindow, ReplayDriver, ReplaySession, SessionReplay, WeekendSession } from "./types";
+import type { GrandPrix, PositionWindow, ReplayDriver, ReplayLap, ReplaySession, SessionReplay, WeekendSession } from "./types";
 
 // ---- Live timing contract ----
 // Live data comes from OpenF1's sponsor feed through one shared connection in the API. Recorded data is
@@ -49,6 +50,10 @@ export interface LiveTimingSnapshot {
   stints: SessionReplay["stints"];
   /** Completed laps only, per driver. */
   laps: SessionReplay["laps"];
+  /** Each car's lap in progress, with the sectors set so far. */
+  openLaps?: Record<number, ReplayLap>;
+  /** Qualifying segments and deleted times, from every race-control message; absent outside qualifying. */
+  qualifying?: QualiContext;
   /** Team-radio clips, newest last; the latest 20 only. */
   radio: SessionReplay["radio"];
 }
