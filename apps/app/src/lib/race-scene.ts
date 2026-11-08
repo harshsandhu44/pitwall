@@ -81,7 +81,8 @@ export function createRaceScene(
   renderer.shadowMap.enabled = true;
   host.append(renderer.domElement);
   const labels = new CSS2DRenderer();
-  labels.domElement.className = "pointer-events-none absolute inset-0";
+  // Its own stacking context: CSS2DRenderer gives each label a z-index (up to the label count), which would otherwise rise over the panels.
+  labels.domElement.className = "pointer-events-none absolute inset-0 isolate";
   host.append(labels.domElement);
 
   const scene = new THREE.Scene();
