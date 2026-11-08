@@ -92,20 +92,23 @@ export function AppShell({ children }: { children: ReactNode }) {
       </a>
       <header className="sticky top-0 z-30 border-b bg-background/92 backdrop-blur">
         <div className="mx-auto flex h-14 w-full max-w-[1600px] items-center gap-2 px-3 sm:px-5">
-          <Link href="/" className="mr-2 flex items-center gap-1.5 font-display text-base font-black tracking-tight uppercase">
-            <span aria-hidden className="h-4 w-1.5 bg-live" />
-            Pitwall
-          </Link>
-          <nav aria-label="Main" className="hidden items-stretch md:flex">
+          {/* Equal-width sides keep the nav centered. Below xl (tablets included) the tab bar holds the nav. */}
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <Link href="/" className="mr-2 flex items-center gap-1.5 font-display text-base font-black tracking-tight uppercase">
+              <span aria-hidden className="h-4 w-1.5 bg-live" />
+              Pitwall
+            </Link>
+            <Suspense>
+              <SeasonSelector />
+              <NextRaceIndicator />
+            </Suspense>
+          </div>
+          <nav aria-label="Main" className="hidden items-stretch xl:flex">
             <Suspense>
               <NavLinks variant="bar" />
             </Suspense>
           </nav>
-          <Suspense>
-            <SeasonSelector />
-            <NextRaceIndicator />
-          </Suspense>
-          <div className="ml-auto flex items-center gap-3">
+          <div className="flex flex-1 items-center justify-end gap-3">
             <FreshnessIndicator />
             <LocalClock />
             <ThemeToggle />
@@ -118,13 +121,13 @@ export function AppShell({ children }: { children: ReactNode }) {
       </main>
       <RouteWipe />
       {/* Bottom padding on phones clears the tab bar. */}
-      <footer className="mx-auto w-full max-w-[1600px] px-3 pt-2 pb-24 text-xs leading-relaxed text-muted-foreground sm:px-5 md:pb-6">
+      <footer className="mx-auto w-full max-w-[1600px] px-3 pt-2 pb-24 text-xs leading-relaxed text-muted-foreground sm:px-5 xl:pb-6">
         Unofficial. Not associated with Formula 1 companies. Data: Jolpica F1, OpenF1, Open-Meteo (CC BY 4.0), RainViewer. Maps: OpenFreeMap, © OpenStreetMap.
         Circuit layouts: F1DB (CC BY 4.0), bacinger/f1-circuits (MIT).
       </footer>
       <nav
         aria-label="Main (tabs)"
-        className="fixed inset-x-0 bottom-0 z-30 flex border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 flex border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur xl:hidden"
       >
         <Suspense>
           <NavLinks variant="tabs" />

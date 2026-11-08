@@ -210,30 +210,32 @@
   }
 }
 
-/* react-grid-layout: themed drop placeholder and resize grip. */
-.react-grid-item.react-grid-placeholder {
+/* react-grid-layout: themed drop placeholder and resize grip. Scoped under .react-grid-layout to outrank the library's
+   stylesheet, which loads later with equal specificity (its rotated edge handles otherwise stick out of tall panels and
+   widen the page on touch browsers). */
+.react-grid-layout .react-grid-item.react-grid-placeholder {
   background: var(--live);
   opacity: 0.12;
 }
-.react-grid-item > .react-resizable-handle {
+.react-grid-layout .react-grid-item > .react-resizable-handle {
   z-index: 1;
   opacity: 1;
 }
-.react-grid-item > .react-resizable-handle::after {
+.react-grid-layout .react-grid-item > .react-resizable-handle::after {
   border-color: var(--muted-foreground);
 }
-.react-grid-item > .react-resizable-handle-se::after {
+.react-grid-layout .react-grid-item > .react-resizable-handle-se::after {
   right: 4px;
   bottom: 4px;
   width: 8px;
   height: 8px;
 }
-.react-grid-item > .react-resizable-handle:hover::after,
-.react-grid-item.resizing > .react-resizable-handle::after {
+.react-grid-layout .react-grid-item > .react-resizable-handle:hover::after,
+.react-grid-layout .react-grid-item.resizing > .react-resizable-handle::after {
   border-color: var(--live);
 }
 /* Edge handles: a full-length strip that shows a red line on hover. */
-.react-grid-item > .react-resizable-handle.react-resizable-handle-e {
+.react-grid-layout .react-grid-item > .react-resizable-handle.react-resizable-handle-e {
   top: 0;
   right: -5px;
   width: 10px;
@@ -241,7 +243,7 @@
   margin-top: 0;
   transform: none;
 }
-.react-grid-item > .react-resizable-handle.react-resizable-handle-s {
+.react-grid-layout .react-grid-item > .react-resizable-handle.react-resizable-handle-s {
   bottom: -5px;
   left: 0;
   width: 100%;
@@ -249,18 +251,18 @@
   margin-left: 0;
   transform: none;
 }
-.react-grid-item > .react-resizable-handle-e::after,
-.react-grid-item > .react-resizable-handle-s::after {
+.react-grid-layout .react-grid-item > .react-resizable-handle-e::after,
+.react-grid-layout .react-grid-item > .react-resizable-handle-s::after {
   inset: 4px 0;
   width: auto;
   height: auto;
   border: 0;
 }
-.react-grid-item > .react-resizable-handle-e::after {
+.react-grid-layout .react-grid-item > .react-resizable-handle-e::after {
   inset: 0 4px;
 }
-.react-grid-item > .react-resizable-handle-e:hover::after,
-.react-grid-item > .react-resizable-handle-s:hover::after {
+.react-grid-layout .react-grid-item > .react-resizable-handle-e:hover::after,
+.react-grid-layout .react-grid-item > .react-resizable-handle-s:hover::after {
   background: var(--live);
 }
 
