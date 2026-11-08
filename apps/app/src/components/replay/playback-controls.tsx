@@ -5,6 +5,7 @@ import { FlagIcon, LoaderCircleIcon, PauseIcon, PlayIcon } from "lucide-react";
 import { useEffect, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuGroup, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { fmtClock, fmtElapsed } from "@/lib/format";
@@ -261,8 +262,17 @@ export function PlaybackControls({
         </ol>
       )}
       <p className="hidden text-[11px] text-muted-foreground md:block">
-        Keys: <kbd className="font-mono">Space</kbd> play/pause · <kbd className="font-mono">←</kbd> <kbd className="font-mono">→</kbd> 10 s (Shift: 1 min) ·{" "}
-        <kbd className="font-mono">[</kbd> <kbd className="font-mono">]</kbd> speed
+        Keys: <Kbd>Space</Kbd> play/pause ·{" "}
+        <KbdGroup>
+          <Kbd>←</Kbd>
+          <Kbd>→</Kbd>
+        </KbdGroup>{" "}
+        10 s (<Kbd>Shift</Kbd> 1 min) ·{" "}
+        <KbdGroup>
+          <Kbd>[</Kbd>
+          <Kbd>]</Kbd>
+        </KbdGroup>{" "}
+        speed
       </p>
     </div>
   );
