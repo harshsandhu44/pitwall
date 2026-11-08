@@ -289,6 +289,8 @@ export interface ReplayDriver {
   colour: string | null;
   /** Jolpica driver id when it could be matched by code or number. */
   driverId: string | null;
+  /** Jolpica constructor id when the team name is mapped. */
+  teamId: string | null;
 }
 
 export interface ReplayLap {

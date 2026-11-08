@@ -170,6 +170,7 @@ export function toDrivers(raw: Raw<typeof ODriver>, season: number): ReplayDrive
         team: d.team_name ?? null,
         colour: d.team_colour && /^[0-9a-f]{6}$/i.test(d.team_colour) ? `#${d.team_colour}` : null,
         driverId: driverIdFor(season, d.driver_number),
+        teamId: constructorFor(season, d.team_name).id || null,
       },
     ];
   });

@@ -2,6 +2,7 @@
 
 import { type ChampionshipBase, type ProjectedEntry, projectStandings, type ReplayDriver, type TimingRow } from "@pitwall/shared";
 import { QueryState } from "@/components/data/query-state";
+import { TeamEmblem } from "@/components/racing/team-mark";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useApi } from "@/lib/api";
@@ -18,7 +19,7 @@ function Moved({ n }: { n: number }) {
   );
 }
 
-function Table<K extends string | number>({ entries, name, colour, live }: { entries: ProjectedEntry<K>[]; name: (k: K) => string; colour: (k: K) => string | null; live: boolean }) {
+function Table<K extends string | number>({ entries, name, driver, live }: { entries: ProjectedEntry<K>[]; name: (k: K) => string; driver: (k: K) => ReplayDriver | undefined; live: boolean }) {
   return (
     <table className="w-full text-xs">
       <thead className="text-muted-foreground">
@@ -41,7 +42,7 @@ function Table<K extends string | number>({ entries, name, colour, live }: { ent
             )}
             <td className="font-sans">
               <span className="inline-flex items-center gap-1.5">
-                <span aria-hidden className="h-3 w-1 rounded-full bg-muted-foreground/40" style={{ backgroundColor: colour(e.key) ?? undefined }} />
+                <TeamEmblem id={driver(e.key)?.teamId} colour={driver(e.key)?.colour ?? null} className="mr-0" />
                 {name(e.key)}
               </span>
             </td>
@@ -80,7 +81,7 @@ export function Championship({
     <QueryState query={base} loading={<Skeleton className="h-48 w-full" />}>
       {(b) => {
         const p = projectStandings(b, projected ? rows : [], drivers, sprint, season);
-        const teamColour = (team: string) => drivers.find((d) => d.team === team)?.colour ?? null;
+        const teamDriver = (team: string) => drivers.find((d) => d.team === team);
         return (
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">
@@ -96,11 +97,11 @@ export function Championship({
                   entries={p.drivers}
                   live={projected}
                   name={(n: number) => byNumber.get(n)?.acronym ?? String(n)}
-                  colour={(n: number) => byNumber.get(n)?.colour ?? null}
+                  driver={(n: number) => byNumber.get(n)}
                 />
               </TabsContent>
               <TabsContent value="teams">
-                <Table entries={p.teams} live={projected} name={(t: string) => t} colour={teamColour} />
+                <Table entries={p.teams} live={projected} name={(t: string) => t} driver={teamDriver} />
               </TabsContent>
             </Tabs>
           </div>

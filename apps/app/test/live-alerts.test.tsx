@@ -13,7 +13,7 @@ function snap(raceControl: LiveTimingSnapshot["raceControl"], radio: LiveTimingS
   // Status and stewards left out, as from an older API: derived from race control, as the app does.
   return {
     session: { key: 1, meetingName: "Singapore Grand Prix", name: "Race", type: "Race" },
-    drivers: [{ number: 4, acronym: "NOR", name: "Lando Norris", team: "McLaren", colour: "#FF8000", driverId: "norris" }],
+    drivers: [{ number: 4, acronym: "NOR", name: "Lando Norris", team: "McLaren", colour: "#FF8000", driverId: "norris", teamId: "mclaren" }],
     raceControl,
     radio,
   } as Partial<LiveTimingSnapshot> as LiveTimingSnapshot;

@@ -50,8 +50,8 @@ describe("live page", () => {
         session: { key: 11390, meetingName: "Singapore Grand Prix", name: "Race", type: "Race" },
         observedAt: "2026-10-11T12:30:00.000Z",
         drivers: [
-          { number: 1, acronym: "VER", name: "Max Verstappen", team: "Red Bull Racing", colour: "#3671C6", driverId: "max_verstappen" },
-          { number: 4, acronym: "NOR", name: "Lando Norris", team: "McLaren", colour: "#FF8000", driverId: "norris" },
+          { number: 1, acronym: "VER", name: "Max Verstappen", team: "Red Bull Racing", colour: "#3671C6", driverId: "max_verstappen", teamId: "red_bull" },
+          { number: 4, acronym: "NOR", name: "Lando Norris", team: "McLaren", colour: "#FF8000", driverId: "norris", teamId: "mclaren" },
         ],
         rows: [
           { driver: 4, position: 1, gap: 0, interval: 0, lap: 30, lastLap: 98.1, bestLap: 97.5, compound: "MEDIUM", tyreAge: 12, pits: 1, startPosition: null, sectors: [null, null, null], sectorMark: [null, null, null] },
@@ -114,7 +114,7 @@ describe("live page", () => {
       timing: {
         session: { key: 11384, meetingName: "Singapore Grand Prix", name: "Qualifying", type: "Qualifying" },
         observedAt: new Date(T + 31 * MIN).toISOString(),
-        drivers: cars.map((n) => ({ number: n, acronym: `D${String(n).padStart(2, "0")}`, name: `Driver ${n}`, team: null, colour: null, driverId: null })),
+        drivers: cars.map((n) => ({ number: n, acronym: `D${String(n).padStart(2, "0")}`, name: `Driver ${n}`, team: null, colour: null, driverId: null, teamId: null })),
         rows: cars.map((n) => ({ driver: n, position: n, gap: null, interval: null, lap: 2, lastLap: null, bestLap: null, compound: "SOFT", tyreAge: 1, pits: 0, startPosition: null, sectors: [null, null, null], sectorMark: [null, null, null] })),
         raceControl: messages,
         status: { kind: "green", label: "Green flag", sectors: [] },

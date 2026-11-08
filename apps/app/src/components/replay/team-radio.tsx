@@ -4,6 +4,7 @@ import type { ReplayDriver, SessionReplay } from "@pitwall/shared";
 import { ChevronUpIcon, PauseIcon, PlayIcon, RadioIcon } from "lucide-react";
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { EmptyState } from "@/components/data/query-state";
+import { TeamEmblem } from "@/components/racing/team-mark";
 import { fmtClock } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -79,7 +80,7 @@ export function TeamRadio({
                 >
                   {on ? <PauseIcon aria-hidden className="size-3" /> : <PlayIcon aria-hidden className="size-3" />}
                 </button>
-                <span aria-hidden className="h-2.5 w-1 rounded-full bg-muted-foreground/40" style={d?.colour ? { backgroundColor: d.colour } : undefined} />
+                <TeamEmblem id={d?.teamId} colour={d?.colour ?? null} className="mr-0" />
                 <span className="font-mono font-medium">{name}</span>
                 <span className="font-mono text-[11px] text-muted-foreground tabular-nums">{fmtClock(c.t)}</span>
                 {mine && (
