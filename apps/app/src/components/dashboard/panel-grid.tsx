@@ -16,6 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Kbd } from "@/components/ui/kbd";
 import { COLS, type Direction, move, readingOrder, resize, swap } from "@/lib/layout";
 import { useArrival } from "@/lib/motion";
 import { cn } from "@/lib/utils";
@@ -324,7 +325,7 @@ function Panel({
             <Button variant="outline" size="sm" onClick={onRestore} autoFocus>
               <MinimizeIcon aria-hidden />
               Restore
-              <kbd className="hidden font-mono text-[10px] text-muted-foreground md:inline">Esc</kbd>
+              <Kbd className="hidden md:inline-flex">Esc</Kbd>
             </Button>
           ) : (
             <DropdownMenu>

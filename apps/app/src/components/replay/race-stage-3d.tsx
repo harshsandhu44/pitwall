@@ -10,6 +10,7 @@ import { typing } from "@/components/replay/playback-controls";
 import { battlesOf, type CarMark, TrackCanvas } from "@/components/replay/track-canvas";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Kbd } from "@/components/ui/kbd";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { SceneState, View } from "@/lib/race-scene";
 import { cn } from "@/lib/utils";
@@ -243,11 +244,17 @@ export function RaceStage3D({
             <ToggleGroupItem value="overview">Overview</ToggleGroupItem>
             <ToggleGroupItem value="follow">Follow</ToggleGroupItem>
           </ToggleGroup>
-          <Link href={dashboard} aria-keyshortcuts="Escape" title="Back to the dashboard (Esc)" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "bg-card", tuck)}>
+          <Link href={dashboard} aria-keyshortcuts="Escape" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "bg-card", tuck)}>
             <XIcon aria-hidden /> Exit 3D
+            <Kbd aria-hidden className="hidden md:inline-flex">
+              Esc
+            </Kbd>
           </Link>
           <Button variant="outline" size="sm" onClick={tv.toggle} aria-keyshortcuts="F" className={cn("bg-card", tuck)}>
             {tv.full ? <MinimizeIcon aria-hidden /> : <MaximizeIcon aria-hidden />} {tv.full ? "Exit fullscreen" : "Fullscreen"}
+            <Kbd aria-hidden className="hidden md:inline-flex">
+              F
+            </Kbd>
           </Button>
         </header>
         {playback && (
