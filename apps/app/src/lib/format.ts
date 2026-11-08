@@ -72,6 +72,13 @@ export const formatHour = (iso: string, timeZone?: string) =>
 export const fmtLap = (s: number | null) => (s === null ? "—" : `${Math.floor(s / 60)}:${(s % 60).toFixed(3).padStart(6, "0")}`);
 /** Seconds as "+1.234", or OpenF1's own text such as "+1 LAP". */
 export const fmtGap = (v: number | string | null) => (v === null ? "—" : typeof v === "string" ? v : `+${v.toFixed(3)}`);
+/** A signed difference in seconds: "+0.123", "−0.045". */
+export const fmtDelta = (v: number | null) => (v === null ? "—" : `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(3)}`);
+/** A session clock: "18:00", "0:42". */
+export const fmtMinutes = (ms: number) => {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+};
 export const fmtClock = (ms: number) =>
   new Date(ms).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZoneName: "short" });
 export function fmtElapsed(ms: number) {

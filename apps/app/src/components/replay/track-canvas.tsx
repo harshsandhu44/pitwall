@@ -18,6 +18,9 @@ const BATTLE_S = 1;
 
 export type Battle = { ahead: number; behind: number; interval: number };
 
+/** Qualifying: "dim" for a car not on a push lap, "danger" for a push lap from the drop zone. */
+export type CarMark = "dim" | "danger";
+
 /** Consecutive cars in the running order less than BATTLE_S apart (races and sprints publish intervals). */
 export function battlesOf(rows: TimingRow[]): Battle[] {
   const order = rows.filter((r) => r.position !== null).sort((a, b) => a.position! - b.position!);
@@ -25,6 +28,9 @@ export function battlesOf(rows: TimingRow[]): Battle[] {
     i > 0 && typeof r.interval === "number" && r.interval > 0 && r.interval < BATTLE_S ? [{ ahead: order[i - 1]!.driver, behind: r.driver, interval: r.interval }] : [],
   );
 }
+
+/** Opacity of a car that isn't on a push lap (qualifying). */
+const DIM = 0.3;
 
 // Trails: this many past positions, this far apart, behind each car.
 const TRAIL = 20;
@@ -43,6 +49,7 @@ export function TrackCanvas({
   follow,
   interpolate,
   battles = [],
+  marks,
   onSelect,
 }: {
   track: SessionReplay["track"];
@@ -55,6 +62,8 @@ export function TrackCanvas({
   interpolate: boolean;
   /** Pairs to link on the map (battlesOf the timing rows). Read each frame, so a new array doesn't restart the loop. */
   battles?: Battle[];
+  /** Read each frame, like battles. */
+  marks?: Map<number, CarMark>;
   /** Clicking (not dragging) within 12 px of a car selects it. */
   onSelect?: (driver: number) => void;
 }) {
@@ -65,8 +74,10 @@ export function TrackCanvas({
   const drawn = useRef<{ driver: number; x: number; y: number }[]>([]);
   const scaleRef = useRef(1);
   const battlesRef = useRef(battles);
+  const marksRef = useRef(marks);
   useLayoutEffect(() => {
     battlesRef.current = battles;
+    marksRef.current = marks;
   });
   const { resolvedTheme } = useTheme();
 
@@ -186,7 +197,7 @@ export function TrackCanvas({
             ctx.moveTo(px, py);
             ctx.lineTo(qx, qy);
             ctx.strokeStyle = d.colour ?? fg;
-            ctx.globalAlpha = 0.7 * (1 - k / TRAIL);
+            ctx.globalAlpha = 0.7 * (1 - k / TRAIL) * (marksRef.current?.get(d.number) === "dim" ? DIM : 1);
             ctx.lineWidth = 4 * (1 - k / TRAIL) + 0.5;
             ctx.stroke();
             [px, py] = [qx, qy];
@@ -225,6 +236,8 @@ export function TrackCanvas({
         const y = sy(fix.y);
         const colour = d.colour ?? fg;
         const sel = d.number === selected;
+        const mark = marksRef.current?.get(d.number);
+        ctx.globalAlpha = mark === "dim" && !sel ? DIM : 1;
         ctx.beginPath();
         ctx.arc(x, y, sel ? 7 : 5, 0, Math.PI * 2);
         if (fix.kind === "stale") {
@@ -240,6 +253,13 @@ export function TrackCanvas({
           ctx.fill();
           ctx.strokeStyle = bg;
           ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+        if (mark === "danger") {
+          ctx.beginPath();
+          ctx.arc(x, y, sel ? 9 : 8, 0, Math.PI * 2);
+          ctx.strokeStyle = live;
+          ctx.lineWidth = 2;
           ctx.stroke();
         }
         if (sel) {

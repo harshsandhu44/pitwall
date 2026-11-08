@@ -1,6 +1,6 @@
 "use client";
 
-import { type SessionReplay, stewardsAt } from "@pitwall/shared";
+import { qualifyingContext, type SessionReplay, stewardsAt } from "@pitwall/shared";
 import { LoaderCircleIcon, PauseIcon, PlayIcon } from "lucide-react";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 
 export interface Marker {
   t: number;
-  kind: "sc" | "vsc" | "red" | "penalty" | "lap";
+  kind: "sc" | "vsc" | "red" | "penalty" | "lap" | "segment";
   label: string;
 }
 
@@ -21,9 +21,10 @@ const MARK: Record<Marker["kind"], string> = {
   red: "h-3 w-1.5 bg-live",
   penalty: "h-2 w-1.5 rounded-full bg-foreground",
   lap: "h-1.5 w-px bg-muted-foreground/60",
+  segment: "h-3 w-0.5 bg-foreground",
 };
 
-/** Safety cars, red flags, penalties and every fifth lap of the leader, for the timeline. */
+/** Safety cars, red flags, penalties and every fifth lap of the leader (qualifying: each segment's start), for the timeline. */
 export function replayMarkers(r: SessionReplay): Marker[] {
   const out: Marker[] = [];
   for (const m of r.raceControl) {
@@ -34,6 +35,10 @@ export function replayMarkers(r: SessionReplay): Marker[] {
   }
   // Markers are navigation, so the whole session's penalties show, not just those published by the cursor.
   for (const p of stewardsAt(r.raceControl, Infinity)) if (p.kind === "penalty") out.push({ t: p.t, kind: "penalty", label: `Penalty: ${p.text}` });
+  if (r.session.type === "Qualifying") {
+    for (const s of qualifyingContext(r.raceControl, r.session.name).segments) out.push({ t: s.start, kind: "segment", label: `${s.label} starts` });
+    return out.sort((a, b) => a.t - b.t);
+  }
   const starts = new Map<number, number>();
   for (const l of Object.values(r.laps).flat()) if (l.start !== null && l.start < (starts.get(l.lap) ?? Infinity)) starts.set(l.lap, l.start);
   for (const [lap, t] of starts) if (lap === 1 || lap % 5 === 0) out.push({ t, kind: "lap", label: `Lap ${lap}` });
