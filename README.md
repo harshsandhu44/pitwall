@@ -59,7 +59,8 @@ Every page also takes `?season=`. Query parameters, not path segments, keep the 
 - **Motion:** GSAP, for arrival only (`src/lib/motion.tsx`): titles rise, the red stripe wipes in, rows and panels stagger, points count up, countdown digits roll. Reduced motion renders it all static.
 - **Loading:** the first load of a session plays five start lights, then lights out; each page change runs a red broadcast wipe under the header (CSS, `globals.css`). Both are off under reduced motion.
 - **Circuits in 3D:** the home hero and the weekend page draw the circuit layout as a road in Three.js (`src/lib/circuit-scene.ts`, after drive.harshsandhu.com) on a transparent canvas, lit for the race's local start time. It loads on demand; without WebGL the flat outline stays.
-- **Navigation:** a top bar, and a bottom tab bar on phones. Live gets a dot while the calendar says a session is in its slot (no extra requests).
+- **Navigation:** a bottom tab bar under 1280 px (phones and tablets), and from 1280 px the labelled links centered in the top bar. Live gets a dot while the calendar says a session is in its slot (no extra requests).
+- **Touch screens** (`pointer: coarse`): controls and menu items grow to 44 px, keyboard hints hide, and timeline markers get fingertip spacing, showing what an event is on the first tap and jumping on the second. The 3D stage puts its panels around the circuit from 1024 px and stacks them below it on narrower screens. Menus, selects and tooltips render inside the fullscreen element, so they work in fullscreen.
 
 ## Dashboard panels
 

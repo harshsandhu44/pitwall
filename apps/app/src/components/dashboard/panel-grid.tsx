@@ -325,7 +325,7 @@ function Panel({
             <Button variant="outline" size="sm" onClick={onRestore} autoFocus>
               <MinimizeIcon aria-hidden />
               Restore
-              <Kbd className="hidden md:inline-flex">Esc</Kbd>
+              <Kbd className="hidden pointer-fine:inline-flex">Esc</Kbd>
             </Button>
           ) : (
             <DropdownMenu>

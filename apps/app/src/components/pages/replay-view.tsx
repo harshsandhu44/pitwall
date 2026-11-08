@@ -395,7 +395,7 @@ function Player({ replay, res }: { replay: SessionReplay; res: ApiResponse<Sessi
         presets={PRESETS}
         footer={
           // Outside the panels: hiding or scrolling past the Track panel never loses playback. Sits above the phone tab bar.
-          <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 space-y-2 border bg-background/95 p-3 backdrop-blur md:bottom-0">
+          <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 space-y-2 border bg-background/95 p-3 backdrop-blur xl:bottom-0">
             <PlaybackControls
               state={clock.state}
               range={replay.range}

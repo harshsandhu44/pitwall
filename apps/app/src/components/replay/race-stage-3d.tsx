@@ -213,23 +213,23 @@ export function RaceStage3D({
     <div
       ref={root}
       className={cn(
-        "fixed inset-x-0 top-[calc(3.5rem+1px)] bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-10 bg-background md:bottom-0",
+        "fixed inset-x-0 top-[calc(3.5rem+1px)] bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-10 bg-background xl:bottom-0",
         tv.theater && "inset-0 z-40",
         off && "cursor-none",
       )}
     >
       <div
         className={cn(
-          "relative flex h-full flex-col overflow-y-auto md:pointer-events-none md:grid md:grid-cols-[18.5rem_minmax(0,1fr)_21.5rem] md:grid-rows-[auto_minmax(0,1fr)_auto] md:gap-3 md:overflow-hidden md:p-4 md:perspective-[2000px] md:*:pointer-events-auto",
+          "relative flex h-full flex-col overflow-y-auto lg:pointer-events-none lg:grid lg:grid-cols-[18.5rem_minmax(0,1fr)_21.5rem] lg:grid-rows-[auto_minmax(0,1fr)_auto] lg:gap-3 lg:overflow-hidden lg:p-4 lg:perspective-[2000px] lg:*:pointer-events-auto",
           tv.full && "justify-between overflow-hidden",
         )}
       >
-        <div className={cn("order-2 h-[45dvh] shrink-0 border-y md:absolute md:inset-0 md:h-auto md:border-0", tv.full && "absolute inset-0 h-auto border-0")}>
+        <div className={cn("order-2 h-[45dvh] shrink-0 border-y lg:absolute lg:inset-0 lg:h-auto lg:border-0", tv.full && "absolute inset-0 h-auto border-0")}>
           <RaceScene {...scene} view={view} />
         </div>
         <header
           data-chrome
-          className="z-10 order-1 flex flex-wrap items-center gap-x-3 gap-y-1 p-3 md:col-start-2 md:row-start-1 md:justify-center md:self-start md:p-0 md:text-center"
+          className="z-10 order-1 flex flex-wrap items-center gap-x-3 gap-y-1 p-3 lg:col-start-2 lg:row-start-1 lg:justify-center lg:self-start lg:p-0 lg:text-center"
         >
           <div className="min-w-0 basis-full">
             <h1 className="truncate font-display text-lg leading-tight font-black tracking-tight uppercase italic">{title}</h1>
@@ -249,19 +249,19 @@ export function RaceStage3D({
           </ToggleGroup>
           <Link href={dashboard} aria-keyshortcuts="Escape" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "bg-card", tuck)}>
             <XIcon aria-hidden /> Exit 3D
-            <Kbd aria-hidden className="hidden md:inline-flex">
+            <Kbd aria-hidden className="hidden pointer-fine:inline-flex">
               Esc
             </Kbd>
           </Link>
           <Button variant="outline" size="sm" onClick={tv.toggle} aria-keyshortcuts="F" className={cn("bg-card", tuck)}>
             {tv.full ? <MinimizeIcon aria-hidden /> : <MaximizeIcon aria-hidden />} {tv.full ? "Exit fullscreen" : "Fullscreen"}
-            <Kbd aria-hidden className="hidden md:inline-flex">
+            <Kbd aria-hidden className="hidden pointer-fine:inline-flex">
               F
             </Kbd>
           </Button>
         </header>
         {(playback || radio) && (
-          <div data-chrome className={cn(fade, "sticky bottom-0 z-10 order-3 border-b bg-background/95 p-3 backdrop-blur md:static md:col-start-2 md:row-start-3 md:self-end md:justify-self-center md:border md:bg-card md:p-3 md:backdrop-blur-none lg:w-[40rem]")}>
+          <div data-chrome className={cn(fade, "sticky bottom-0 z-10 order-3 border-b bg-background/95 p-3 backdrop-blur lg:static lg:col-start-2 lg:row-start-3 lg:self-end lg:justify-self-center lg:border lg:bg-card lg:p-3 lg:backdrop-blur-none lg:w-[40rem]")}>
             {radio}
             {playback}
           </div>
@@ -269,22 +269,22 @@ export function RaceStage3D({
         <Panel
           title="Timing"
           className={cn(
-            "order-5 mx-3 mb-3 md:z-10 md:col-start-1 md:row-span-3 md:row-start-1 md:m-0 md:max-h-full md:origin-left md:self-start md:rotate-y-8",
-            tv.full && "max-md:hidden",
+            "order-5 mx-3 mb-3 lg:z-10 lg:col-start-1 lg:row-span-3 lg:row-start-1 lg:m-0 lg:max-h-full lg:origin-left lg:self-start lg:rotate-y-8",
+            tv.full && "max-lg:hidden",
           )}
         >
           {tower}
         </Panel>
         <div
           className={cn(
-            "order-4 flex min-h-0 flex-col gap-3 p-3 md:z-10 md:col-start-3 md:row-span-3 md:row-start-1 md:origin-right md:p-0 md:-rotate-y-8",
-            tv.full && "max-md:hidden",
+            "order-4 flex min-h-0 flex-col gap-3 p-3 lg:z-10 lg:col-start-3 lg:row-span-3 lg:row-start-1 lg:origin-right lg:p-0 lg:-rotate-y-8",
+            tv.full && "max-lg:hidden",
           )}
         >
           <Panel title="Driver focus" className="shrink-0">
             {focus}
           </Panel>
-          <Panel title={feedTitle} className="md:flex-1">
+          <Panel title={feedTitle} className="lg:flex-1">
             {feed}
           </Panel>
         </div>

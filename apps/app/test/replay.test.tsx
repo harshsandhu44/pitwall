@@ -80,6 +80,19 @@ describe("replay playback", () => {
     expect(stackMarkers([{ t: 1 }, { t: 2 }], (t) => t, 0)).toHaveLength(2); // not measured yet
   });
 
+  it("on touch screens, shows what a marker is on the first tap and jumps on the second", async () => {
+    const plain = window.matchMedia;
+    window.matchMedia = (q: string) => ({ ...plain(q), matches: q === "(pointer: coarse)" });
+    render(<Player markers={[{ t: range.start + 1_800_000, kind: "red", group: "flags", label: "Red flag, lap 23" }]} />);
+    const dot = screen.getByRole("button", { name: "Jump to Red flag, lap 23" });
+    fireEvent.click(dot);
+    expect(await screen.findByText("Tap again to jump")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(/^0\|/); // not yet
+    fireEvent.click(dot);
+    expect(screen.getByRole("status")).toHaveTextContent(/^1800000\|/);
+    window.matchMedia = plain;
+  });
+
   it("shows the event groups picked in the Events menu, remembered, with team radio off at first", async () => {
     const store = new Map<string, string>(); // this jsdom setup has no Web Storage
     vi.stubGlobal("localStorage", { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => store.set(k, v) });
@@ -91,7 +104,7 @@ describe("replay playback", () => {
     render(<Player markers={markers} onMarker={onMarker} />);
     expect(screen.queryByRole("button", { name: "Jump to VER team radio" })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Events" }));
-    await userEvent.click(screen.getByRole("menuitemcheckbox", { name: "Team radio" }));
+    await userEvent.click(await screen.findByRole("menuitemcheckbox", { name: "Team radio" })); // the menu can open a tick later
     await userEvent.click(screen.getByRole("menuitemcheckbox", { name: "Yellow flags" }));
     await userEvent.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument()); // an open menu hides the page from the a11y tree

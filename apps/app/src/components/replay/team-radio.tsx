@@ -75,7 +75,7 @@ export function TeamRadio({
                   aria-pressed={on}
                   aria-label={`${on ? "Pause" : "Play"} ${name} team radio, ${fmtClock(c.t)}`}
                   onClick={() => toggle(c.url)}
-                  className="inline-flex size-6 shrink-0 items-center justify-center border hover:border-live hover:text-live aria-pressed:border-live aria-pressed:text-live"
+                  className="inline-flex size-6 shrink-0 items-center justify-center border pointer-coarse:size-11 hover:border-live hover:text-live aria-pressed:border-live aria-pressed:text-live"
                 >
                   {on ? <PauseIcon aria-hidden className="size-3" /> : <PlayIcon aria-hidden className="size-3" />}
                 </button>
@@ -151,7 +151,7 @@ export function TeamRadioDrawer(props: Parameters<typeof TeamRadio>[0]) {
   const count = props.clips.filter((c) => c.t <= props.t).length;
   return (
     <section className="text-xs not-last:mb-2 not-last:border-b not-last:pb-2">
-      <button type="button" aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)} className="flex w-full items-center gap-2 font-medium hover:text-live">
+      <button type="button" aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)} className="flex w-full items-center gap-2 font-medium hover:text-live pointer-coarse:min-h-11">
         <RadioIcon aria-hidden className="size-3.5" />
         Team radio
         <span className="font-normal text-muted-foreground">{count === 1 ? "1 clip" : `${count} clips`}</span>

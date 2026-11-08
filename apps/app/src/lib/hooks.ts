@@ -89,3 +89,28 @@ export const useTeamColours = (season: number) => useApi<Record<string, string>>
 export const useReplaySessions = (season: number | null) =>
   useApi<ReplaySession[]>(season !== null && season >= 2023 ? `/api/replay/sessions?season=${season}` : null);
 export const useReplay = (key: number | null) => useApi<SessionReplay>(key === null ? null : `/api/replay/${key}`);
+
+/** Whether a media query matches, e.g. `(pointer: coarse)` for touch screens. False on the server. */
+export function useMedia(query: string) {
+  return useSyncExternalStore(
+    (cb) => {
+      const m = window.matchMedia(query);
+      m.addEventListener("change", cb);
+      return () => m.removeEventListener("change", cb);
+    },
+    () => window.matchMedia(query).matches,
+    () => false,
+  );
+}
+
+/** The element in browser fullscreen, if any. Only its subtree shows in fullscreen, so popups portal into it. */
+export function useFullscreenElement() {
+  return useSyncExternalStore(
+    (cb) => {
+      document.addEventListener("fullscreenchange", cb);
+      return () => document.removeEventListener("fullscreenchange", cb);
+    },
+    () => (document.fullscreenElement as HTMLElement | null) ?? undefined,
+    () => undefined,
+  );
+}

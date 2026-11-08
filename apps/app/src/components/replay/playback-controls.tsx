@@ -9,6 +9,7 @@ import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { fmtClock, fmtElapsed } from "@/lib/format";
+import { useMedia } from "@/lib/hooks";
 import { type ClockState, SPEEDS, type Speed } from "@/lib/replay-clock";
 import { cn } from "@/lib/utils";
 
@@ -96,19 +97,19 @@ export function replayMarkers(r: SessionReplay): Marker[] {
 }
 
 // The groups shown, one saved set for every replay. Team radio starts off: some sessions have hundreds of clips.
-const DOT = 10; // px: a dot and its gap
+const DOT = 10; // px: a dot and its gap (24 on touch screens, a fingertip)
 const TALL = 3; // dots in a stack; beyond that the last becomes "+N"
 
 /**
- * Markers (sorted by t) grouped into stacks: one closer than a dot to a stack's first marker joins it. `at` maps a time
+ * Markers (sorted by t) grouped into stacks: one closer than `gap` px to a stack's first marker joins it. `at` maps a time
  * to 0–1 along the bar, clamped, so clips before the session pin to the start. `width` is the bar in px; 0 stacks nothing.
  */
-export function stackMarkers<T extends { t: number }>(markers: T[], at: (t: number) => number, width: number) {
+export function stackMarkers<T extends { t: number }>(markers: T[], at: (t: number) => number, width: number, gap = DOT) {
   const stacks: { x: number; items: T[] }[] = [];
   for (const m of markers) {
     const x = Math.min(1, Math.max(0, at(m.t)));
     const last = stacks.at(-1);
-    if (last && width && (x - last.x) * width < DOT) last.items.push(m);
+    if (last && width && (x - last.x) * width < gap) last.items.push(m);
     else stacks.push({ x, items: [m] });
   }
   return stacks;
@@ -192,7 +193,14 @@ export function PlaybackControls({
     return () => window.removeEventListener("keydown", onKey);
   }, [state, range, onPlay, onPause, onSeek, onSpeed]);
   const frac = (t: number) => (t - range.start) / (range.end - range.start);
-  const stacks = stackMarkers(shown, frac, width);
+  // On touch, dots get a fingertip each, and the first tap shows what a dot is (the tooltip); the second acts.
+  const touch = useMedia("(pointer: coarse)");
+  const dot = touch ? 24 : DOT;
+  const [tip, setTip] = useState<string | null>(null);
+  const tap = (key: string, act: () => void) => (touch && tip !== key ? setTip(key) : act());
+  const tipProps = (key: string) => ({ open: tip === key, onOpenChange: (open: boolean) => setTip((cur) => (open ? key : cur === key ? null : cur)) });
+  const again = touch ? "Tap again to" : "Click to";
+  const stacks = stackMarkers(shown, frac, width, dot);
   const rows = Math.max(1, ...stacks.map((s) => Math.min(TALL, s.items.length)));
   const jump = (m: Marker) => {
     onSeek(m.t);
@@ -263,46 +271,49 @@ export function PlaybackControls({
         className="w-full accent-foreground"
       />
       {shown.length > 0 && (
-        <ol ref={measure} aria-label="Session events" className="relative -mt-1" style={{ height: rows * DOT + 2 }}>
+        <ol ref={measure} aria-label="Session events" className="relative -mt-1" style={{ height: rows * dot + 2 }}>
           {stacks.flatMap((s, si) => {
             const left = `calc(0.5rem + (100% - 1rem) * ${s.x})`;
             const over = s.items.length > TALL;
             const dots = over ? s.items.slice(0, TALL - 1) : s.items;
             const rest = s.items.slice(TALL - 1);
             return [
-              ...dots.map((m, row) => (
-                <li key={`${m.kind}-${m.t}-${si}-${row}`} className="absolute" style={{ left, top: row * DOT + 2 }}>
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={
-                        <button
-                          type="button"
-                          aria-label={`Jump to ${m.label}`}
-                          onClick={() => jump(m)}
-                          className={cn("block size-2 -translate-x-1/2 rounded-full hover:scale-150 focus-visible:outline-2 focus-visible:outline-ring", MARK[m.kind])}
-                        />
-                      }
-                    />
-                    <TooltipContent className="flex-col items-start gap-0.5">
-                      <span className="font-medium">{m.label}</span>
-                      <span className="font-mono tabular-nums opacity-70">
-                        {fmtClock(m.t)} · {m.t < range.start ? "before the start" : `+${fmtElapsed(m.t - range.start)}`}
-                      </span>
-                      {m.url && <span className="opacity-70">Click to play</span>}
-                    </TooltipContent>
-                  </Tooltip>
-                </li>
-              )),
+              ...dots.map((m, row) => {
+                const key = `${m.kind}-${m.t}-${si}-${row}`;
+                return (
+                  <li key={key} className="absolute" style={{ left, top: row * dot + 2 }}>
+                    <Tooltip {...tipProps(key)}>
+                      <TooltipTrigger
+                        render={
+                          <button
+                            type="button"
+                            aria-label={`Jump to ${m.label}`}
+                            onClick={() => tap(key, () => jump(m))}
+                            className={cn("relative block size-2 -translate-x-1/2 rounded-full pointer-coarse:after:absolute pointer-coarse:after:-inset-2 pointer-fine:hover:scale-150 focus-visible:outline-2 focus-visible:outline-ring", MARK[m.kind])}
+                          />
+                        }
+                      />
+                      <TooltipContent className="flex-col items-start gap-0.5">
+                        <span className="font-medium">{m.label}</span>
+                        <span className="font-mono tabular-nums opacity-70">
+                          {fmtClock(m.t)} · {m.t < range.start ? "before the start" : `+${fmtElapsed(m.t - range.start)}`}
+                        </span>
+                        {(m.url || touch) && <span className="opacity-70">{`${again} ${m.url ? "play" : "jump"}`}</span>}
+                      </TooltipContent>
+                    </Tooltip>
+                  </li>
+                );
+              }),
               over && (
-                <li key={`more-${si}`} className="absolute" style={{ left, top: (TALL - 1) * DOT + 1 }}>
-                  <Tooltip>
+                <li key={`more-${si}`} className="absolute" style={{ left, top: (TALL - 1) * dot + 1 }}>
+                  <Tooltip {...tipProps(`more-${si}`)}>
                     <TooltipTrigger
                       render={
                         <button
                           type="button"
                           aria-label={`${rest.length} more events. Jump to ${rest[0]!.label}`}
-                          onClick={() => jump(rest[0]!)}
-                          className="block -translate-x-1/2 rounded-full bg-muted px-1 font-mono text-[9px] leading-[10px] text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+                          onClick={() => tap(`more-${si}`, () => jump(rest[0]!))}
+                          className="relative block -translate-x-1/2 rounded-full pointer-coarse:after:absolute pointer-coarse:after:-inset-2 bg-muted px-1 font-mono text-[9px] leading-[10px] text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
                         >
                           +{rest.length}
                         </button>
@@ -314,7 +325,7 @@ export function PlaybackControls({
                           {m.label} <span className="font-mono tabular-nums opacity-70">{fmtClock(m.t)}</span>
                         </span>
                       ))}
-                      <span className="opacity-70">Click to jump to the first</span>
+                      <span className="opacity-70">{again} jump to the first</span>
                     </TooltipContent>
                   </Tooltip>
                 </li>
@@ -323,7 +334,7 @@ export function PlaybackControls({
           })}
         </ol>
       )}
-      <p className="hidden text-[11px] text-muted-foreground md:block">
+      <p className="hidden text-[11px] text-muted-foreground pointer-fine:block">
         Keys: <Kbd>Space</Kbd> play/pause ·{" "}
         <KbdGroup>
           <Kbd>←</Kbd>
