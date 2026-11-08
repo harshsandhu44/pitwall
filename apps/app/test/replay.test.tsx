@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ReplayView } from "@/components/pages/replay-view";
-import { type Marker, PlaybackControls, replayMarkers } from "@/components/replay/playback-controls";
+import { type Marker, PlaybackControls, replayMarkers, stackMarkers } from "@/components/replay/playback-controls";
 import { TeamRadio } from "@/components/replay/team-radio";
 import { TimingTower, TowerColumnsMenu } from "@/components/replay/timing-tower";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -67,6 +67,17 @@ describe("replay playback", () => {
     expect(screen.getByText(/· \+0:30:00$/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Jump to Safety car, lap 23" }));
     expect(screen.getByRole("status")).toHaveTextContent(/^1800000\|/);
+  });
+
+  it("stacks markers closer than a dot, pinning times outside the bar to its ends", () => {
+    // A 1000 px bar over 0–1000 ms: 1 px per ms; dots are 10 px.
+    const stacks = stackMarkers([-50, -10, 4, 9, 30, 35, 2000].map((t) => ({ t })), (t) => t / 1000, 1000);
+    expect(stacks.map((s) => [s.x, s.items.map((m) => m.t)])).toEqual([
+      [0, [-50, -10, 4, 9]],
+      [0.03, [30, 35]],
+      [1, [2000]],
+    ]);
+    expect(stackMarkers([{ t: 1 }, { t: 2 }], (t) => t, 0)).toHaveLength(2); // not measured yet
   });
 
   it("shows the event groups picked in the Events menu, remembered, with team radio off at first", async () => {
