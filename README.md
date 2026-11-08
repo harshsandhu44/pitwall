@@ -5,8 +5,9 @@ Unofficial Formula 1 dashboard: live timing, schedules, standings, results, race
 | Package | What it is |
 |---|---|
 | `apps/app` | Next.js 16 static export (no server). Talks only to the API. Served as Workers static assets. See [apps/app/README.md](apps/app/README.md). |
+| `apps/mobile` | Expo app (iOS, Android) on the web's design system: home, calendar, standings, the grid, profiles and a phone Live screen. Same API. See [apps/mobile/README.md](apps/mobile/README.md). |
 | `apps/api` | Cloudflare Worker. Validates and normalizes upstream data, caches it (Cache API), and keeps a last-known-good copy in D1. See [apps/api/README.md](apps/api/README.md). |
-| `packages/shared` | Domain types, the API response envelope, the live-timing contract, and pure helpers (schedule state, session weather, replay interpolation and timing) used by both. |
+| `packages/shared` | Domain types, the API response envelope, the live-timing contract, and pure helpers (schedule state, session weather, replay interpolation and timing, display formatting) used by the apps and the API. |
 
 ```
 browser ──► app (static files) ──► api Worker ──► OpenF1 (2023+) · Jolpica (before 2023) · Open-Meteo · RainViewer (metadata)
@@ -23,6 +24,7 @@ pnpm install
 cp apps/app/.env.example apps/app/.env.local      # NEXT_PUBLIC_API_URL=http://localhost:8787
 pnpm --filter api db:migrate:local                # create the local D1 table
 pnpm dev                                          # API on :8787, app on :3000
+pnpm --filter mobile start                        # mobile app in Expo Go (production API unless EXPO_PUBLIC_API_URL is set)
 ```
 
 No accounts or API keys are needed: without an OpenF1 login the API uses OpenF1's free tier. To override API settings locally (for example, CORS origins), copy `apps/api/.dev.vars.example` to `apps/api/.dev.vars`. To check the production build locally, run `pnpm --filter app build && pnpm --filter app preview`, which serves `out/` on :8788.
